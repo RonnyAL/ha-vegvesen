@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 import requests
-from playwright.sync_api import WebSocket, expect, sync_playwright
+from playwright.sync_api import Locator, WebSocket, expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = "http://127.0.0.1:18123"
@@ -87,6 +87,9 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             picker = page.locator("ha-selector-select")
             county = picker
             expect(county).to_have_count(1)
+            expect(county.locator("ha-picker-field")).to_have_js_property(
+                "label", "County"
+            )
             expect(page.get_by_role("link", name="© Kartverket")).to_have_count(0)
             weather_list_seconds = time.monotonic() - weather_started
 
@@ -102,6 +105,18 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_role("button", name="Next", exact=True).click()
             expect(page.get_by_text("Municipality", exact=True).first).to_be_visible()
             select_option("Orkland")
+            page.get_by_role("button", name="Next", exact=True).click()
+            select_option("Change municipality")
+            page.get_by_role("button", name="Submit", exact=True).click()
+            expect(picker.locator("ha-picker-field")).to_have_js_property(
+                "value", "Orkland"
+            )
+            select_option("Change county")
+            page.get_by_role("button", name="Next", exact=True).click()
+            expect(picker.locator("ha-picker-field")).to_have_js_property(
+                "value", "Trøndelag"
+            )
+            page.get_by_role("button", name="Next", exact=True).click()
             page.get_by_role("button", name="Next", exact=True).click()
             select_option("Fv 714 Våvatnet (1629006)")
             page.screenshot(path=str(RESULTS / "weather-selection.png"))
@@ -138,6 +153,110 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             expect(
                 page.get_by_text("Fv 714 Våvatnet (1629006)", exact=True)
             ).to_be_visible()
+            # Exercise actual Norwegian frontend labels, rather than only the
+            # backend translation loader. Use HA's normal language event.
+            page.locator("home-assistant").evaluate("""element =>
+                element.dispatchEvent(new CustomEvent('hass-language-select', {
+                    detail: 'nb', bubbles: true, composed: true
+                }))""")
+            page.wait_for_function(
+                "document.querySelector('home-assistant').hass.language === 'nb'"
+            )
+            page.reload()
+            # Reproduce a browser holding the old attribution strings across a
+            # backend reconnect. Merge fresh websocket resources using HA's own
+            # translation implementation; no product code is injected.
+            page.locator("home-assistant").evaluate("""async element => {
+                for (const category of ['config', 'config_subentries']) {
+                    const old = {};
+                    for (const family of ['weather_station', 'camera']) {
+                        const prefix = category === 'config'
+                            ? `component.vegvesen.config.step.${family}`
+                            : `component.vegvesen.config_subentries.${family}`
+                                + '.step.user';
+                        old[prefix + '.description'] =
+                            'Old attribution: {kartverket_url}';
+                    }
+                    await element._updateResources('nb', old);
+                    const fresh = await element.hass.callWS({
+                        type: 'frontend/get_translations', language: 'nb',
+                        category, integration: ['vegvesen']
+                    });
+                    await element._updateResources('nb', fresh.resources);
+                }
+            }""")
+
+            def flow_button(action: str) -> Locator:
+                label = page.locator("home-assistant").evaluate(
+                    "(element, action) => element.hass.localize("
+                    "'ui.panel.config.integrations.config_flow.' + action)",
+                    action,
+                )
+                return page.get_by_role("button", name=label, exact=True)
+
+            for family, county_label, municipality_label, source_label, field_label in [
+                (
+                    "weather_station",
+                    "Trøndelag",
+                    "Orkland",
+                    "Fv 714 Våvatnet (1629006)",
+                    "Værstasjon",
+                ),
+                (
+                    "camera",
+                    "Møre og Romsdal",
+                    "Herøy",
+                    "Rundebrua — Runde (3000047_2)",
+                    "Veikamera",
+                ),
+            ]:
+                add_label = (
+                    "Legg til værstasjon"
+                    if family == "weather_station"
+                    else "Legg til veikamera"
+                )
+                page.get_by_role("button", name=add_label, exact=True).click()
+                county.or_(parent_choice).wait_for(state="visible")
+                if parent_choice.is_visible():
+                    parent_choice.click()
+                expect(picker.locator("ha-picker-field")).to_have_js_property(
+                    "label", "Fylke"
+                )
+                select_option(county_label)
+                flow_button("next").click()
+                expect(picker.locator("ha-picker-field")).to_have_js_property(
+                    "label", "Kommune"
+                )
+                select_option(municipality_label)
+                flow_button("next").click()
+                expect(picker.locator("ha-picker-field")).to_have_js_property(
+                    "label", field_label
+                )
+                expect(page.get_by_text("MISSING_VALUE", exact=False)).to_have_count(0)
+                expect(page.get_by_role("link", name="© Kartverket")).to_have_count(0)
+                select_option("Endre kommune")
+                flow_button("submit").click()
+                expect(picker.locator("ha-picker-field")).to_have_js_property(
+                    "value", municipality_label
+                )
+                select_option("Endre fylke")
+                flow_button("next").click()
+                expect(picker.locator("ha-picker-field")).to_have_js_property(
+                    "value", county_label
+                )
+                flow_button("next").click()
+                flow_button("next").click()
+                select_option(source_label)
+                page.screenshot(path=str(RESULTS / f"{family}-bokmal.png"))
+                close_label = page.locator("home-assistant").evaluate(
+                    "element => element.hass.localize('ui.common.close')"
+                )
+                page.get_by_role("button", name=close_label, exact=True).click()
+                expect(picker).to_have_count(0)
+            print(
+                "Norwegian field labels and backward navigation verified "
+                "for both source families"
+            )
             deadline = time.monotonic() + 60
             while time.monotonic() < deadline:
                 response = session.get(BASE + "/api/states", timeout=10)
@@ -178,7 +297,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             image.raise_for_status()
             if not image.content.startswith(b"\xff\xd8"):
                 raise RuntimeError("Camera proxy did not return a JPEG")
-            page.get_by_text("2 devices", exact=False).first.wait_for(state="visible")
+            page.get_by_text("2 enheter", exact=False).first.wait_for(state="visible")
             page.screenshot(path=str(RESULTS / "integration.png"))
             page.locator("home-assistant").evaluate(
                 "(element, id) => element.dispatchEvent("

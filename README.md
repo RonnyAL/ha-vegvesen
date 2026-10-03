@@ -37,7 +37,7 @@ Choose **Weather station / Værstasjon** or **Road camera / Veikamera**. Setup u
 2. Select a **municipality / kommune**, then **Next / Neste**.
 3. Select a station or camera, then **Submit / Send inn**.
 
-Only counties and municipalities with sources of the selected type appear. Source labels show the name, camera direction where available, and source ID. To choose a different region, close the unfinished setup and reopen it; the discovery list is reused.
+Only counties and municipalities with sources of the selected type appear. Source labels show the name, camera direction where available, and source ID. To revisit a previous step, choose **Change municipality / Endre kommune** in the source dropdown, or **Change county / Endre fylke** in the municipality dropdown, then use the form button. Your previous choice is retained; changing a region updates the available choices below it.
 
 New or relocated sources without verified administrative membership appear under **Unknown county / Ukjent fylke → Unknown municipality / Ukjent kommune**. Their measurements and identities are unchanged.
 
@@ -66,7 +66,7 @@ To remove one source, remove its station/camera subentry in **Devices & services
 
 **The integration does not appear:** confirm HACS downloaded it, restart Home Assistant, then search again in **Add integration**.
 
-**Setup is still blank after updating:** confirm the integration reports **0.4.1 or newer**, restart HA and reopen setup. This version uses built-in fields and requires no integration frontend module.
+**Blank fields, old setup text or a `MISSING_VALUE` error after updating:** confirm the integration reports **0.4.2 or newer**, restart HA, then refresh your browser or reopen the companion app to load the updated translations.
 
 **A source is missing:** check the appropriate county/municipality, including **Unknown county → Unknown municipality** for unclassified sources. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
 

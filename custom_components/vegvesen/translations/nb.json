@@ -6,42 +6,67 @@
         "menu_options": {
           "weather_station": "Værstasjon",
           "camera": "Veikamera"
-        }
+        },
+        "description": ""
       },
       "weather_station": {
         "title": "Velg en værstasjon",
         "data": {
           "station_id": "Værstasjon"
+        },
+        "description": "",
+        "data_description": {
+          "station_id": ""
         }
       },
       "camera": {
         "title": "Velg et veikamera",
         "data": {
           "camera_id": "Veikamera"
+        },
+        "description": "",
+        "data_description": {
+          "camera_id": ""
         }
       },
       "weather_station_county": {
         "title": "Fylke",
         "data": {
           "county": "Fylke"
+        },
+        "description": "",
+        "data_description": {
+          "county": ""
         }
       },
       "weather_station_municipality": {
         "title": "Kommune",
         "data": {
           "municipality": "Kommune"
+        },
+        "description": "",
+        "data_description": {
+          "municipality": ""
         }
       },
       "camera_county": {
         "title": "Fylke",
         "data": {
           "county": "Fylke"
+        },
+        "description": "",
+        "data_description": {
+          "county": ""
         }
       },
       "camera_municipality": {
         "title": "Kommune",
         "data": {
           "municipality": "Kommune"
+        },
+        "description": "",
+        "data_description": {
+          "municipality": ""
         }
       }
     },
@@ -65,18 +90,30 @@
           "title": "Velg en værstasjon",
           "data": {
             "station_id": "Værstasjon"
+          },
+          "description": "",
+          "data_description": {
+            "station_id": ""
           }
         },
         "user_county": {
           "title": "Fylke",
           "data": {
             "county": "Fylke"
+          },
+          "description": "",
+          "data_description": {
+            "county": ""
           }
         },
         "user_municipality": {
           "title": "Kommune",
           "data": {
             "municipality": "Kommune"
+          },
+          "description": "",
+          "data_description": {
+            "municipality": ""
           }
         }
       },
@@ -101,18 +138,30 @@
           "title": "Velg et veikamera",
           "data": {
             "camera_id": "Veikamera"
+          },
+          "description": "",
+          "data_description": {
+            "camera_id": ""
           }
         },
         "user_county": {
           "title": "Fylke",
           "data": {
             "county": "Fylke"
+          },
+          "description": "",
+          "data_description": {
+            "county": ""
           }
         },
         "user_municipality": {
           "title": "Kommune",
           "data": {
             "municipality": "Kommune"
+          },
+          "description": "",
+          "data_description": {
+            "municipality": ""
           }
         }
       },
@@ -153,7 +202,18 @@
     },
     "municipality": {
       "options": {
-        "unknown": "Ukjent kommune"
+        "unknown": "Ukjent kommune",
+        "back": "Endre fylke"
+      }
+    },
+    "station_id": {
+      "options": {
+        "back": "Endre kommune"
+      }
+    },
+    "camera_id": {
+      "options": {
+        "back": "Endre kommune"
       }
     }
   }

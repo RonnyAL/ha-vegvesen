@@ -6,42 +6,67 @@
         "menu_options": {
           "weather_station": "Weather station",
           "camera": "Road camera"
-        }
+        },
+        "description": ""
       },
       "weather_station": {
         "title": "Select a weather station",
         "data": {
           "station_id": "Weather station"
+        },
+        "description": "",
+        "data_description": {
+          "station_id": ""
         }
       },
       "camera": {
         "title": "Select a road camera",
         "data": {
           "camera_id": "Road camera"
+        },
+        "description": "",
+        "data_description": {
+          "camera_id": ""
         }
       },
       "weather_station_county": {
         "title": "County",
         "data": {
           "county": "County"
+        },
+        "description": "",
+        "data_description": {
+          "county": ""
         }
       },
       "weather_station_municipality": {
         "title": "Municipality",
         "data": {
           "municipality": "Municipality"
+        },
+        "description": "",
+        "data_description": {
+          "municipality": ""
         }
       },
       "camera_county": {
         "title": "County",
         "data": {
           "county": "County"
+        },
+        "description": "",
+        "data_description": {
+          "county": ""
         }
       },
       "camera_municipality": {
         "title": "Municipality",
         "data": {
           "municipality": "Municipality"
+        },
+        "description": "",
+        "data_description": {
+          "municipality": ""
         }
       }
     },
@@ -65,18 +90,30 @@
           "title": "Select a weather station",
           "data": {
             "station_id": "Weather station"
+          },
+          "description": "",
+          "data_description": {
+            "station_id": ""
           }
         },
         "user_county": {
           "title": "County",
           "data": {
             "county": "County"
+          },
+          "description": "",
+          "data_description": {
+            "county": ""
           }
         },
         "user_municipality": {
           "title": "Municipality",
           "data": {
             "municipality": "Municipality"
+          },
+          "description": "",
+          "data_description": {
+            "municipality": ""
           }
         }
       },
@@ -101,18 +138,30 @@
           "title": "Select a road camera",
           "data": {
             "camera_id": "Road camera"
+          },
+          "description": "",
+          "data_description": {
+            "camera_id": ""
           }
         },
         "user_county": {
           "title": "County",
           "data": {
             "county": "County"
+          },
+          "description": "",
+          "data_description": {
+            "county": ""
           }
         },
         "user_municipality": {
           "title": "Municipality",
           "data": {
             "municipality": "Municipality"
+          },
+          "description": "",
+          "data_description": {
+            "municipality": ""
           }
         }
       },
@@ -153,7 +202,18 @@
     },
     "municipality": {
       "options": {
-        "unknown": "Unknown municipality"
+        "unknown": "Unknown municipality",
+        "back": "Change county"
+      }
+    },
+    "station_id": {
+      "options": {
+        "back": "Change municipality"
+      }
+    },
+    "camera_id": {
+      "options": {
+        "back": "Change municipality"
       }
     }
   }

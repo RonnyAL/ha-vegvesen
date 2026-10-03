@@ -1,4 +1,4 @@
-# Native source selection (0.4.1)
+# Native source selection (0.4.2)
 
 Weather stations and cameras use three native Home Assistant forms: county,
 municipality, source. The first two use HA's **Next** action; the final form
@@ -7,8 +7,11 @@ County/municipality options are derived from actual sources of the requested
 family, so there are no empty regions or “Hele Norge” option. The selected
 source displays its name and ID in the closed dropdown.
 
-To change a region, close the unfinished flow and reopen it. The new flow has
-independent browsing state and reuses the HA-scoped catalogue cache. Only the
+The municipality dropdown includes **Change county**, and the source dropdown
+includes **Change municipality**. Submitting either returns to the previous
+form, retaining its selected value. Resubmitting the same county retains the
+municipality; changing county clears it. A changed municipality refilters the
+source list. Navigation makes no additional API requests and saves no data. Only the
 final source ID is stored. Existing devices, entities and subentries need no
 migration; source polling and values are unchanged. Additional selections can
 be anywhere in Norway, with no parent-wide restriction or dependency on future
@@ -20,7 +23,9 @@ The [documented multi-step flow](https://developers.home-assistant.io/docs/data_
 advances when the current form is submitted. HA's stock form does not send
 local select changes to the integration or reactively replace other field
 schemas. Native navigation menus choose among defined flow steps, rather than
-providing a data-bearing hierarchical browser. The [choose selector](https://www.home-assistant.io/docs/blueprint/selectors/#choose-selector)
+providing a data-bearing hierarchical browser. Stock forms expose no configurable
+Back button; navigation choices use the built-in dropdown and submit action.
+They are handled before source validation and cannot create a source entry. The [choose selector](https://www.home-assistant.io/docs/blueprint/selectors/#choose-selector)
 switches between selector types; current [core validation](https://github.com/home-assistant/core/blob/2026.9.4/homeassistant/helpers/selector.py)
 explicitly rejects nested choose selectors, and it is absent from the minimum
 2025.12.0 test target.
@@ -29,8 +34,15 @@ The native wizard avoids custom selector rendering, extra modules, static asset
 registration and first-install browser reloads. The 0.4.0 custom selector could
 leave an empty custom element when its module was unavailable: its successful
 isolated test did not establish reliability on other installations. There is
-no integration JavaScript in 0.4.1. Setup text contains only titles and labels;
+no integration JavaScript in 0.4.2. Setup text contains only titles and labels;
 source attribution is retained in the README and installed `NOTICE.md`.
+
+HA merges new translation resources over its existing browser resources. Deleted
+keys can therefore retain old descriptions across a backend reconnect. Explicit
+empty description and field-description strings overwrite the previous setup
+instructions and attribution, including their removed URL placeholder. English
+and Bokmål include matching labels for every parent/subentry step. After a HACS
+update, restart HA and refresh the browser or reopen the companion app.
 
 Both supported backend targets test real native schema serialization, all four
 parent/subentry source paths, filtering, rejection of invalid or out-of-region
@@ -93,6 +105,6 @@ to entity polling.
 ## Updating through HACS
 
 Update or redownload the custom repository's latest default branch, restart HA,
-and confirm version **0.4.1**. Existing
+refresh the frontend, and confirm version **0.4.2**. Existing
 selections keep working. Use **Add weather station** or **Add road camera**
 to try the native hierarchy.

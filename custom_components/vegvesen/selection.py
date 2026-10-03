@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 CONF_COUNTY = "county"
 CONF_MUNICIPALITY = "municipality"
 UNKNOWN = "unknown"
+BACK = "back"
 
 
 def _selector(options: list[SelectOptionDict], translation_key: str) -> SelectSelector:
@@ -45,6 +46,7 @@ class SourcePicker:
         self._areas: dict[str, tuple[str, str]] = {}
         self._county: str | None = None
         self._municipality: str | None = None
+        self._step = CONF_COUNTY
 
     @property
     def counties(self) -> list[str]:
@@ -71,13 +73,13 @@ class SourcePicker:
     @property
     def last_step(self) -> bool:
         """Use HA's Next button for regions and Submit for the source."""
-        return self._county is not None and self._municipality is not None
+        return self._step == "source"
 
     def step_id(self, source_step: str) -> str:
         """Use distinct native steps, titles and field labels."""
-        if self._county is None:
+        if self._step == CONF_COUNTY:
             return f"{source_step}_county"
-        if self._municipality is None:
+        if self._step == CONF_MUNICIPALITY:
             return f"{source_step}_municipality"
         return source_step
 
@@ -108,20 +110,33 @@ class SourcePicker:
         if self._county not in self.counties:
             self._county = None
             self._municipality = None
+            self._step = CONF_COUNTY
         elif self._municipality not in self.municipalities:
             self._municipality = None
+            if self._step == "source":
+                self._step = CONF_MUNICIPALITY
+        return self._advance(user_input)
+
+    def _advance(self, user_input: dict[str, Any] | None) -> bool:
+        """Handle native navigation before considering a source submission."""
         if not user_input:
+            return False
+        if BACK in user_input.values() and self._step != CONF_COUNTY:
+            self._step = CONF_MUNICIPALITY if self._step == "source" else CONF_COUNTY
             return False
         if CONF_COUNTY in user_input:
             county = user_input[CONF_COUNTY]
             if county in self.counties:
+                if county != self._county:
+                    self._municipality = None
                 self._county = county
-                self._municipality = None
+                self._step = CONF_MUNICIPALITY
             return False
         if CONF_MUNICIPALITY in user_input:
             municipality = user_input[CONF_MUNICIPALITY]
             if municipality in self.municipalities:
                 self._municipality = municipality
+                self._step = "source"
             return False
         return self.last_step
 
@@ -129,29 +144,38 @@ class SourcePicker:
         """Use built-in dropdowns; no integration-owned frontend is required."""
         if not self._catalogue:
             return vol.Schema({})
-        if self._county is None:
+        default = ""
+        if self._step == CONF_COUNTY:
             key = CONF_COUNTY
+            default = self._county or ""
             options = [
                 SelectOptionDict(
                     value=value, label="Unknown county" if value == UNKNOWN else value
                 )
                 for value in self.counties
             ]
-        elif self._municipality is None:
+        elif self._step == CONF_MUNICIPALITY:
             key = CONF_MUNICIPALITY
+            default = self._municipality or ""
             options = [
-                SelectOptionDict(
-                    value=value,
-                    label="Unknown municipality" if value == UNKNOWN else value,
-                )
-                for value in self.municipalities
+                SelectOptionDict(value=BACK, label="Change county"),
+                *[
+                    SelectOptionDict(
+                        value=value,
+                        label="Unknown municipality" if value == UNKNOWN else value,
+                    )
+                    for value in self.municipalities
+                ],
             ]
         else:
             key = field
             options = [
-                SelectOptionDict(value=source.source_id, label=source.label)
-                for source in sorted(
-                    self.sources.values(), key=lambda item: item.label.casefold()
-                )
+                SelectOptionDict(value=BACK, label="Change municipality"),
+                *[
+                    SelectOptionDict(value=source.source_id, label=source.label)
+                    for source in sorted(
+                        self.sources.values(), key=lambda item: item.label.casefold()
+                    )
+                ],
             ]
-        return vol.Schema({vol.Required(key, default=""): _selector(options, key)})
+        return vol.Schema({vol.Required(key, default=default): _selector(options, key)})

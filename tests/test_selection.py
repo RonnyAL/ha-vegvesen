@@ -14,6 +14,7 @@ from homeassistant.helpers.data_entry_flow import FlowManagerIndexView
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.vegvesen.const import CONF_CAMERA_ID, CONF_STATION_ID, DOMAIN
+from custom_components.vegvesen.selection import BACK
 
 from .helpers import camera_url, choose_region, page, weather_url
 
@@ -78,7 +79,9 @@ async def test_native_hierarchical_selection(
             hass.config_entries.flow
         )._prepare_result_json(result)
         assert "select" in serialized["data_schema"][0]["selector"]
-        options = selector.config["options"]
+        options = [
+            option for option in selector.config["options"] if option["value"] != BACK
+        ]
         assert {option["value"] for option in options} == (
             {"1629006", "1629004"} if weather else {source_id}
         )
@@ -158,7 +161,13 @@ async def test_unclassified_sources_remain_selectable(
             hass, "weather_station", "subentry", camera_entry
         )
         result = await choose_region(manager, result, "unknown", "unknown")
-        options = result["data_schema"].schema[CONF_STATION_ID].config["options"]
+        options = [
+            option
+            for option in result["data_schema"]
+            .schema[CONF_STATION_ID]
+            .config["options"]
+            if option["value"] != BACK
+        ]
         name = feature["properties"]["LOCATION_DESCRIPTION"]
         assert options == [
             {
@@ -182,7 +191,9 @@ async def test_bokmal_picker_translation(hass: HomeAssistant) -> None:
         labels["component.vegvesen.config.step.weather_station_municipality.title"]
         == "Kommune"
     )
-    assert not any(key.endswith(".description") for key in labels)
+    assert all(
+        value == "" for key, value in labels.items() if key.endswith(".description")
+    )
     selectors = await async_get_translations(hass, "nb", "selector", {DOMAIN})
     assert (
         selectors["component.vegvesen.selector.county.options.unknown"]
@@ -222,9 +233,9 @@ async def test_regions_and_sources_are_prefiltered(
         result["flow_id"], {"county": "Trøndelag" if weather else "Vestland"}
     )
     municipalities = result["data_schema"].schema["municipality"].config["options"]
-    assert {option["value"] for option in municipalities} == (
-        {"Orkland", "Åfjord"} if weather else {"Bremanger", "Kinn"}
-    )
+    assert {
+        option["value"] for option in municipalities if option["value"] != BACK
+    } == ({"Orkland", "Åfjord"} if weather else {"Bremanger", "Kinn"})
     with pytest.raises(InvalidData):
         await manager.async_configure(result["flow_id"], {"municipality": "Herøy"})
     result = await manager.async_configure(
@@ -232,7 +243,7 @@ async def test_regions_and_sources_are_prefiltered(
     )
     field = CONF_STATION_ID if weather else CONF_CAMERA_ID
     options = result["data_schema"].schema[field].config["options"]
-    assert {option["value"] for option in options} == (
+    assert {option["value"] for option in options if option["value"] != BACK} == (
         {"1629013"} if weather else {"1429014_1"}
     )
     with pytest.raises(InvalidData):
@@ -240,3 +251,90 @@ async def test_regions_and_sources_are_prefiltered(
             result["flow_id"], {field: "1629006" if weather else "3000047_2"}
         )
     assert len(mock_http.requests) == 1
+
+
+@pytest.mark.parametrize("family", ["weather_station", "camera"])
+@pytest.mark.parametrize("kind", ["parent", "subentry"])
+async def test_change_previous_selections(
+    hass: HomeAssistant,
+    mock_http: aioresponses,
+    features: list[dict[str, Any]],
+    camera_features: list[dict[str, Any]],
+    camera_entry: MockConfigEntry,
+    family: str,
+    kind: str,
+) -> None:
+    """Back retains choices, edits refilter children and never fetch or save sources."""
+    weather = family == "weather_station"
+    field = CONF_STATION_ID if weather else CONF_CAMERA_ID
+    mock_http.get(
+        weather_url() if weather else camera_url(),
+        payload=page(features if weather else camera_features),
+    )
+    manager, result = await start_flow(hass, family, kind, camera_entry)
+    county = "Trøndelag" if weather else "Vestland"
+    municipality = "Orkland" if weather else "Kinn"
+    result = await choose_region(manager, result, county, municipality)
+    flow_id = result["flow_id"]
+    result = await manager.async_configure(flow_id, {field: BACK})
+    assert list(result["data_schema"].schema) == ["municipality"]
+    assert next(iter(result["data_schema"].schema)).default() == municipality
+    assert result["last_step"] is False
+    result = await manager.async_configure(flow_id, {"municipality": BACK})
+    assert list(result["data_schema"].schema) == ["county"]
+    assert next(iter(result["data_schema"].schema)).default() == county
+    result = await manager.async_configure(
+        flow_id, {"county": county if weather else "Møre og Romsdal"}
+    )
+    # Keeping the county preserves the municipality; changing it clears that choice.
+    assert next(iter(result["data_schema"].schema)).default() == (
+        municipality if weather else ""
+    )
+    municipality = "Åfjord" if weather else "Herøy"
+    result = await manager.async_configure(flow_id, {"municipality": municipality})
+    options = result["data_schema"].schema[field].config["options"]
+    source_ids = {option["value"] for option in options if option["value"] != BACK}
+    assert source_ids == ({"1629013"} if weather else {"3000047_2"})
+    assert next(iter(result["data_schema"].schema)).default() == ""
+    with pytest.raises(InvalidData):
+        await manager.async_configure(
+            flow_id, {field: "1629006" if weather else "1429014_1"}
+        )
+    assert len(mock_http.requests) == 1
+    assert len(camera_entry.subentries) == 2
+
+
+@pytest.mark.parametrize("language", ["en", "nb"])
+@pytest.mark.parametrize("category", ["config", "config_subentries"])
+async def test_translation_upgrade_clears_removed_text(
+    hass: HomeAssistant, language: str, category: str
+) -> None:
+    """Fresh resources overwrite obsolete descriptions in HA's merged browser cache."""
+    resources = await async_get_translations(hass, language, category, {DOMAIN})
+    prefixes = (
+        [
+            f"component.{DOMAIN}.config.step.{family}"
+            for family in ["weather_station", "camera"]
+        ]
+        if category == "config"
+        else [
+            f"component.{DOMAIN}.config_subentries.{family}.step.user"
+            for family in ["weather_station", "camera"]
+        ]
+    )
+    stale = {
+        f"{prefix}.description": "Old attribution: {kartverket_url}"
+        for prefix in prefixes
+    }
+    merged = stale | resources
+    for prefix in prefixes:
+        assert merged[f"{prefix}.description"] == ""
+        for step, field, label in [
+            ("_county", "county", "Fylke" if language == "nb" else "County"),
+            (
+                "_municipality",
+                "municipality",
+                "Kommune" if language == "nb" else "Municipality",
+            ),
+        ]:
+            assert merged[f"{prefix}{step}.data.{field}"] == label
