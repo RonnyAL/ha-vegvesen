@@ -39,3 +39,21 @@ Administrative geography: [© Kartverket](https://www.kartverket.no/),
 Parsing tests use the complete directory; HTTP tests use a compact subset of
 unchanged county records and synthetic point responses to exercise failures,
 recovery and overlapping bounding boxes. No tests query live services.
+
+## Routes and road-condition forecasts
+
+`route_sample.json` was captured on 2026-10-04 from the documented public
+`Route/best` endpoint, with `Stops=10.395,63.43;9.846,63.305`, both coordinate
+systems set to `EPSG_4326`, `ReturnFields=Geometry` and `Lang=Norwegian`.
+This is a public Trondheim–Orkanger example, unrelated to household locations.
+The JSON was parsed and reserialized; response fields are retained.
+Transient routing IDs must not be used as saved-route identity.
+
+`road_forecast_sample.json` contains three source features selected from a
+complete, spatially and temporally filtered `vegvar_1_0:vv_road_prognosis_V2`
+snapshot on the same date. Feature geometries and properties are unchanged;
+the small FeatureCollection envelope/counts are constructed and API feature
+IDs are omitted. Tests construct pagination and missing, unusual or future
+category values around copies, without contacting public services.
+
+Data provided by Statens vegvesen. [Endpoint, field and licence research](../../docs/route-forecasts.md).

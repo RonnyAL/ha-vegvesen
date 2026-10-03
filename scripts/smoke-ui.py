@@ -166,6 +166,49 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_role("button", name="Finish", exact=True).click()
             expect(page.get_by_role("button", name="Finish", exact=True)).to_be_hidden()
             print("Camera subentry added through UI")
+            page.get_by_role("button", name="Add route", exact=True).click()
+            name_input = page.locator("ha-selector-text input")
+            expect(name_input).to_have_count(1)
+            name_input.fill("Trondheim-Orkanger")
+            locations = page.locator("ha-selector-location")
+            expect(locations).to_have_count(2)
+            for location, latitude, longitude in [
+                (locations.nth(0), "63.43", "10.395"),
+                (locations.nth(1), "63.305", "9.846"),
+            ]:
+                numbers = location.locator("ha-selector-number")
+                expect(numbers.nth(0)).to_have_js_property("label", "Latitude")
+                expect(numbers.nth(1)).to_have_js_property("label", "Longitude")
+                numbers.nth(0).locator("input").fill(latitude)
+                numbers.nth(1).locator("input").fill(longitude)
+            page.get_by_role("button", name="Calculate route", exact=True).click()
+            expect(page.get_by_text("Change settings", exact=True)).to_be_visible()
+            action("Choose route")
+            expect(picker.locator("ha-picker-field")).to_have_js_property(
+                "label", "Route"
+            )
+            done()
+            expect(page.get_by_text("Save route", exact=True)).to_be_visible()
+            page.screenshot(path=str(RESULTS / "route-overview.png"))
+            action("Save route")
+            page.get_by_role("button", name="Finish", exact=True).click()
+            expect(page.get_by_role("button", name="Finish", exact=True)).to_be_hidden()
+            print("Saved road route configured through native frontend")
+            # Saving a subentry reloads its parent. Opening HA's parent chooser
+            # during that reload can leave it showing a disabled entry.
+            page.locator("ha-config-integration-page").evaluate("""async element => {
+                for (let attempt = 0; attempt < 90; attempt++) {
+                    const entries = (
+                        element._extraConfigEntries || element.configEntries)
+                        ?.filter(entry => entry.domain === 'vegvesen');
+                    const routes = Object.keys(element.hass.states).filter(
+                        id => id.startsWith('sensor.trondheim_orkanger_'));
+                    if (entries?.length === 1 && entries[0].state === 'loaded'
+                        && routes.length === 6) return;
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                throw new Error('Frontend did not finish the parent reload');
+            }""")
             warm_started = time.monotonic()
             page.get_by_role("button", name="Add weather stations", exact=True).click()
             parent_choice = page.get_by_role("dialog").get_by_text(
@@ -245,6 +288,17 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             print(
                 "English and Norwegian visible edit actions and source labels verified"
             )
+            page.get_by_role("button", name="Legg til rute", exact=True).click()
+            expect(page.locator("ha-selector-location")).to_have_count(2)
+            expect(
+                page.get_by_role("button", name="Beregn rute", exact=True)
+            ).to_be_visible()
+            expect(page.get_by_text("MISSING_VALUE", exact=False)).to_have_count(0)
+            page.screenshot(path=str(RESULTS / "route-bokmal.png"))
+            close_label = page.locator("home-assistant").evaluate(
+                "element => element.hass.localize('ui.common.close')"
+            )
+            page.get_by_role("button", name=close_label, exact=True).click()
             deadline = time.monotonic() + 60
             while time.monotonic() < deadline:
                 response = session.get(BASE + "/api/states", timeout=10)
@@ -259,6 +313,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                     state
                     for state in states
                     if state["attributes"].get("device_class") == "temperature"
+                    and not state["entity_id"].startswith("sensor.trondheim_orkanger_")
                 ]
                 observations = [
                     state
@@ -266,6 +321,11 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                     if state["attributes"].get("device_class") == "timestamp"
                     and state["entity_id"] == "sensor.fv_714_vavatnet_observation_time"
                 ]
+                route_states = {
+                    state["entity_id"]: state
+                    for state in states
+                    if state["entity_id"].startswith("sensor.trondheim_orkanger_")
+                }
                 if (
                     cameras
                     and len(temperatures) == EXPECTED_WEATHER_STATIONS
@@ -273,11 +333,18 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                     and cameras[0]["state"] != "unavailable"
                     and temperatures[0]["state"] != "unavailable"
                     and observations[0]["state"] != "unavailable"
+                    and len(route_states) == 6  # noqa: PLR2004
+                    and all(
+                        state["state"] not in {"unknown", "unavailable"}
+                        for state in route_states.values()
+                    )
                 ):
                     break
                 time.sleep(1)
             else:
-                raise RuntimeError("Weather/camera entities did not become available")
+                raise RuntimeError(
+                    "Weather/camera/route entities did not become available"
+                )
             camera = cameras[0]
             image = session.get(
                 BASE + camera["attributes"]["entity_picture"], timeout=10
@@ -286,6 +353,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             if not image.content.startswith(b"\xff\xd8"):
                 raise RuntimeError("Camera proxy did not return a JPEG")
             page.get_by_text("3 enheter", exact=False).first.wait_for(state="visible")
+            page.get_by_text("1 tjeneste", exact=False).first.wait_for(state="visible")
             page.screenshot(path=str(RESULTS / "integration.png"))
             page.locator("home-assistant").evaluate(
                 "(element, id) => element.dispatchEvent("
@@ -311,6 +379,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             print("UI smoke test passed:", summary)
         except BaseException:
             print("UI URL at failure:", page.url)
+            print("Accessible UI:", page.locator("body").aria_snapshot())
             print(
                 "Module diagnostics:",
                 page.evaluate("""() => ({

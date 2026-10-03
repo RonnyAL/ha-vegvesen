@@ -23,6 +23,7 @@ with ZipFile(output, "w", compression=ZIP_DEFLATED, compresslevel=9) as archive:
             ".png",
             ".svg",
             ".md",
+            ".yaml",
         }:
             raise SystemExit(f"Unexpected runtime package file: {path}")
         info = ZipInfo(str(path.relative_to(ROOT)), date_time=(1980, 1, 1, 0, 0, 0))

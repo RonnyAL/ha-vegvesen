@@ -1,11 +1,12 @@
 # Statens vegvesen for Home Assistant
 
-Bring road weather readings and road-camera still images from Statens vegvesen into Home Assistant. Choose the stations and cameras you want, anywhere in Norway.
+Bring road weather readings, road-camera still images and route forecasts from Statens vegvesen into Home Assistant. Choose your sources and save routes anywhere in Norway.
 
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
 | Weather station | Air temperature and observation time | 10 minutes |
 | Road camera | Still image and source availability | 1 minute |
+| Saved route | Forecast road condition, slipperiness, minimum/maximum road temperature, forecast time and segment count | 30 minutes |
 
 Setup is available in English and Norwegian Bokmål. No API key or Statens vegvesen account is required.
 
@@ -59,11 +60,32 @@ Each source creates a device in **Settings → Devices & services**. Add its ent
 
 Readings and statuses are exposed as provided by the source. Missing readings are **unknown**. Request failures make the affected entities **unavailable**, and they recover after a successful refresh. A failed camera image does not prevent weather readings or other camera images from updating.
 
+## Route forecasts (føreforhold)
+
+Choose **Add route / Legg til rute** on the integration, or **Route forecast / Ruteprognose** during first setup.
+
+1. Name the route and choose a **start** and **destination** on the maps or enter their coordinates. The maps initially centre on your Home Assistant location.
+2. Set the **corridor** (distance on either side of the route, initially 100 metres) and **forecast hours ahead** (initially 1).
+3. Choose **Calculate route / Beregn rute**. Review the proposed road names and distance. **Choose route / Velg ruteforslag** lets you select another proposal if the service offers one.
+4. Choose **Save route / Lagre rute**. You can edit the settings from the overview before saving, or use the route's reconfigure action later.
+
+Each saved route creates one device with six sensors. **Road condition** and **Slipperiness** summarize the source categories on matching road segments. A single category is shown when all matched segments agree; differing categories show **Mixed**. If some matched segments lack a category, the summary shows **Incomplete data**; if all lack it, it is **unknown**. Attributes list the original category codes and their counts. Slipperiness comes from the source, without an integration-generated risk score. **No new precipitation** does not mean dry road or safe driving conditions.
+
+The temperature sensors show the lowest and highest available **forecast road-surface temperatures**, preserving unusual source values. These are forecasts, distinct from measured station temperatures. Missing temperatures are omitted from the minimum/maximum and counted in attributes; no available values means **unknown**.
+
+**Forecast time** is the hour the forecast applies to, not its publication time. With 1 hour ahead selected, a refresh at 14:35 selects the forecast for 15:00. The selection rolls forward on each refresh. **Forecast segments** counts the matching segments, including ones with missing values. Zero matching segments gives a count of 0 and unknown condition/temperature/time sensors. A failed or incomplete API request makes that route unavailable until a complete refresh succeeds.
+
+Routes have their own geography, independently of selected counties, stations, cameras or other routes. Overlapping routes do not add duplicate stations or cameras. Saved road geometry is reused during polling; **Recalculate route / Beregn ruten på nytt** explicitly requests a fresh road proposal. Forecasts for one route can fail without stopping the others.
+
+This first version supports two endpoints, without intermediate stops, imported tracks or a route-line map preview. Matching is geographic: nearby side roads, crossing roads and opposite carriageways may be included in the corridor. Forecast coverage is not guaranteed along the entire route. Large routes can exceed the request deadline and become unavailable; partial results are never presented as complete. This version does not include traffic incidents or closures.
+
+For individual segment forecasts, use **Statens vegvesen: Get route forecasts** in **Developer tools → Actions**, selecting the route device. The response contains geometry and unchanged source properties from the latest successful refresh. It makes no extra network request; it fails while the route is unavailable. Full segment geometry is kept out of entity attributes and recorder history.
+
 ## Updates and removal
 
 Update or redownload the integration in HACS, then restart Home Assistant. This repository currently distributes the default branch; HACS may show a commit identifier instead of the version displayed in the integration details.
 
-To remove one source, remove its station/camera subentry in **Devices & services**. To remove everything, remove the integration entry, remove the download in HACS, and restart Home Assistant.
+To remove one source or route, remove its subentry in **Devices & services**. To remove everything, remove the integration entry, remove the download in HACS, and restart Home Assistant.
 
 ## Troubleshooting and support
 
@@ -80,6 +102,8 @@ To remove one source, remove its station/camera subentry in **Devices & services
 ## Data and licensing
 
 **Data provided by Statens vegvesen / Data levert av Statens vegvesen.** Weather and camera data use [NLOD](https://dataut.vegvesen.no/nb/dataservice/vaerdata-malinger-api); see also the [camera dataset](https://dataut.vegvesen.no/en/dataset/webkamera).
+
+The [road-routing dataset](https://dataut.vegvesen.no/nb/dataset/ruteplandata-bil) lists NLOD. Road-condition forecasts come from Statens vegvesen's public [Vegvær map service](https://www.vegvesen.no/fag/teknologi/apne-data/et-utvalg-apne-data/ogc-karttjenester/kartlag/). See the [API notes](docs/route-forecasts.md) for verified endpoints and remaining documentation gaps.
 
 Administrative geography: [© Kartverket](https://www.kartverket.no/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), under [Kartverket's terms of use](https://www.kartverket.no/api-og-data/vilkar-for-bruk).
 

@@ -300,6 +300,15 @@ class VegvesenApiClient:
                 {"filter-lang": "cql2-text", "filter": f"{id_field} IN ({literals})"}
             )
 
+        stations = await self.async_get_snapshot(endpoint, params, parser)
+        if source_ids is not None and not stations.keys() <= set(source_ids):
+            raise VegvesenApiError("Server returned unrequested source IDs")
+        return stations
+
+    async def async_get_snapshot[T](
+        self, endpoint: str, params: dict[str, str], parser: Callable[[Any], T]
+    ) -> dict[str, T]:
+        """Read a complete paginated snapshot with an immutable server query."""
         stations: dict[str, T] = {}
         visited: set[str] = set()
         expected: int | None = None
@@ -335,12 +344,10 @@ class VegvesenApiClient:
 
         if len(stations) != expected:
             raise VegvesenApiError("Incomplete collection snapshot")
-        if source_ids is not None and not stations.keys() <= set(source_ids):
-            raise VegvesenApiError("Server returned unrequested source IDs")
         return stations
 
     @staticmethod
-    def _consume_page[T: WeatherStation | RoadCamera](  # noqa: PLR0913
+    def _consume_page[T](  # noqa: PLR0913
         page: Any,
         stations: dict[str, T],
         expected: int | None,

@@ -25,6 +25,7 @@ from .const import (
     SUBENTRY_CAMERA,
     SUBENTRY_WEATHER_STATION,
 )
+from .route_flow import RouteFlow, RouteSubentryFlow
 from .selection import (
     CONF_COUNTY,
     CONF_MUNICIPALITY,
@@ -203,7 +204,7 @@ class SourceFlow:
         )
 
 
-class VegvesenConfigFlow(SourceFlow, ConfigFlow, domain=DOMAIN):
+class VegvesenConfigFlow(RouteFlow, SourceFlow, ConfigFlow, domain=DOMAIN):
     """Create a single parent with one subentry per selected physical source."""
 
     VERSION = 1
@@ -216,7 +217,8 @@ class VegvesenConfigFlow(SourceFlow, ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id("public_service")
         self._abort_if_unique_id_configured()
         return self.async_show_menu(
-            step_id="user", menu_options=[SUBENTRY_WEATHER_STATION, SUBENTRY_CAMERA]
+            step_id="user",
+            menu_options=[SUBENTRY_WEATHER_STATION, SUBENTRY_CAMERA, "route"],
         )
 
     async def async_step_weather_station(
@@ -256,6 +258,21 @@ class VegvesenConfigFlow(SourceFlow, ConfigFlow, domain=DOMAIN):
             ],
         )
 
+    def _save_route(self) -> ConfigFlowResult:
+        self._abort_if_unique_id_configured()
+        return self.async_create_entry(
+            title=NAME,
+            data={},
+            subentries=[
+                {
+                    "subentry_type": "route",
+                    "title": self._route_data["name"],
+                    "unique_id": f"route:{self._route_data['route_id']}",
+                    "data": self._route_data,
+                }
+            ],
+        )
+
     @classmethod
     @callback
     def async_get_supported_subentry_types(
@@ -266,6 +283,7 @@ class VegvesenConfigFlow(SourceFlow, ConfigFlow, domain=DOMAIN):
         return {
             SUBENTRY_WEATHER_STATION: WeatherStationSubentryFlow,
             SUBENTRY_CAMERA: CameraSubentryFlow,
+            "route": RouteSubentryFlow,
         }
 
 

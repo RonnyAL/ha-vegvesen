@@ -5,7 +5,8 @@
         "title": "Velg en datakilde",
         "menu_options": {
           "weather_station": "Værstasjon",
-          "camera": "Veikamera"
+          "camera": "Veikamera",
+          "route": "Ruteprognose"
         },
         "description": ""
       },
@@ -70,6 +71,38 @@
         "title": "Veikameraer",
         "description": "",
         "submit": "Prøv igjen"
+      },
+      "route_settings": {
+        "title": "Ruteinnstillinger",
+        "data": {
+          "name": "Navn",
+          "start": "Start",
+          "end": "Mål",
+          "corridor_m": "Avstand fra ruten",
+          "forecast_hours": "Prognose frem i tid"
+        },
+        "data_description": {
+          "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
+          "forecast_hours": "Antall hele timer etter starten av inneværende time."
+        },
+        "submit": "Beregn rute"
+      },
+      "route_overview": {
+        "title": "Ruteprognose",
+        "description": "**{name}**\n\n{route} · {distance} km\n\nKorridor: {corridor} m på hver side\n\nPrognose: +{hours} t",
+        "menu_options": {
+          "route_settings": "Endre innstillinger",
+          "route_choice": "Velg ruteforslag",
+          "route_save": "Lagre rute",
+          "route_recalculate": "Beregn ruten på nytt"
+        }
+      },
+      "route_choice": {
+        "title": "Ruteforslag",
+        "data": {
+          "route": "Rute"
+        },
+        "submit": "Ferdig"
       }
     },
     "error": {
@@ -80,7 +113,9 @@
       "camera_missing": "En eller flere valgte datakilder mangler i svaret. Endre utvalget eller prøv igjen.",
       "select_source": "Velg en kilde fra listen.",
       "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten.",
-      "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget."
+      "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget.",
+      "invalid_route": "Velg gyldige punkter og et navn.",
+      "no_route": "Ingen kjørbar rute funnet mellom punktene."
     },
     "abort": {
       "already_configured": "Statens vegvesen er allerede konfigurert. Legg til værstasjoner eller veikameraer i den eksisterende integrasjonen."
@@ -200,6 +235,55 @@
       "initiate_flow": {
         "user": "Legg til veikameraer"
       }
+    },
+    "route": {
+      "entry_type": "Rute",
+      "initiate_flow": {
+        "user": "Legg til rute",
+        "reconfigure": "Endre rute"
+      },
+      "step": {
+        "route_settings": {
+          "title": "Ruteinnstillinger",
+          "data": {
+            "name": "Navn",
+            "start": "Start",
+            "end": "Mål",
+            "corridor_m": "Avstand fra ruten",
+            "forecast_hours": "Prognose frem i tid"
+          },
+          "data_description": {
+            "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
+            "forecast_hours": "Antall hele timer etter starten av inneværende time."
+          },
+          "submit": "Beregn rute"
+        },
+        "route_overview": {
+          "title": "Ruteprognose",
+          "description": "**{name}**\n\n{route} · {distance} km\n\nKorridor: {corridor} m på hver side\n\nPrognose: +{hours} t",
+          "menu_options": {
+            "route_settings": "Endre innstillinger",
+            "route_choice": "Velg ruteforslag",
+            "route_save": "Lagre rute",
+            "route_recalculate": "Beregn ruten på nytt"
+          }
+        },
+        "route_choice": {
+          "title": "Ruteforslag",
+          "data": {
+            "route": "Rute"
+          },
+          "submit": "Ferdig"
+        }
+      },
+      "error": {
+        "invalid_route": "Velg gyldige punkter og et navn.",
+        "no_route": "Ingen kjørbar rute funnet mellom punktene.",
+        "cannot_connect": "Kunne ikke beregne ruten. Prøv igjen."
+      },
+      "abort": {
+        "reconfigure_successful": "Ruten er oppdatert."
+      }
     }
   },
   "entity": {
@@ -212,6 +296,42 @@
       },
       "source_availability": {
         "name": "Kildestatus"
+      },
+      "route_road_condition": {
+        "name": "Føreprognose",
+        "state": {
+          "no_new_precipitation": "Ingen ny nedbør",
+          "wet_road_surface": "Våt veibane",
+          "ice_or_frost": "Is eller rim",
+          "snow_cover": "Snødekke",
+          "drifting_snow": "Drivsnø",
+          "error_or_no_data": "Feil eller manglende data",
+          "mixed": "Varierende forhold",
+          "partial_data": "Ufullstendige data"
+        }
+      },
+      "route_slip_risk": {
+        "name": "Prognose for glatt vei",
+        "state": {
+          "low": "Lav",
+          "medium": "Middels",
+          "high": "Høy",
+          "error_or_no_data": "Feil eller manglende data",
+          "mixed": "Varierende",
+          "partial_data": "Ufullstendige data"
+        }
+      },
+      "route_minimum_road_temperature": {
+        "name": "Laveste veitemperatur i prognosen"
+      },
+      "route_maximum_road_temperature": {
+        "name": "Høyeste veitemperatur i prognosen"
+      },
+      "route_forecast_time": {
+        "name": "Prognosetid"
+      },
+      "route_forecast_segments": {
+        "name": "Veistrekninger med prognose"
       }
     }
   },
@@ -224,6 +344,18 @@
     "municipality": {
       "options": {
         "unknown": "Ukjent kommune"
+      }
+    }
+  },
+  "services": {
+    "get_route_forecasts": {
+      "name": "Hent ruteprognoser",
+      "description": "Hent kildeverdier og geometri for veistrekningene i siste komplette oppdatering.",
+      "fields": {
+        "device_id": {
+          "name": "Rute",
+          "description": "Velg en ruteenhet fra Statens vegvesen."
+        }
       }
     }
   }

@@ -33,7 +33,7 @@ async def test_camera_only_parent(
             DOMAIN, context={"source": SOURCE_USER}
         )
         assert result["type"] is FlowResultType.MENU
-        assert set(result["menu_options"]) == {"weather_station", "camera"}
+        assert set(result["menu_options"]) == {"weather_station", "camera", "route"}
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"next_step_id": SUBENTRY_CAMERA}
         )

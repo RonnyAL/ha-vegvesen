@@ -1,0 +1,7 @@
+get_route_forecasts:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: vegvesen

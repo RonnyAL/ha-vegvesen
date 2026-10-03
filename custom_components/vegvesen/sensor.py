@@ -19,6 +19,7 @@ from .const import (
     SUBENTRY_WEATHER_STATION,
 )
 from .entity import CameraEntity, WeatherEntity
+from .route_sensor import ROUTE_SENSORS, RouteSensor
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -52,6 +53,11 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Register weather observations and source camera status under their subentries."""
+    for subentry_id, route in entry.runtime_data.routes.items():
+        async_add_entities(
+            [RouteSensor(route, description) for description in ROUTE_SENSORS],
+            config_subentry_id=subentry_id,
+        )
     coordinator = entry.runtime_data.weather
     for subentry in entry.subentries.values():
         if subentry.subentry_type == SUBENTRY_CAMERA:

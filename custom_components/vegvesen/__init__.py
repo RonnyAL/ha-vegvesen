@@ -19,6 +19,9 @@ from .const import (
 )
 from .coordinator import CameraCoordinator, WeatherCoordinator
 from .data import VegvesenData
+from .route_api import RouteApiClient
+from .route_coordinator import RouteCoordinator
+from .route_services import async_setup_route_service
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -43,14 +46,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> 
         if subentry.subentry_type == SUBENTRY_CAMERA
     }
     cameras = CameraCoordinator(hass, entry, client, camera_ids)
+    route_client = RouteApiClient(async_get_clientsession(hass))
+    routes = {
+        s.subentry_id: RouteCoordinator(hass, entry, s, route_client)
+        for s in entry.subentries.values()
+        if s.subentry_type == "route"
+    }
     entry.runtime_data = VegvesenData(
-        client=client, weather=coordinator, cameras=cameras
+        client=client, weather=coordinator, cameras=cameras, routes=routes
     )
     active = [
         resource
         for resource, ids in ((coordinator, station_ids), (cameras, camera_ids))
         if ids
     ]
+    active.extend(routes.values())
     results = await asyncio.gather(
         *(resource.async_config_entry_first_refresh() for resource in active),
         return_exceptions=True,
@@ -69,6 +79,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> 
             partial(_async_reload_entry, runtime=entry.runtime_data)
         )
     )
+    async_setup_route_service(hass, entry)
     return True
 
 
@@ -84,12 +95,18 @@ async def _async_reload_entry(
         # taking its snapshot or unloading resources.
         await asyncio.sleep(0)
         while True:
-            subentry_ids = set(entry.subentries)
+            subentries = {
+                key: (value.data, value.title)
+                for key, value in entry.subentries.items()
+            }
             if not await hass.config_entries.async_reload(entry.entry_id):
                 break
             # A later selection can arrive while setup is awaiting source I/O,
             # before its new update listener has been installed.
-            if subentry_ids == set(entry.subentries):
+            if subentries == {
+                key: (value.data, value.title)
+                for key, value in entry.subentries.items()
+            }:
                 break
     finally:
         runtime.reload_pending = False

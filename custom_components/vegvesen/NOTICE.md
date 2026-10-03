@@ -10,6 +10,13 @@ Source data has separate NLOD licensing and attribution requirements:
 - [Weather data catalogue](https://dataut.vegvesen.no/nb/dataservice/vaerdata-malinger-api)
 - [Road camera catalogue](https://dataut.vegvesen.no/en/dataset/webkamera)
 - [DATEX publication documentation](https://www.vegvesen.no/en/fag/technology/open-data/a-selection-of-open-data/what-is-datex/publications/)
+- [Road-routing dataset (NLOD)](https://dataut.vegvesen.no/nb/dataset/ruteplandata-bil)
+
+Road-condition forecasts are provided by Statens vegvesen's
+[Vegvær map service](https://www.vegvesen.no/fag/teknologi/apne-data/et-utvalg-apne-data/ogc-karttjenester/kartlag/).
+The published material inspected did not establish a separate licence statement
+for the road-segment forecast collection. Its public availability is not treated
+as evidence of a different licence; provider attribution is retained.
 
 **Administrative geography: © Kartverket.** County and municipality names,
 codes, bounds and coordinate lookups come from Kartverket's

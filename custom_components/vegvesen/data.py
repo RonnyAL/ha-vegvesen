@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
     from .api import VegvesenApiClient
     from .coordinator import CameraCoordinator, WeatherCoordinator
+    from .route_coordinator import RouteCoordinator
 
 type VegvesenConfigEntry = ConfigEntry[VegvesenData]
 
@@ -21,4 +22,5 @@ class VegvesenData:
     client: VegvesenApiClient
     weather: WeatherCoordinator
     cameras: CameraCoordinator
+    routes: dict[str, RouteCoordinator] = field(default_factory=dict)
     reload_pending: bool = False

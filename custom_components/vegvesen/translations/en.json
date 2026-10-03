@@ -5,7 +5,8 @@
         "title": "Select a source",
         "menu_options": {
           "weather_station": "Weather station",
-          "camera": "Road camera"
+          "camera": "Road camera",
+          "route": "Route forecast"
         },
         "description": ""
       },
@@ -70,6 +71,38 @@
         "title": "Road cameras",
         "description": "",
         "submit": "Retry"
+      },
+      "route_settings": {
+        "title": "Route settings",
+        "data": {
+          "name": "Name",
+          "start": "Start",
+          "end": "Destination",
+          "corridor_m": "Distance from route",
+          "forecast_hours": "Forecast hours ahead"
+        },
+        "data_description": {
+          "corridor_m": "Include roads within this distance on either side, including nearby side roads.",
+          "forecast_hours": "Whole hours after the start of the current hour."
+        },
+        "submit": "Calculate route"
+      },
+      "route_overview": {
+        "title": "Route forecast",
+        "description": "**{name}**\n\n{route} · {distance} km\n\nCorridor: {corridor} m on either side\n\nForecast: +{hours} h",
+        "menu_options": {
+          "route_settings": "Change settings",
+          "route_choice": "Choose route",
+          "route_save": "Save route",
+          "route_recalculate": "Recalculate route"
+        }
+      },
+      "route_choice": {
+        "title": "Route proposals",
+        "data": {
+          "route": "Route"
+        },
+        "submit": "Done"
       }
     },
     "error": {
@@ -80,7 +113,9 @@
       "camera_missing": "One or more selected sources are missing from the response. Change the selection or try again.",
       "select_source": "Select a source from the list.",
       "invalid_source": "Choose an available source from the dropdown.",
-      "already_configured": "One or more selected sources are already configured. Remove them from the selection."
+      "already_configured": "One or more selected sources are already configured. Remove them from the selection.",
+      "invalid_route": "Choose valid locations and a name.",
+      "no_route": "No drivable route found between these locations."
     },
     "abort": {
       "already_configured": "Statens vegvesen is already configured. Add weather stations or road cameras to the existing integration."
@@ -200,6 +235,55 @@
       "initiate_flow": {
         "user": "Add road cameras"
       }
+    },
+    "route": {
+      "entry_type": "Route",
+      "initiate_flow": {
+        "user": "Add route",
+        "reconfigure": "Edit route"
+      },
+      "step": {
+        "route_settings": {
+          "title": "Route settings",
+          "data": {
+            "name": "Name",
+            "start": "Start",
+            "end": "Destination",
+            "corridor_m": "Distance from route",
+            "forecast_hours": "Forecast hours ahead"
+          },
+          "data_description": {
+            "corridor_m": "Include roads within this distance on either side, including nearby side roads.",
+            "forecast_hours": "Whole hours after the start of the current hour."
+          },
+          "submit": "Calculate route"
+        },
+        "route_overview": {
+          "title": "Route forecast",
+          "description": "**{name}**\n\n{route} · {distance} km\n\nCorridor: {corridor} m on either side\n\nForecast: +{hours} h",
+          "menu_options": {
+            "route_settings": "Change settings",
+            "route_choice": "Choose route",
+            "route_save": "Save route",
+            "route_recalculate": "Recalculate route"
+          }
+        },
+        "route_choice": {
+          "title": "Route proposals",
+          "data": {
+            "route": "Route"
+          },
+          "submit": "Done"
+        }
+      },
+      "error": {
+        "invalid_route": "Choose valid locations and a name.",
+        "no_route": "No drivable route found between these locations.",
+        "cannot_connect": "Could not calculate the route. Try again."
+      },
+      "abort": {
+        "reconfigure_successful": "Route updated."
+      }
     }
   },
   "entity": {
@@ -212,6 +296,42 @@
       },
       "source_availability": {
         "name": "Source availability"
+      },
+      "route_road_condition": {
+        "name": "Road condition forecast",
+        "state": {
+          "no_new_precipitation": "No new precipitation",
+          "wet_road_surface": "Wet road surface",
+          "ice_or_frost": "Ice or frost",
+          "snow_cover": "Snow cover",
+          "drifting_snow": "Drifting snow",
+          "error_or_no_data": "Error or no data",
+          "mixed": "Mixed conditions",
+          "partial_data": "Incomplete data"
+        }
+      },
+      "route_slip_risk": {
+        "name": "Slipperiness forecast",
+        "state": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High",
+          "error_or_no_data": "Error or no data",
+          "mixed": "Mixed",
+          "partial_data": "Incomplete data"
+        }
+      },
+      "route_minimum_road_temperature": {
+        "name": "Lowest forecast road temperature"
+      },
+      "route_maximum_road_temperature": {
+        "name": "Highest forecast road temperature"
+      },
+      "route_forecast_time": {
+        "name": "Forecast time"
+      },
+      "route_forecast_segments": {
+        "name": "Forecast road segments"
       }
     }
   },
@@ -224,6 +344,18 @@
     "municipality": {
       "options": {
         "unknown": "Unknown municipality"
+      }
+    }
+  },
+  "services": {
+    "get_route_forecasts": {
+      "name": "Get route forecasts",
+      "description": "Return source values and geometry for road segments in the last complete refresh.",
+      "fields": {
+        "device_id": {
+          "name": "Route",
+          "description": "Select a Statens vegvesen route device."
+        }
       }
     }
   }
