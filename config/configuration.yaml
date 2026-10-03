@@ -1,12 +1,10 @@
-# https://www.home-assistant.io/integrations/default_config/
-default_config:
-
-# https://www.home-assistant.io/integrations/homeassistant/
-homeassistant:
-  debug: true
-
-# https://www.home-assistant.io/integrations/logger/
+# Isolated development instance. Start manually only when authorized.
+# No discovery, cloud, hardware integrations or household configuration.
+frontend:
+http:
+  server_host: 127.0.0.1
+  server_port: 18123
 logger:
   default: info
   logs:
-    custom_components.integration_blueprint: debug
+    custom_components.vegvesen: debug

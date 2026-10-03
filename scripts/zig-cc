@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# uv supplies Zig in lru-dict's isolated build environment. That extension links
+# no static archives; CPython's archive-hiding flag is unnecessary and Zig does
+# not support it. Preserve every other compiler/linker argument.
+exec python -c 'import sys; sys.argv = ["zig", "cc", *(arg for arg in sys.argv[1:] if arg != "-Wl,--exclude-libs,ALL")]; import ziglang.__main__' "$@"

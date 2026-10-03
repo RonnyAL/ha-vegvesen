@@ -1,0 +1,97 @@
+[
+  {
+    "url": "https://deb.debian.org/debian/pool/main/f/fonts-dejavu/fonts-dejavu-core_2.37-6_all.deb",
+    "filename": "fonts-dejavu-core_2.37-6_all.deb",
+    "sha256": "8892669e51aab4dc56682c8e39d8ddb7d70fad83c369344e1e240bf3ca22bb76"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/a/alsa-lib/libasound2_1.2.8-1%2bb1_amd64.deb",
+    "filename": "libasound2_1.2.8-1+b1_amd64.deb",
+    "sha256": "44c77b076a7b11ae99712439022d822245b1994c435da564ebd320bb676faf4c"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/a/at-spi2-core/libatk-bridge2.0-0_2.46.0-5_amd64.deb",
+    "filename": "libatk-bridge2.0-0_2.46.0-5_amd64.deb",
+    "sha256": "fbb07714fdd3fdee7b63fd8595053f4fa8021d8e350a5de6281c6ce7cd4f158f"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/a/at-spi2-core/libatk1.0-0_2.46.0-5_amd64.deb",
+    "filename": "libatk1.0-0_2.46.0-5_amd64.deb",
+    "sha256": "909dd661e03760a9ba1529bfc772f259cec8431999ee38b7c5521186237cdd98"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/a/at-spi2-core/libatspi2.0-0_2.46.0-5_amd64.deb",
+    "filename": "libatspi2.0-0_2.46.0-5_amd64.deb",
+    "sha256": "1c0332f3b712a8e5ee56800bbcab83a8f92098874094f2b0bdfd6b7fd45e8b83"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libd/libdrm/libdrm-common_2.4.114-1_all.deb",
+    "filename": "libdrm-common_2.4.114-1_all.deb",
+    "sha256": "32f9664138b38b224383c6986457d5ad2ec8efd559b1a0ce7749405f7a451aad"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libd/libdrm/libdrm2_2.4.114-1%2bb1_amd64.deb",
+    "filename": "libdrm2_2.4.114-1+b1_amd64.deb",
+    "sha256": "be18fb670797ba32da9628cf3e8acd83160d8db8c8dd842501dd8e401c3b5371"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/m/mesa/libgbm1_22.3.6-1%2bdeb12u2_amd64.deb",
+    "filename": "libgbm1_22.3.6-1+deb12u2_amd64.deb",
+    "sha256": "4323840f2b7b3e108990848529125d99c0956ae5a854c1e0568ed08c8faeaa2e"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/n/nspr/libnspr4_4.35-1_amd64.deb",
+    "filename": "libnspr4_2%3a4.35-1_amd64.deb",
+    "sha256": "6cca09767e94e4b5d2888ef31ad797bd3e7cec27fbbe98b49b10d4884746ce77"
+  },
+  {
+    "url": "https://security.debian.org/debian-security/pool/updates/main/n/nss/libnss3_3.87.1-1%2bdeb12u4_amd64.deb",
+    "filename": "libnss3_2%3a3.87.1-1+deb12u4_amd64.deb",
+    "sha256": "666bce4768414a6a79d2dacb1549f922cedb1facd373790a477e12739878284e"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libj/libjpeg-turbo/libturbojpeg0_2.1.5-2_amd64.deb",
+    "filename": "libturbojpeg0_1%3a2.1.5-2_amd64.deb",
+    "sha256": "466d8e2a6b501c43d9064e19972465e7703611a9c344f0244cb3bedbc2a328bc"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/w/wayland/libwayland-server0_1.21.0-1_amd64.deb",
+    "filename": "libwayland-server0_1.21.0-1_amd64.deb",
+    "sha256": "df0396221d7b794496a687ec61fae82b6465648bc0ab6501ba0a5ed7f56eb8d6"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libx/libxcomposite/libxcomposite1_0.4.5-1_amd64.deb",
+    "filename": "libxcomposite1_1%3a0.4.5-1_amd64.deb",
+    "sha256": "4c26ebf519d2ebc22fc1416dee45e12c4c4ef68aa9b2ed890356830df42b652a"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libx/libxdamage/libxdamage1_1.1.6-1_amd64.deb",
+    "filename": "libxdamage1_1%3a1.1.6-1_amd64.deb",
+    "sha256": "fcdf7e4c29b307ba8711c864e1e646d76315a8f55121198143653e56592fa8a7"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libx/libxfixes/libxfixes3_6.0.0-2_amd64.deb",
+    "filename": "libxfixes3_1%3a6.0.0-2_amd64.deb",
+    "sha256": "1cd616396ff2ecae77e6e8b5b7695d414f0146de2d147837a2a02165f99e1a2c"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libx/libxi/libxi6_1.8-1%2bb1_amd64.deb",
+    "filename": "libxi6_2%3a1.8-1+b1_amd64.deb",
+    "sha256": "6c2fb5f241b311788990122c6e693915867cd8ed9d6da2e3524aec7ed3cdb4c0"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libx/libxkbcommon/libxkbcommon0_1.5.0-1_amd64.deb",
+    "filename": "libxkbcommon0_1.5.0-1_amd64.deb",
+    "sha256": "e3fe045b9a33a101de1c5a912a4a10928db055c3f68930f47eccbb44d7c7d54e"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libx/libxrandr/libxrandr2_1.5.2-2%2bb1_amd64.deb",
+    "filename": "libxrandr2_2%3a1.5.2-2+b1_amd64.deb",
+    "sha256": "e2e10b672085ddf1d294cd689ed21bde5899325fd13626c2614b7d7b2d49a808"
+  },
+  {
+    "url": "https://deb.debian.org/debian/pool/main/libx/libxrender/libxrender1_0.9.10-1.1_amd64.deb",
+    "filename": "libxrender1_1%3a0.9.10-1.1_amd64.deb",
+    "sha256": "b2a6d160578f359220101947c8d67059b44704a251e688de1d0b744fefedfd1a"
+  }
+]

@@ -1,6 +1,6 @@
 # The contents of this file is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
 
-target-version = "py314"
+target-version = "py313" # Runtime syntax compatible with the HA 2025.12 API floor
 
 [lint]
 select = [
@@ -13,6 +13,9 @@ ignore = [
     "D212", # multi-line-summary-first-line (incompatible with formatter)
     "COM812", # incompatible with formatter
     "ISC001", # incompatible with formatter
+    "TRY003", # Parsing errors use short, context-specific messages
+    "EM101", # Keep those messages next to the validation that failed
+    "EM102",
 ]
 
 [lint.flake8-pytest-style]
@@ -23,3 +26,10 @@ keep-runtime-typing = true
 
 [lint.mccabe]
 max-complexity = 25
+
+[lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004", "SLF001", "PLR0913"] # pytest fixture arguments
+"scripts/*.py" = ["INP001", "T201"] # Standalone command-line programs
+"scripts/fetch-validation-source.py" = ["S310"] # Fixed HTTPS URLs, SHA256 checked
+"scripts/setup-smoke-browser.py" = ["S310", "S603", "S607"] # Pinned HTTPS packages; dpkg-deb extracts locally
+"scripts/smoke-ui.py" = ["S603", "PLR0915", "TRY301"] # Controlled HA subprocess and sequential UI scenario

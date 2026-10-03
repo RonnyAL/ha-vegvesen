@@ -1,0 +1,99 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Select a source",
+        "description": "Choose a weather station or road camera. Additional sources can be added to the same integration.",
+        "menu_options": {
+          "weather_station": "Weather station",
+          "camera": "Road camera"
+        }
+      },
+      "weather_station": {
+        "title": "Select a weather station",
+        "description": "Select a station by name and source ID from the nationwide list. Data provided by Statens vegvesen.",
+        "data": {
+          "station_id": "Weather station"
+        }
+      },
+      "camera": {
+        "title": "Select a road camera",
+        "description": "Select a direction-specific camera by name and source ID. Data provided by Statens vegvesen.",
+        "data": {
+          "camera_id": "Road camera"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to retrieve a complete source snapshot. Try again.",
+      "station_missing": "This station is no longer present in the source response. Select another station or try again.",
+      "no_stations": "The source returned no stations. Try again later.",
+      "no_cameras": "The source returned no cameras. Try again later.",
+      "camera_missing": "This camera is no longer present in the source response. Select another camera or try again."
+    },
+    "abort": {
+      "already_configured": "Statens vegvesen is already configured. Add weather stations or road cameras to the existing integration."
+    }
+  },
+  "config_subentries": {
+    "weather_station": {
+      "step": {
+        "user": {
+          "title": "Select a weather station",
+          "description": "Select a station by name and source ID from the nationwide list. Data provided by Statens vegvesen.",
+          "data": {
+            "station_id": "Weather station"
+          }
+        }
+      },
+      "error": {
+        "cannot_connect": "Unable to retrieve a complete weather snapshot. Try again.",
+        "station_missing": "This station is no longer present in the source response. Select another station or try again.",
+        "no_stations": "The source returned no stations. Try again later."
+      },
+      "abort": {
+        "already_configured": "This station is already configured."
+      },
+      "entry_type": "Weather station",
+      "initiate_flow": {
+        "user": "Add weather station"
+      }
+    },
+    "camera": {
+      "step": {
+        "user": {
+          "title": "Select a road camera",
+          "description": "Select a direction-specific camera by name and source ID. Data provided by Statens vegvesen.",
+          "data": {
+            "camera_id": "Road camera"
+          }
+        }
+      },
+      "error": {
+        "cannot_connect": "Unable to retrieve a complete source snapshot. Try again.",
+        "no_cameras": "The source returned no cameras. Try again later.",
+        "camera_missing": "This camera is no longer present in the source response. Select another camera or try again."
+      },
+      "abort": {
+        "already_configured": "This camera is already configured."
+      },
+      "entry_type": "Road camera",
+      "initiate_flow": {
+        "user": "Add road camera"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "air_temperature": {
+        "name": "Air temperature"
+      },
+      "measurement_time": {
+        "name": "Observation time"
+      },
+      "source_availability": {
+        "name": "Source availability"
+      }
+    }
+  }
+}

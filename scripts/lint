@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-
-set -e
-
+set -euo pipefail
 cd "$(dirname "$0")/.."
-
-ruff format .
-ruff check . --fix
+source scripts/common
+"${VEGVESEN_UV}" run --locked --no-sync ruff check .
+"${VEGVESEN_UV}" run --locked --no-sync ruff format --check .

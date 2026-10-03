@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source scripts/common
+export UV_PYTHON_INSTALL_DIR="${PWD}/.tools/python"
+export UV_PYTHON_BIN_DIR="${PWD}/.tools/bin"
+export CC="${PWD}/scripts/zig-cc"
+export ZIG_GLOBAL_CACHE_DIR="${PWD}/.cache/zig/global"
+export ZIG_LOCAL_CACHE_DIR="${PWD}/.cache/zig/local"
+"${VEGVESEN_UV}" sync --project environments/minimum --locked --python 3.13.11
+"${VEGVESEN_UV}" run --project environments/minimum --locked --no-sync pytest -c pyproject.toml

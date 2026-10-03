@@ -1,61 +1,15 @@
-# Contribution guidelines
+# Contributing
 
-Contributing to this project should be as easy and transparent as possible, whether it's:
+Read [AGENTS.md](AGENTS.md) and the [development instructions](README.md). Work in the repository virtual environment; do not modify the host Python, existing services, or household Home Assistant.
 
-- Reporting a bug
-- Discussing the current state of the code
-- Submitting a fix
-- Proposing new features
+Run `scripts/setup` followed by `scripts/check`. These are also the CI commands. Ruff provides both linting and formatting; tests use Home Assistant's custom-component test package and mocked network responses. When changing dependency pins, regenerate `uv.lock` using the pinned uv version and rerun the checks.
 
-## Github is used for everything
+Run `scripts/check-minimum` for the independently locked HA 2025.12.0 environment. Update its lock with `UV_CACHE_DIR="$PWD/.cache/uv" UV_PYTHON_INSTALL_DIR="$PWD/.tools/python" /home/dev/.local/bin/uv lock --project environments/minimum` when changing its pins. Run `scripts/validate-hassfest` and `scripts/validate-hacs` for the same packaging validation used by CI. The optional `scripts/smoke-ui` uses live public APIs and a temporary local HTTP server; it is separate from the deterministic mocked CI suite. Details, isolation guarantees, and limitations are in [docs/validation.md](docs/validation.md).
 
-Github is used to host code, to track issues and feature requests, as well as accept pull requests.
+`scripts/package` creates a deterministic local runtime archive and SHA256 file inside ignored `.tools/packages`. Keep the installed component's `LICENSE` byte-for-byte identical to the root license, and retain `NOTICE.md` for scaffold and data attribution. The smoke test extracts this archive rather than linking the development tree. The current handoff target is [HACS custom-repository testing](docs/custom-repository-test.md), with default-list submission deferred.
 
-Pull requests are the best way to propose changes to the codebase.
+Expose source data faithfully. Add meaningful tests for changed parser, flow, identity, availability, or lifecycle behavior. Do not add plausibility checks, clamping, outlier rejection, inferred corrections, or custom risk scores. Record the provenance of any public API fixtures. Keep credentials, personal locations, runtime files, and conversation exports out of tracked files.
 
-1. Fork the repo and create your branch from `main`.
-2. If you've changed something, update the documentation.
-3. Make sure your code lints (using `scripts/lint`).
-4. Test you contribution.
-5. Issue that pull request!
+Describe behavior changes and validation in pull requests. Report bugs through this repository's issues with reproduction steps and relevant logs, removing private details first.
 
-## Any contributions you make will be under the MIT Software License
-
-In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
-
-## Report bugs using Github's [issues](../../issues)
-
-GitHub issues are used to track public bugs.
-Report a bug by [opening a new issue](../../issues/new/choose); it's that easy!
-
-## Write bug reports with detail, background, and sample code
-
-**Great Bug Reports** tend to have:
-
-- A quick summary and/or background
-- Steps to reproduce
-  - Be specific!
-  - Give sample code if you can.
-- What you expected would happen
-- What actually happens
-- Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
-
-People *love* thorough bug reports. I'm not even kidding.
-
-## Use a Consistent Coding Style
-
-Use [black](https://github.com/ambv/black) to make sure the code follows the style.
-
-## Test your code modification
-
-This custom component is based on [integration_blueprint template](https://github.com/ludeeus/integration_blueprint).
-
-It comes with development environment in a container, easy to launch
-if you use Visual Studio Code. With this container you will have a stand alone
-Home Assistant instance running and already configured with the included
-[`configuration.yaml`](./config/configuration.yaml)
-file.
-
-## License
-
-By contributing, you agree that your contributions will be licensed under its MIT License.
+The integration is based on [ludeeus/integration_blueprint](https://github.com/ludeeus/integration_blueprint). Contributions use the existing [MIT license](LICENSE); preserve its copyright and license notice. Statens vegvesen source data has separate licensing and attribution requirements documented in the README.

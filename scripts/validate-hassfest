@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source scripts/common
+"${VEGVESEN_UV}" sync --locked --group validation
+"${VEGVESEN_UV}" run --locked --no-sync python scripts/fetch-validation-source.py core
+export PYTHONPATH="${PWD}/.tools/core-2026.9.4"
+"${VEGVESEN_UV}" run --locked --no-sync python -m script.hassfest \
+    --integration-path "${PWD}/custom_components/vegvesen" \
+    --core-path "${PWD}/.tools/core-2026.9.4"

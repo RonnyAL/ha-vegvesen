@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-
-set -e
-
+set -euo pipefail
 cd "$(dirname "$0")/.."
-
-# Install common requirements (pip) first so any pip upgrade completes
-# before the rest of the dependencies are installed.
-python3 -m pip install --requirement requirements_common.txt
-python3 -m pip install --requirement requirements_dev.txt
+source scripts/common
+"${VEGVESEN_UV}" sync --locked --python 3.14.8

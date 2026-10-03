@@ -1,0 +1,146 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "WeatherSimple_v2.23817113",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.568446,
+          63.309277
+        ]
+      },
+      "geometry_name": "GEOM",
+      "properties": {
+        "REFERENCE_ID": "1629006",
+        "MEASUREMENT_TIME": "2026-10-03T10:40:00+02:00",
+        "VALID_AT_TIME": "2026-10-03T10:54:26.556+02:00",
+        "SIST_OPPDATERT": "2026-10-03T10:54:39.476+02:00",
+        "LOCATION_DESCRIPTION": "Fv 714 Våvatnet",
+        "COUNTY": "Trøndelag",
+        "MAXIMUM_WIND_SPEED": 0,
+        "TYPE": "Feature",
+        "WIND_DIRECTION_BEARING": 0,
+        "RECORD_ID": "1629006",
+        "AIR_TEMPERATURE": 8,
+        "ROAD_SURFACE_TEMPERATURE": 0,
+        "MINIMUM_VISIBILITY_DISTANCE": null,
+        "ROAD_NUMBER": "F714",
+        "PUBLICATION_TIME": "2026-10-03T10:54:26.556+02:00",
+        "RELATIVE_HUMIDITY": 97.6,
+        "PUB_ID": 1791017666,
+        "WIND_SPEED": 0,
+        "DEW_POINT_TEMPERATURE": 7.6,
+        "DEPTH_OF_SNOW": null,
+        "MINIMUM_TEMPERATURE": null,
+        "MAXIMUM_TEMPERATURE": null,
+        "WIND_DIRECTION_COMPASS": null,
+        "WIND_MEASUREMENT_HEIGHT": null,
+        "PRECIPITATION_TYPE": null,
+        "PRECIPITATION_INTENSITY": 0,
+        "DEPOSITION_DEPTH": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "WeatherSimple_v2.23817114",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.524747,
+          64.09725
+        ]
+      },
+      "geometry_name": "GEOM",
+      "properties": {
+        "REFERENCE_ID": "1629013",
+        "MEASUREMENT_TIME": "2026-10-03T10:50:00+02:00",
+        "VALID_AT_TIME": "2026-10-03T10:54:26.556+02:00",
+        "SIST_OPPDATERT": "2026-10-03T10:54:39.481+02:00",
+        "LOCATION_DESCRIPTION": "Fv 715 Momyr",
+        "COUNTY": "Trøndelag",
+        "MAXIMUM_WIND_SPEED": 6.2,
+        "TYPE": "Feature",
+        "WIND_DIRECTION_BEARING": 191,
+        "RECORD_ID": "1629013",
+        "AIR_TEMPERATURE": 12.6,
+        "ROAD_SURFACE_TEMPERATURE": 10.6,
+        "MINIMUM_VISIBILITY_DISTANCE": null,
+        "ROAD_NUMBER": "F715",
+        "PUBLICATION_TIME": "2026-10-03T10:54:26.556+02:00",
+        "RELATIVE_HUMIDITY": 61.8,
+        "PUB_ID": 1791017666,
+        "WIND_SPEED": 2.7,
+        "DEW_POINT_TEMPERATURE": 5.4,
+        "DEPTH_OF_SNOW": null,
+        "MINIMUM_TEMPERATURE": null,
+        "MAXIMUM_TEMPERATURE": null,
+        "WIND_DIRECTION_COMPASS": null,
+        "WIND_MEASUREMENT_HEIGHT": null,
+        "PRECIPITATION_TYPE": null,
+        "PRECIPITATION_INTENSITY": null,
+        "DEPOSITION_DEPTH": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "WeatherSimple_v2.23817115",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          9.763047,
+          63.23076
+        ]
+      },
+      "geometry_name": "GEOM",
+      "properties": {
+        "REFERENCE_ID": "1629004",
+        "MEASUREMENT_TIME": "2026-10-03T10:40:00+02:00",
+        "VALID_AT_TIME": "2026-10-03T10:54:26.556+02:00",
+        "SIST_OPPDATERT": "2026-10-03T10:54:39.489+02:00",
+        "LOCATION_DESCRIPTION": "Fv 65 Bye",
+        "COUNTY": "Trøndelag",
+        "MAXIMUM_WIND_SPEED": 1.4,
+        "TYPE": "Feature",
+        "WIND_DIRECTION_BEARING": 163,
+        "RECORD_ID": "1629004",
+        "AIR_TEMPERATURE": -39.6,
+        "ROAD_SURFACE_TEMPERATURE": 9.2,
+        "MINIMUM_VISIBILITY_DISTANCE": null,
+        "ROAD_NUMBER": "F65",
+        "PUBLICATION_TIME": "2026-10-03T10:54:26.556+02:00",
+        "RELATIVE_HUMIDITY": 0.4,
+        "PUB_ID": 1791017666,
+        "WIND_SPEED": 0.7,
+        "DEW_POINT_TEMPERATURE": -81.9,
+        "DEPTH_OF_SNOW": null,
+        "MINIMUM_TEMPERATURE": null,
+        "MAXIMUM_TEMPERATURE": null,
+        "WIND_DIRECTION_COMPASS": null,
+        "WIND_MEASUREMENT_HEIGHT": null,
+        "PRECIPITATION_TYPE": null,
+        "PRECIPITATION_INTENSITY": 0,
+        "DEPOSITION_DEPTH": null
+      }
+    }
+  ],
+  "totalFeatures": 468,
+  "numberMatched": 468,
+  "numberReturned": 3,
+  "timeStamp": "2026-10-03T08:57:45.126Z",
+  "links": [
+    {
+      "title": "next page",
+      "type": "application/json",
+      "rel": "next",
+      "href": "https://ogckart-sn1.atlas.vegvesen.no/ogc/features/v1/collections/datex_3_1%3AWeatherSimple_v2/items?f=application%2Fjson&limit=3&startIndex=3"
+    }
+  ],
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:EPSG::4326"
+    }
+  }
+}

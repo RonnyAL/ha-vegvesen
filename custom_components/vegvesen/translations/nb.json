@@ -1,0 +1,99 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Velg en datakilde",
+        "description": "Velg en værstasjon eller et veikamera. Du kan legge til flere datakilder i den samme integrasjonen.",
+        "menu_options": {
+          "weather_station": "Værstasjon",
+          "camera": "Veikamera"
+        }
+      },
+      "weather_station": {
+        "title": "Velg en værstasjon",
+        "description": "Velg en stasjon etter navn og kilde-ID fra listen over hele landet. Data levert av Statens vegvesen.",
+        "data": {
+          "station_id": "Værstasjon"
+        }
+      },
+      "camera": {
+        "title": "Velg et veikamera",
+        "description": "Velg et kamera etter navn, retning og kilde-ID. Data levert av Statens vegvesen.",
+        "data": {
+          "camera_id": "Veikamera"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kunne ikke hente et fullstendig datasett. Prøv igjen.",
+      "station_missing": "Denne stasjonen finnes ikke lenger i svaret fra datakilden. Velg en annen stasjon eller prøv igjen.",
+      "no_stations": "Datakilden returnerte ingen stasjoner. Prøv igjen senere.",
+      "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
+      "camera_missing": "Dette kameraet finnes ikke lenger i svaret fra datakilden. Velg et annet kamera eller prøv igjen."
+    },
+    "abort": {
+      "already_configured": "Statens vegvesen er allerede konfigurert. Legg til værstasjoner eller veikameraer i den eksisterende integrasjonen."
+    }
+  },
+  "config_subentries": {
+    "weather_station": {
+      "step": {
+        "user": {
+          "title": "Velg en værstasjon",
+          "description": "Velg en stasjon etter navn og kilde-ID fra listen over hele landet. Data levert av Statens vegvesen.",
+          "data": {
+            "station_id": "Værstasjon"
+          }
+        }
+      },
+      "error": {
+        "cannot_connect": "Kunne ikke hente et fullstendig sett med værdata. Prøv igjen.",
+        "station_missing": "Denne stasjonen finnes ikke lenger i svaret fra datakilden. Velg en annen stasjon eller prøv igjen.",
+        "no_stations": "Datakilden returnerte ingen stasjoner. Prøv igjen senere."
+      },
+      "abort": {
+        "already_configured": "Denne stasjonen er allerede konfigurert."
+      },
+      "entry_type": "Værstasjon",
+      "initiate_flow": {
+        "user": "Legg til værstasjon"
+      }
+    },
+    "camera": {
+      "step": {
+        "user": {
+          "title": "Velg et veikamera",
+          "description": "Velg et kamera etter navn, retning og kilde-ID. Data levert av Statens vegvesen.",
+          "data": {
+            "camera_id": "Veikamera"
+          }
+        }
+      },
+      "error": {
+        "cannot_connect": "Kunne ikke hente et fullstendig datasett. Prøv igjen.",
+        "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
+        "camera_missing": "Dette kameraet finnes ikke lenger i svaret fra datakilden. Velg et annet kamera eller prøv igjen."
+      },
+      "abort": {
+        "already_configured": "Dette kameraet er allerede konfigurert."
+      },
+      "entry_type": "Veikamera",
+      "initiate_flow": {
+        "user": "Legg til veikamera"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "air_temperature": {
+        "name": "Lufttemperatur"
+      },
+      "measurement_time": {
+        "name": "Observasjonstid"
+      },
+      "source_availability": {
+        "name": "Kildestatus"
+      }
+    }
+  }
+}

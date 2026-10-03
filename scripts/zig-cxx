@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Repository-local C++ compiler supplied by uv's isolated build environment.
+exec python -c 'import sys; sys.argv = ["zig", "c++", *(arg for arg in sys.argv[1:] if arg != "-Wl,--exclude-libs,ALL")]; import ziglang.__main__' "$@"

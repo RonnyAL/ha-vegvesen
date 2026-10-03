@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Source from repository scripts after changing to the repository root.
+if [[ -z "${VEGVESEN_UV:-}" ]]; then
+    if command -v uv >/dev/null 2>&1; then
+        VEGVESEN_UV="$(command -v uv)"
+    else
+        VEGVESEN_UV="${HOME}/.local/bin/uv"
+    fi
+fi
+export UV_CACHE_DIR="${UV_CACHE_DIR:-${PWD}/.cache/uv}"

@@ -1,41 +1,48 @@
-name: Lint
+name: Checks
 
 on:
   push:
-    branches:
-      - "main"
+    branches: [main, "dev/**"]
   pull_request:
-    branches:
-      - "main"
+    branches: [main]
+  workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
-  ruff:
-    name: "Ruff"
-    runs-on: "ubuntu-latest"
+  checks:
+    name: Python 3.14.8 / HA 2026.9.4
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout the repository
+      - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-
-      - name: Set up Python
+      - name: Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.14"
-          cache: "pip"
-          cache-dependency-path: |
-            requirements_common.txt
-            requirements_lint.txt
+          python-version: "3.14.8"
+      - name: Install uv
+        run: python -m pip install uv==0.12.22
+      - name: Install locked environment
+        run: scripts/setup
+      - name: Lint, formatting, tests
+        run: scripts/check
 
-      - name: Install requirements
-        run: |
-          python3 -m pip install -r requirements_common.txt
-          python3 -m pip install -r requirements_lint.txt
-
-      - name: Lint
-        run: python3 -m ruff check .
-
-      - name: Format
-        run: python3 -m ruff format . --check
+  minimum:
+    name: Python 3.13.11 / HA 2025.12.0
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Python for uv bootstrap
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14.8"
+      - name: Install uv
+        run: python -m pip install uv==0.12.22
+      - name: Minimum target tests with locked local interpreter and compiler
+        run: scripts/check-minimum

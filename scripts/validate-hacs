@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source scripts/common
+"${VEGVESEN_UV}" sync --locked --group validation
+"${VEGVESEN_UV}" run --locked --no-sync python scripts/fetch-validation-source.py hacs
+"${VEGVESEN_UV}" run --locked --no-sync python scripts/validate-hacs.py

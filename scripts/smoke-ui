@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Explicit, temporary loopback-only HA test. The Python runner always stops HA.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source scripts/common
+export CC="${PWD}/scripts/zig-cc"
+export CXX="${PWD}/scripts/zig-cxx"
+export ZIG_GLOBAL_CACHE_DIR="${PWD}/.cache/zig/global"
+export ZIG_LOCAL_CACHE_DIR="${PWD}/.cache/zig/local"
+"${VEGVESEN_UV}" sync --locked --group smoke --group validation
+"${VEGVESEN_UV}" run --locked --no-sync python scripts/setup-smoke-browser.py
+export PLAYWRIGHT_BROWSERS_PATH="${PWD}/.tools/browsers"
+export FONTCONFIG_FILE="${PWD}/.tools/fonts.conf"
+export LD_LIBRARY_PATH="${PWD}/.tools/native/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+"${VEGVESEN_UV}" run --locked --no-sync playwright install chromium --only-shell
+scripts/package
+"${VEGVESEN_UV}" run --locked --no-sync python -u scripts/smoke-ui.py
