@@ -12,7 +12,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.vegvesen.const import CONF_CAMERA_ID, DOMAIN, SUBENTRY_CAMERA
 
-from .helpers import camera_url, page
+from .helpers import browse_all, camera_url, page
 
 if TYPE_CHECKING:
     from aioresponses import aioresponses
@@ -37,10 +37,12 @@ async def test_camera_only_parent(
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"next_step_id": SUBENTRY_CAMERA}
         )
+        result = await browse_all(hass.config_entries.flow, result)
         options = result["data_schema"].schema[CONF_CAMERA_ID].config["options"]
         assert any(
             option["label"] == "Rundebrua — Runde (3000047_2)" for option in options
         )
+        result = await browse_all(hass.config_entries.flow, result)
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {CONF_CAMERA_ID: "3000047_2"}
         )
@@ -94,6 +96,7 @@ async def test_camera_flow_failure(
             mock_http.get(camera_url(("1429014_1",)), status=503)
         else:
             mock_http.get(camera_url(("1429014_1",)), payload=page([]))
+        result = await browse_all(manager, result)
         result = await manager.async_configure(
             result["flow_id"], {CONF_CAMERA_ID: "1429014_1"}
         )
@@ -120,6 +123,7 @@ async def test_camera_add_and_duplicate(
         result = await manager.async_init(
             (camera_entry.entry_id, SUBENTRY_CAMERA), context={"source": SOURCE_USER}
         )
+        result = await browse_all(manager, result)
         result = await manager.async_configure(
             result["flow_id"], {CONF_CAMERA_ID: "1429014_1"}
         )
@@ -155,6 +159,7 @@ async def test_camera_concurrent_duplicate(
     result = await manager.async_init(
         (camera_entry.entry_id, SUBENTRY_CAMERA), context={"source": SOURCE_USER}
     )
+    result = await browse_all(manager, result)
     result = await manager.async_configure(
         result["flow_id"], {CONF_CAMERA_ID: "1429014_1"}
     )

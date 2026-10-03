@@ -21,3 +21,21 @@ https://ogckart-sn1.atlas.vegvesen.no/ogc/features/v1/collections/datex_3_1:Cctv
 `camera.jpg` was retrieved on the same date from `https://kamera.atlas.vegvesen.no/api/images/3000047_2`. It is an unmodified public road-camera JPEG used for mocked HTTP responses. Neither its file time nor the catalogue publication time is claimed as its capture time.
 
 Data provided by Statens vegvesen. The official [CCTV dataset catalogue](https://dataut.vegvesen.no/en/dataset/webkamera) identifies NLOD licensing. The JSON includes two available cameras and one reported camera fault. Tests construct synthetic failures, null status, and pagination around copies of these records; image bytes stay unchanged.
+
+## Administrative geography fixtures
+
+`geography_counties.json` and `geography_point.json` were retrieved unchanged
+on 2026-10-03 from Kartverket's documented public endpoints:
+
+```text
+https://api.kartverket.no/kommuneinfo/v1/fylkerkommuner?utkoordsys=4326
+https://api.kartverket.no/kommuneinfo/v1/punkt?nord=62.379288&ost=5.6275234&koordsys=4326
+```
+
+The point is the public Rundebrua source camera, not a personal location.
+Administrative geography: [© Kartverket](https://www.kartverket.no/),
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), subject to
+[Kartverket's terms](https://www.kartverket.no/api-og-data/vilkar-for-bruk).
+Parsing tests use the complete directory; HTTP tests use a compact subset of
+unchanged county records and synthetic point responses to exercise failures,
+recovery and overlapping bounding boxes. No tests query live services.

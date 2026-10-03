@@ -11,4 +11,12 @@ Source data has separate NLOD licensing and attribution requirements:
 - [Road camera catalogue](https://dataut.vegvesen.no/en/dataset/webkamera)
 - [DATEX publication documentation](https://www.vegvesen.no/en/fag/technology/open-data/a-selection-of-open-data/what-is-datex/publications/)
 
+**Administrative geography: © Kartverket.** County and municipality names,
+codes, bounds and coordinate lookups come from Kartverket's
+[administrative units API](https://api.kartverket.no/kommuneinfo/v1/).
+These data are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/),
+subject to [Kartverket's terms of use](https://www.kartverket.no/api-og-data/vilkar-for-bruk).
+The integration uses them to filter source selection; bounding boxes only
+narrow candidates and point lookups establish administrative membership.
+
 The generic road/weather icon is original integration artwork, covered by the project's MIT license. It is not Statens vegvesen's official logo.

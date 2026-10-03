@@ -40,6 +40,6 @@ The locked test target remains CPython 3.14.8 / HA 2026.9.4 / pytest-homeassista
 
 The integration declares `camera` in `after_dependencies`, so HA installs that built-in platform's own requirements before importing camera code, without duplicating its runtime package pins in this integration's manifest.
 
-HA's 2025.12.0 camera source already provides the `Camera` initializer and `async_camera_image(width, height)` interface used here; no newer runtime API was introduced. The supported HA minimum stays 2025.12.0 and now passes the complete 118-test suite, including camera behavior. Local/CI checks include `scripts/check-minimum`, `scripts/validate-hassfest`, and `scripts/validate-hacs`; see [validation details](validation.md).
+HA's 2025.12.0 camera source already provides the `Camera` initializer and `async_camera_image(width, height)` interface used here; no newer runtime API was introduced. The supported HA minimum stays 2025.12.0 and now passes the complete test suite, including camera behavior. Local/CI checks include `scripts/check-minimum`, `scripts/validate-hassfest`, and `scripts/validate-hacs`; see [validation details](validation.md).
 
 No numerical quota, image capture-time field, or atomic multi-page snapshot guarantee was verified. A successful GET cannot establish freshness; no stale-image threshold is invented. The integration currently supports still JPEGs at the verified image endpoint, not video streaming. HACS/Hassfest execution, branding, and isolated UI testing remain release preparation tasks.

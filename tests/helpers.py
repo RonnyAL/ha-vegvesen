@@ -5,6 +5,17 @@ from typing import Any
 from yarl import URL
 
 from custom_components.vegvesen.const import CAMERA_ITEMS_URL, WEATHER_ITEMS_URL
+from custom_components.vegvesen.selection import ALL, CONF_COUNTY
+
+
+async def browse_all(manager: Any, result: dict[str, Any]) -> dict[str, Any]:
+    """Select the nationwide escape hatch before testing source submission."""
+    if (
+        "station_id" in result["data_schema"].schema
+        or "camera_id" in result["data_schema"].schema
+    ):
+        return result
+    return await manager.async_configure(result["flow_id"], {CONF_COUNTY: ALL})
 
 
 def weather_url(

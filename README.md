@@ -1,8 +1,8 @@
 # Statens vegvesen for Home Assistant
 
-Custom integration with domain `vegvesen`. The next installation target is a **HACS custom repository**; inclusion in HACS's default list is deferred. Manually selected road weather stations and road camera stills are implemented. Geographic monitors remain future work; this is not a published release. See the [custom-repository test guide](docs/custom-repository-test.md) for prerequisites, installation, updates and removal. The reviewed source must be available on a public GitHub repository before HACS can fetch it.
+Custom integration with domain `vegvesen`. Available as a **HACS custom repository**; inclusion in HACS's default list is deferred. Manually selected road weather stations and road camera stills are implemented. Geographic monitors remain future work. See the [custom-repository test guide](docs/custom-repository-test.md) for prerequisites, installation, updates and removal. Use the public repository https://github.com/RonnyAL/ha-vegvesen with category **Integration**.
 
-Add **Statens vegvesen** from Settings → Devices & services and choose a weather station or road camera as the first source. Labels include names, direction where available, and source identifiers. Use the parent entry's **Add weather station** or **Add road camera** action for further selections; an existing source ID cannot be selected twice within its source type. Remove individual source subentries to remove their entities. Additions and removals reload the parent entry.
+Add **Statens vegvesen** from Settings → Devices & services and choose a weather station or road camera as the first source. Select a fylke and submit, select a kommune (or all municipalities) and submit, then choose the source. **Hele Norge / All Norway** retains nationwide selection. Labels include names, direction where available, and source identifiers. Use the parent entry's **Add weather station** or **Add road camera** action for further selections; an existing source ID cannot be selected twice within its source type. Remove individual source subentries to remove their entities. Additions and removals reload the parent entry.
 
 Each station has one device and two sensors: air temperature (native °C) and observation time. Device and entity identifiers use the exact `REFERENCE_ID`, including leading zeroes. Names, coordinates, and GeoServer row identifiers do not determine identity.
 
@@ -64,4 +64,6 @@ No standalone HA process is started by setup or checks; pytest exercises HA in i
 
 The integration retains the scaffold's [MIT license](LICENSE), including Joakim Sørensen's copyright notice. It is based on [ludeeus/integration_blueprint](https://github.com/ludeeus/integration_blueprint).
 
-Local HACS packaging includes English and Norwegian Bokmål translations, original generic road/weather icons, the preserved MIT license and an attribution notice in the installed component directory. GitHub availability and actual custom-repository installation/update testing remain outstanding. HACS default-list submission is deferred. No monitor framework or camera video streaming is included.
+Local HACS packaging includes English and Norwegian Bokmål translations, original generic road/weather icons, the preserved MIT license and an attribution notice in the installed component directory. The initial custom-repository installation has been reported working by the user; version 0.2.0 upgrade testing remains a user installation check. HACS default-list submission is deferred. No monitor framework or camera video streaming is included.
+
+Administrative geography for the **0.2.0** picker: [© Kartverket](https://www.kartverket.no/), CC BY 4.0. See [picker details and update instructions](docs/geographic-selection.md).

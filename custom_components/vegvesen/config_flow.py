@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import voluptuous as vol
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -14,12 +13,6 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.selector import (
-    SelectOptionDict,
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
-)
 
 from .api import RoadCamera, VegvesenApiClient, VegvesenApiError, WeatherStation
 from .const import (
@@ -30,31 +23,8 @@ from .const import (
     SUBENTRY_CAMERA,
     SUBENTRY_WEATHER_STATION,
 )
-
-
-def _selection_schema(
-    stations: dict[str, WeatherStation] | dict[str, RoadCamera], field: str
-) -> vol.Schema:
-    """Use source names and IDs, without a geographic search restriction."""
-    if not stations:
-        return vol.Schema({})
-    return vol.Schema(
-        {
-            vol.Required(field): SelectSelector(
-                SelectSelectorConfig(
-                    options=[
-                        SelectOptionDict(value=station.source_id, label=station.label)
-                        for station in sorted(
-                            stations.values(),
-                            key=lambda station: station.label.casefold(),
-                        )
-                    ],
-                    mode=SelectSelectorMode.DROPDOWN,
-                    custom_value=False,
-                )
-            )
-        }
-    )
+from .geography import GeographyError
+from .selection import SourcePicker
 
 
 class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -65,7 +35,9 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Cache discovery only for this flow's lifetime."""
         self._stations: dict[str, WeatherStation] = {}
+        self._weather_picker = SourcePicker()
         self._cameras: dict[str, RoadCamera] = {}
+        self._camera_picker = SourcePicker()
 
     async def async_step_user(
         self,
@@ -87,7 +59,12 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             if not self._stations:
                 self._stations = await client.async_get_weather()
-            if user_input and CONF_STATION_ID in user_input:
+            selecting = False
+            if self._stations:
+                selecting = await self._weather_picker.async_prepare(
+                    user_input, self._stations, async_get_clientsession(self.hass)
+                )
+            if selecting and user_input and CONF_STATION_ID in user_input:
                 station_id = user_input[CONF_STATION_ID]
                 selected = await client.async_get_weather({station_id})
                 if station_id not in selected:
@@ -109,12 +86,19 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
                     )
             elif not self._stations:
                 errors["base"] = "no_stations"
+            elif self._weather_picker.sources == {}:
+                errors["base"] = "no_sources_in_area"
+            elif selecting:
+                errors["base"] = "select_source"
+        except GeographyError:
+            errors["base"] = "geography_unavailable"
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
             step_id="weather_station",
-            data_schema=_selection_schema(self._stations, CONF_STATION_ID),
+            data_schema=self._weather_picker.schema(CONF_STATION_ID),
             errors=errors,
+            description_placeholders={"kartverket_url": "https://www.kartverket.no/"},
         )
 
     async def async_step_camera(
@@ -126,7 +110,12 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             if not self._cameras:
                 self._cameras = await client.async_get_cameras()
-            if user_input and CONF_CAMERA_ID in user_input:
+            selecting = False
+            if self._cameras:
+                selecting = await self._camera_picker.async_prepare(
+                    user_input, self._cameras, async_get_clientsession(self.hass)
+                )
+            if selecting and user_input and CONF_CAMERA_ID in user_input:
                 camera_id = user_input[CONF_CAMERA_ID]
                 selected = await client.async_get_cameras({camera_id})
                 if camera_id not in selected:
@@ -147,12 +136,19 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
                     )
             elif not self._cameras:
                 errors["base"] = "no_cameras"
+            elif self._camera_picker.sources == {}:
+                errors["base"] = "no_sources_in_area"
+            elif selecting:
+                errors["base"] = "select_source"
+        except GeographyError:
+            errors["base"] = "geography_unavailable"
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
             step_id="camera",
-            data_schema=_selection_schema(self._cameras, CONF_CAMERA_ID),
+            data_schema=self._camera_picker.schema(CONF_CAMERA_ID),
             errors=errors,
+            description_placeholders={"kartverket_url": "https://www.kartverket.no/"},
         )
 
     @classmethod
@@ -174,6 +170,7 @@ class WeatherStationSubentryFlow(ConfigSubentryFlow):
     def __init__(self) -> None:
         """Cache the catalogue for this flow only."""
         self._stations: dict[str, WeatherStation] = {}
+        self._weather_picker = SourcePicker()
 
     def _is_configured(self, station_id: str) -> bool:
         """Check source identity, including selections made by other flows."""
@@ -192,7 +189,12 @@ class WeatherStationSubentryFlow(ConfigSubentryFlow):
         try:
             if not self._stations:
                 self._stations = await client.async_get_weather()
-            if user_input and CONF_STATION_ID in user_input:
+            selecting = False
+            if self._stations:
+                selecting = await self._weather_picker.async_prepare(
+                    user_input, self._stations, async_get_clientsession(self.hass)
+                )
+            if selecting and user_input and CONF_STATION_ID in user_input:
                 station_id = user_input[CONF_STATION_ID]
                 if self._is_configured(station_id):
                     return self.async_abort(reason="already_configured")
@@ -211,12 +213,19 @@ class WeatherStationSubentryFlow(ConfigSubentryFlow):
                     )
             elif not self._stations:
                 errors["base"] = "no_stations"
+            elif self._weather_picker.sources == {}:
+                errors["base"] = "no_sources_in_area"
+            elif selecting:
+                errors["base"] = "select_source"
+        except GeographyError:
+            errors["base"] = "geography_unavailable"
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
             step_id="user",
-            data_schema=_selection_schema(self._stations, CONF_STATION_ID),
+            data_schema=self._weather_picker.schema(CONF_STATION_ID),
             errors=errors,
+            description_placeholders={"kartverket_url": "https://www.kartverket.no/"},
         )
 
 
@@ -226,6 +235,7 @@ class CameraSubentryFlow(ConfigSubentryFlow):
     def __init__(self) -> None:
         """Cache discovery only during this flow."""
         self._cameras: dict[str, RoadCamera] = {}
+        self._camera_picker = SourcePicker()
 
     def _is_configured(self, camera_id: str) -> bool:
         """Check the source ID before and after selection I/O."""
@@ -244,7 +254,12 @@ class CameraSubentryFlow(ConfigSubentryFlow):
         try:
             if not self._cameras:
                 self._cameras = await client.async_get_cameras()
-            if user_input and CONF_CAMERA_ID in user_input:
+            selecting = False
+            if self._cameras:
+                selecting = await self._camera_picker.async_prepare(
+                    user_input, self._cameras, async_get_clientsession(self.hass)
+                )
+            if selecting and user_input and CONF_CAMERA_ID in user_input:
                 camera_id = user_input[CONF_CAMERA_ID]
                 if self._is_configured(camera_id):
                     return self.async_abort(reason="already_configured")
@@ -261,10 +276,17 @@ class CameraSubentryFlow(ConfigSubentryFlow):
                     )
             elif not self._cameras:
                 errors["base"] = "no_cameras"
+            elif self._camera_picker.sources == {}:
+                errors["base"] = "no_sources_in_area"
+            elif selecting:
+                errors["base"] = "select_source"
+        except GeographyError:
+            errors["base"] = "geography_unavailable"
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
             step_id="user",
-            data_schema=_selection_schema(self._cameras, CONF_CAMERA_ID),
+            data_schema=self._camera_picker.schema(CONF_CAMERA_ID),
             errors=errors,
+            description_placeholders={"kartverket_url": "https://www.kartverket.no/"},
         )

@@ -45,7 +45,14 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_text("Statens vegvesen", exact=True).click()
             page.get_by_text("Weather station", exact=True).click()
             print("Weather configuration dialog opened")
+            expect(page.get_by_role("link", name="© Kartverket")).to_be_visible()
             page.locator("ha-selector-select ha-picker-field").click()
+            page.locator("ha-dropdown-item").filter(has_text="Trøndelag").click()
+            page.get_by_role("button", name="Submit", exact=True).click()
+            page.locator("ha-selector-select ha-picker-field").nth(1).click()
+            page.locator("ha-dropdown-item").filter(has_text="Orkland").click()
+            page.get_by_role("button", name="Submit", exact=True).click()
+            page.locator("ha-selector-select ha-picker-field").nth(2).click()
             page.locator("ha-dropdown-item").filter(
                 has_text="Fv 714 Våvatnet (1629006)"
             ).click()
@@ -55,7 +62,14 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             print("Weather parent created through UI")
             page.get_by_text("Statens vegvesen", exact=True).click()
             page.get_by_role("button", name="Add road camera", exact=True).click()
+            expect(page.get_by_role("link", name="© Kartverket")).to_be_visible()
             page.locator("ha-selector-select ha-picker-field").click()
+            page.locator("ha-dropdown-item").filter(has_text="Møre og Romsdal").click()
+            page.get_by_role("button", name="Submit", exact=True).click()
+            page.locator("ha-selector-select ha-picker-field").nth(1).click()
+            page.locator("ha-dropdown-item").filter(has_text="Herøy").click()
+            page.get_by_role("button", name="Submit", exact=True).click()
+            page.locator("ha-selector-select ha-picker-field").nth(2).click()
             page.locator("ha-dropdown-item").filter(
                 has_text="Rundebrua — Runde (3000047_2)"
             ).click()

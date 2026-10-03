@@ -22,6 +22,7 @@ from custom_components.vegvesen.const import (
     SUBENTRY_CAMERA,
     SUBENTRY_WEATHER_STATION,
 )
+from custom_components.vegvesen.geography import GEOGRAPHY_URL
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -44,6 +45,13 @@ def camera_features() -> list[dict[str, Any]]:
     """Load public available and faulted cameras, unchanged between tests."""
     fixture = Path(__file__).parent / "fixtures" / "camera_sample.json"
     return json.loads(fixture.read_text())["features"]
+
+
+@pytest.fixture
+def counties_payload() -> list[dict[str, Any]]:
+    """Load the complete unchanged public administrative directory."""
+    fixture = Path(__file__).parent / "fixtures" / "geography_counties.json"
+    return json.loads(fixture.read_text())
 
 
 @pytest.fixture
@@ -72,7 +80,7 @@ def camera_entry(camera_features: list[dict[str, Any]]) -> MockConfigEntry:
 
 
 @pytest.fixture
-def mock_http() -> Generator[aioresponses]:
+def mock_http(counties_payload: list[dict[str, Any]]) -> Generator[aioresponses]:
     """Mock aiohttp at the request boundary, including pagination URLs."""
     # aiohttp 3.14 requires an argument omitted by aioresponses 0.7.9.
     # Older HA's aiohttp does not accept it; keep both real dependency pins.
@@ -88,6 +96,16 @@ def mock_http() -> Generator[aioresponses]:
         ),
         aioresponses() as responses,
     ):
+        responses.get(
+            f"{GEOGRAPHY_URL}/fylkerkommuner?utkoordsys=4326",
+            # A compact subset avoids aioresponses' fake-protocol buffer limit.
+            payload=[
+                county
+                for county in counties_payload
+                if county["fylkesnummer"] in {"15", "46", "50"}
+            ],
+            repeat=True,
+        )
         yield responses
 
 
