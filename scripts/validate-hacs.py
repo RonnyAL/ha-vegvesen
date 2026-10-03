@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-source = ROOT / ".tools/hacs-integration-2.0.5/custom_components/hacs"
+source = ROOT / ".tools/integration-2.0.5/custom_components/hacs"
 # Load the official schemas without importing HACS's integration startup code.
 package = types.ModuleType("_hacs_packaging")
 package.__path__ = [str(source)]

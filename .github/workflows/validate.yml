@@ -37,6 +37,8 @@ jobs:
 
   hacs: # https://github.com/hacs/action
     name: Remote HACS repository validation
+    # HACS downloads public content; private repositories cannot be installed.
+    if: ${{ github.event.repository.private == false }}
     runs-on: ubuntu-latest
     steps:
       - name: Run HACS validation
@@ -44,3 +46,5 @@ jobs:
         with:
           category: integration
           comment: false
+          # Default-list metadata is outside the custom-repository milestone.
+          ignore: description topics

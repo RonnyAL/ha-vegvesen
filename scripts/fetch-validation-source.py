@@ -17,7 +17,7 @@ SOURCES = {
     "hacs": (
         "https://codeload.github.com/hacs/integration/tar.gz/2.0.5",
         "c16902a5e2dd5da016583bbab409217cc0cfcd4a4899bb89aa1fd3e6f7b8a263",
-        "hacs-integration-2.0.5",
+        "integration-2.0.5",
     ),
 }
 
