@@ -1,1 +1,5 @@
 * text=auto eol=lf
+
+# Preserve the scaffold license exactly, including in installed packages.
+LICENSE -text whitespace=cr-at-eol
+custom_components/vegvesen/LICENSE -text whitespace=cr-at-eol
