@@ -163,28 +163,6 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 "document.querySelector('home-assistant').hass.language === 'nb'"
             )
             page.reload()
-            # Reproduce a browser holding the old attribution strings across a
-            # backend reconnect. Merge fresh websocket resources using HA's own
-            # translation implementation; no product code is injected.
-            page.locator("home-assistant").evaluate("""async element => {
-                for (const category of ['config', 'config_subentries']) {
-                    const old = {};
-                    for (const family of ['weather_station', 'camera']) {
-                        const prefix = category === 'config'
-                            ? `component.vegvesen.config.step.${family}`
-                            : `component.vegvesen.config_subentries.${family}`
-                                + '.step.user';
-                        old[prefix + '.description'] =
-                            'Old attribution: {kartverket_url}';
-                    }
-                    await element._updateResources('nb', old);
-                    const fresh = await element.hass.callWS({
-                        type: 'frontend/get_translations', language: 'nb',
-                        category, integration: ['vegvesen']
-                    });
-                    await element._updateResources('nb', fresh.resources);
-                }
-            }""")
 
             def flow_button(action: str) -> Locator:
                 label = page.locator("home-assistant").evaluate(
@@ -376,12 +354,16 @@ def main() -> None:
             process = subprocess.Popen(
                 [
                     sys.executable,
+                    "-E",  # Ignore an inherited development PYTHONPATH.
                     "-m",
                     "homeassistant",
                     "--config",
                     str(config),
                     "--skip-pip",
                 ],
+                # The repository's namespace package can otherwise shadow the
+                # extracted custom_components package, even with --config set.
+                cwd=config,
                 stdout=log,
                 stderr=subprocess.STDOUT,
             )

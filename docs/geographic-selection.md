@@ -40,7 +40,8 @@ source attribution is retained in the README and installed `NOTICE.md`.
 HA merges new translation resources over its existing browser resources. Deleted
 keys can therefore retain old descriptions across a backend reconnect. Explicit
 empty description and field-description strings overwrite the previous setup
-instructions and attribution, including their removed URL placeholder. English
+instructions and attribution once fresh resources are loaded. They cannot force
+an already open browser tab to fetch new translations. English
 and Bokmål include matching labels for every parent/subentry step. After a HACS
 update, restart HA and refresh the browser or reopen the companion app.
 
