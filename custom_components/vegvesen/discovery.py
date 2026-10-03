@@ -31,12 +31,6 @@ class SourceLocation:
     county: str
     municipality: str
 
-    def label(self, source: WeatherStation | RoadCamera) -> str:
-        """Do not apply a source's old location if its coordinates have changed."""
-        if (source.latitude, source.longitude) != (self.latitude, self.longitude):
-            return source.label
-        return f"{self.county} / {self.municipality} / {source.label}"
-
 
 def parse_source_geography(payload: Any) -> dict[str, SourceLocation]:
     """Reject the entire supplemental index if its format is malformed."""
@@ -120,7 +114,8 @@ class DiscoveryCache:
                     )
                 except (OSError, ValueError):
                     LOGGER.warning(
-                        "Cannot read source geography; showing source names and IDs"
+                        "Cannot read source geography; "
+                        "sources will use unknown administrative areas"
                     )
                     self._geography = {}
             return self._geography

@@ -24,6 +24,7 @@ from .const import (
     SUBENTRY_WEATHER_STATION,
 )
 from .discovery import async_get_discovery
+from .frontend import async_ensure_source_selector
 from .selection import SourcePicker
 
 
@@ -46,6 +47,7 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
         """Choose the first source family without requesting either catalogue."""
         await self.async_set_unique_id("public_service")
         self._abort_if_unique_id_configured()
+        await async_ensure_source_selector(self.hass)
         return self.async_show_menu(
             step_id="user", menu_options=[SUBENTRY_WEATHER_STATION, SUBENTRY_CAMERA]
         )

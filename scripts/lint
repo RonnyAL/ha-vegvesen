@@ -4,3 +4,4 @@ cd "$(dirname "$0")/.."
 source scripts/common
 "${VEGVESEN_UV}" run --locked --no-sync ruff check .
 "${VEGVESEN_UV}" run --locked --no-sync ruff format --check .
+npm run lint

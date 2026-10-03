@@ -2,14 +2,16 @@
 
 The locked test environment is **CPython 3.14.8**, **Home Assistant 2026.9.4**, and **pytest-homeassistant-custom-component 0.13.367**, managed with **uv 0.12.22**. `pyproject.toml` describes development tooling, not a Python requirement imposed on users' HA installations. Debian's system Python is not used for the virtual environment.
 
-From this repository, with uv already installed:
+Frontend development also requires **Node 22.23.2**. It is already installed for the dev user; do not change the host Node or Python. ESLint 10.12.0 and Prettier 3.9.9 are exact development pins in `package.json`, with resolved dependencies and integrity hashes in `package-lock.json`. The installed integration needs no Node or npm.
+
+From this repository, with uv and Node already installed:
 
 ```bash
 VEGVESEN_UV=/home/dev/.local/bin/uv scripts/setup
 VEGVESEN_UV=/home/dev/.local/bin/uv scripts/check
 ```
 
-`setup` creates `.venv` and installs `uv.lock` with `--locked`. `check` runs Ruff lint, Ruff formatting verification, and the mocked pytest suite. CI runs the same scripts with the same Python and uv versions. The scripts use a repository-local uv cache and fall back to `$HOME/.local/bin/uv` when uv is absent from PATH. Separate checks:
+`setup` creates `.venv` and installs `uv.lock` with `--locked`, then runs `npm ci --ignore-scripts` using a repository-local cache. `check` runs Ruff and ESLint linting, Ruff and Prettier formatting verification, the mocked pytest suite, and Node selection-state tests. CI runs the same scripts with the same Python, uv and Node versions. The scripts use a repository-local uv cache and fall back to `$HOME/.local/bin/uv` when uv is absent from PATH. Separate checks:
 
 ```bash
 scripts/lint
@@ -44,7 +46,7 @@ This installs locked optional frontend/browser dependencies, extracts checksum-p
 
 No standalone HA process is started by setup or checks; pytest exercises HA in its temporary test environment. `scripts/develop` is an explicit foreground-only launcher for the repository's ignored runtime configuration, bound to `127.0.0.1:18123`; reserve running it for a separately approved development session. The optional devcontainer configuration does not auto-start HA. Do not use the household instance or modify existing Docker services for development.
 
-`.venv`, caches, runtime files, `first_output.md`, `codex-session-*.md`, and `conversation_exports/` are excluded from Git. Keep all conversation exports in that ignored directory. Do not add credentials or personal locations to tracked files.
+`node_modules`, `.venv`, caches, runtime files, `first_output.md`, `codex-session-*.md`, and `conversation_exports/` are excluded from Git. Keep all conversation exports in that ignored directory. Do not add credentials or personal locations to tracked files.
 
 ## Updating source geography
 
@@ -54,4 +56,4 @@ The runtime package includes public source IDs, coordinates and administrative n
 UV_CACHE_DIR="$PWD/.cache/uv" /home/dev/.local/bin/uv run --locked --no-sync python -u scripts/build-source-geography.py
 ```
 
-This makes public API requests with at most four concurrent point lookups, coalesces identical coordinates, and replaces the file only after complete catalogues and successful lookups. Review the generated changes and retain Kartverket attribution. Runtime labels require an exact source-ID and coordinate match; new or moved sources remain selectable without guessed geography. See [geographic selection](geographic-selection.md).
+This makes public API requests with at most four concurrent point lookups, coalesces identical coordinates, and replaces the file only after complete catalogues and successful lookups. Review the generated changes and retain Kartverket attribution. Runtime labels require an exact source-ID and coordinate match; new or moved sources remain selectable under unknown county/municipality, without guessed geography. See [geographic selection](geographic-selection.md).

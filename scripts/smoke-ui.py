@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 import requests
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import WebSocket, expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = "http://127.0.0.1:18123"
@@ -32,6 +32,44 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
         browser = playwright.chromium.launch()
         page = browser.new_page(viewport={"width": 1280, "height": 900})
         page.set_default_timeout(45000)
+
+        def trace_websocket(socket: WebSocket) -> None:
+            commands = {}
+
+            def sent(payload: str | bytes) -> None:
+                message = json.loads(payload)
+                if "id" in message:
+                    commands[message["id"]] = message.get("type")
+
+            def received(payload: str | bytes) -> None:
+                batch = json.loads(payload)
+                for message in batch if isinstance(batch, list) else [batch]:
+                    if message.get("error"):
+                        print(
+                            "Frontend websocket error:",
+                            commands.get(message.get("id")),
+                            message["error"].get("code"),
+                        )
+
+            socket.on("framesent", sent)
+            socket.on("framereceived", received)
+
+        page.on("websocket", trace_websocket)
+        page.on("pageerror", lambda error: print("Frontend error:", error))
+        page.on(
+            "console",
+            lambda message: (
+                print(message.text)
+                if message.text.startswith("Smoke frontend rejection:")
+                else None
+            ),
+        )
+        page.add_init_script("""window.addEventListener('unhandledrejection', event => {
+            const reason = event.reason;
+            console.warn('Smoke frontend rejection:', JSON.stringify({
+                code: reason?.code, message: reason?.message
+            }));
+        });""")
         page.add_init_script(
             f"localStorage.setItem('hassTokens', {json.dumps(json.dumps(tokens))});"
         )
@@ -43,25 +81,66 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_role("button", name="Add integration", exact=True).click()
             page.get_by_placeholder("Search for a brand name").fill("Statens vegvesen")
             page.get_by_text("Statens vegvesen", exact=True).click()
+            # First-ever installation registers the module during this flow.
+            # A reload picks up HA's extra-module list; updates with an existing
+            # entry register it during integration startup instead.
+            expect(page.get_by_text("Weather station", exact=True)).to_be_visible()
+            index = session.get(BASE + "/", timeout=10)
+            index.raise_for_status()
+            if "/vegvesen/frontend/" not in index.text:
+                raise RuntimeError("The source-picker module was not registered")
+            with page.expect_response(
+                lambda response: (
+                    response.request.method == "DELETE"
+                    and "/api/config/config_entries/flow/" in response.url
+                )
+            ):
+                page.locator("dialog-data-entry-flow").get_by_role(
+                    "button", name="Close", exact=True
+                ).click()
+            page.reload()
+            page.get_by_role("button", name="Add integration", exact=True).click()
+            page.get_by_placeholder("Search for a brand name").fill("Statens vegvesen")
+            page.get_by_text("Statens vegvesen", exact=True).click()
             weather_started = time.monotonic()
             page.get_by_text("Weather station", exact=True).click()
             print("Weather configuration dialog opened")
             expect(page.get_by_role("link", name="© Kartverket")).to_be_visible()
-            expect(page.locator("ha-selector-select")).to_have_count(1)
-            expect(page.locator("ha-selector-select ha-picker-field")).to_be_visible()
+            picker = page.locator("ha-selector-vegvesen_source")
+            county = picker.locator("#county")
+            municipality = picker.locator("#municipality")
+            source = picker.locator("#source")
+            expect(picker.locator("select")).to_have_count(3)
+            expect(county).to_be_enabled()
+            expect(municipality).to_be_disabled()
+            expect(source).to_be_disabled()
+            expect(county).not_to_contain_text("Hele Norge")
+            expect(county).not_to_contain_text("All Norway")
             weather_list_seconds = time.monotonic() - weather_started
-            page.locator("ha-selector-select ha-picker-field").click()
-            search = page.locator("ha-picker-combo-box ha-input-search input")
-            search.fill("Trøndelag")
-            search.fill("Trøndelag Orkland")
-            search.fill("Orkland Våvatnet")
-            page.locator("ha-combo-box-item").filter(
-                has_text="Trøndelag / Orkland / Fv 714 Våvatnet (1629006)"
-            ).click()
-            expect(page.locator("ha-selector-select")).to_have_js_property(
-                "value", "1629006"
+            county.select_option(label="Trøndelag")
+            expect(municipality).to_be_enabled()
+            expect(source).to_be_disabled()
+            municipality.select_option(label="Orkland")
+            expect(source).to_be_enabled()
+            source.select_option("1629006")
+            expect(source.locator("option:checked")).to_have_text(
+                "Fv 714 Våvatnet (1629006)"
             )
-            expect(search).to_be_hidden()
+            # Changing either parent must discard the previously chosen source.
+            other_municipality = municipality.locator("option").evaluate_all(
+                "options => options.find(o => o.value && o.value !== 'Orkland').value"
+            )
+            municipality.select_option(other_municipality)
+            expect(source).to_have_value("")
+            expect(source.locator("option[value='1629006']")).to_have_count(0)
+            county.select_option(label="Møre og Romsdal")
+            expect(municipality).to_have_value("")
+            expect(source).to_have_value("")
+            expect(source).to_be_disabled()
+            county.select_option(label="Trøndelag")
+            municipality.select_option(label="Orkland")
+            source.select_option("1629006")
+            expect(picker).to_have_js_property("value", "1629006")
             page.screenshot(path=str(RESULTS / "weather-selection.png"))
             page.get_by_role("button", name="Submit", exact=True).click()
             page.get_by_role("button", name="Skip and finish", exact=True).click()
@@ -70,18 +149,18 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             camera_started = time.monotonic()
             page.get_by_role("button", name="Add road camera", exact=True).click()
             expect(page.get_by_role("link", name="© Kartverket")).to_be_visible()
-            expect(page.locator("ha-selector-select")).to_have_count(1)
-            expect(page.locator("ha-selector-select ha-picker-field")).to_be_visible()
+            expect(picker.locator("select")).to_have_count(3)
+            expect(county).to_be_enabled()
+            expect(municipality).to_be_disabled()
+            expect(source).to_be_disabled()
             camera_list_seconds = time.monotonic() - camera_started
-            page.locator("ha-selector-select ha-picker-field").click()
-            search.fill("Herøy Rundebrua")
-            page.locator("ha-combo-box-item").filter(
-                has_text="Møre og Romsdal / Herøy / Rundebrua — Runde (3000047_2)"
-            ).click()
-            expect(page.locator("ha-selector-select")).to_have_js_property(
-                "value", "3000047_2"
+            county.select_option(label="Møre og Romsdal")
+            municipality.select_option(label="Herøy")
+            source.select_option("3000047_2")
+            expect(source.locator("option:checked")).to_have_text(
+                "Rundebrua — Runde (3000047_2)"
             )
-            expect(search).to_be_hidden()
+            expect(picker).to_have_js_property("value", "3000047_2")
             page.screenshot(path=str(RESULTS / "camera-selection.png"))
             page.get_by_role("button", name="Submit", exact=True).click()
             page.get_by_role("button", name="Finish", exact=True).click()
@@ -89,10 +168,16 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             print("Camera subentry added through UI")
             warm_started = time.monotonic()
             page.get_by_role("button", name="Add weather station", exact=True).click()
-            expect(page.locator("ha-selector-select ha-picker-field")).to_be_visible()
+            parent_choice = page.get_by_role("dialog").get_by_text(
+                "Statens vegvesen", exact=True
+            )
+            county.or_(parent_choice).wait_for(state="visible")
+            if parent_choice.is_visible():
+                parent_choice.click()
+            expect(county).to_be_visible()
             warm_list_seconds = time.monotonic() - warm_started
             page.keyboard.press("Escape")
-            expect(page.locator("ha-selector-select")).to_have_count(0)
+            expect(picker).to_have_count(0)
             expect(
                 page.get_by_text("Fv 714 Våvatnet (1629006)", exact=True)
             ).to_be_visible()
@@ -162,6 +247,15 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             print("UI smoke test passed:", summary)
         except BaseException:
             print("UI URL at failure:", page.url)
+            print(
+                "Module diagnostics:",
+                page.evaluate("""() => ({
+                defined: !!customElements.get('ha-selector-vegvesen_source'),
+                modules: performance.getEntriesByType('resource')
+                    .filter(entry => entry.name.includes('/vegvesen/frontend/'))
+                    .map(entry => entry.name)
+            })"""),
+            )
             page.screenshot(path=str(RESULTS / "failure.png"))
             raise
         finally:

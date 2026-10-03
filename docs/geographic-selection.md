@@ -1,25 +1,45 @@
-# Searchable source selection (0.3.0)
+# Dependent source selection (0.4.0)
 
-Weather stations and cameras use one native Home Assistant searchable picker.
-Type a fylke, kommune, source name or source ID, select a listed result, then
-submit once. Labels have the form **Trøndelag / Orkland / Fv 714 Våvatnet
-(1629006)**. Only actual records from the requested source catalogue appear;
-there are no county or municipality choices that lead to an empty list.
-The same form works for the first source and subsequent subentries.
-
-Home Assistant's [standard data-entry forms](https://developers.home-assistant.io/docs/data_entry_flow_index/)
-do not provide reactive dependent dropdowns without a submission. This uses
-its [select selector](https://www.home-assistant.io/docs/blueprint/selectors/#select-selector)
-instead of introducing a custom frontend. The tested frontend uses its searchable,
-virtualized picker for `custom_value` selectors; the flow explicitly rejects
-unknown text. Choose a listed result rather than the frontend's generic
-**Add custom item** option. This behavior is covered by flow tests and a real
-frontend smoke test. [Official frontend implementation](https://github.com/home-assistant/frontend/blob/20260826.7/src/components/ha-selector/ha-selector-select.ts).
+Weather stations and cameras use three dropdowns in the Home Assistant setup
+form: county, municipality, source. The latter two start disabled. Choosing a
+county enables its municipality list; choosing a municipality enables its
+source list. Changing a county clears both child choices; changing a
+municipality clears the source. There is one final submission. Counties and
+municipalities are derived from actual sources of the requested family, so
+there are no empty regions or “Hele Norge” option. Names and IDs remain readable
+in the closed source dropdown.
 
 Existing devices, entities and subentries need no migration. Only the chosen
 source ID is saved. Each additional source can be selected anywhere in Norway.
 Polling and source values are unchanged; there is no parent-wide geographic
 restriction or dependency on future area/route monitors.
+
+## Frontend implementation and loading
+
+HA's [standard data-entry forms](https://developers.home-assistant.io/docs/data_entry_flow_index/)
+do not update dependent field schemas on local selections. A small bundled
+JavaScript module provides an integration-owned selector containing three
+native HTML selects. It does not replace HA widgets or patch frontend code.
+Changes filter the form's catalogue locally and emit a scalar source ID through
+HA's existing selector event contract. There are no runtime frontend dependencies,
+external scripts, network calls on dropdown changes, or polling timers.
+
+The integration uses HA's extra-module registration and asynchronous static
+paths to serve a versioned local URL. HA's [frontend module loading](https://www.home-assistant.io/integrations/frontend/#loading-extra-javascript)
+occurs on page load. Existing entries register it at integration startup:
+restart HA after updating and reload the browser/app page. On first-ever
+installation, open **Add integration → Statens vegvesen** once, close the dialog,
+reload the page, then reopen setup. The setup text and README explain this step.
+
+Custom selector rendering relies on the frontend's dynamic tag and event
+contract, which is an implementation detail rather than a documented extension
+API. The official [20260826.7 renderer](https://github.com/home-assistant/frontend/blob/20260826.7/src/components/ha-selector/ha-selector.ts)
+and [20251203.0 renderer](https://github.com/home-assistant/frontend/blob/20251203.0/src/components/ha-selector/ha-selector.ts)
+were checked. Backend serialization is tested on both HA targets, with an
+explicit blank default to avoid native default inference for the custom type.
+A real browser smoke test exercises the current frontend. The minimum
+frontend has not had the same live browser test; future HA frontend changes
+may require maintaining this bridge.
 
 ## Verified geography source
 
@@ -56,10 +76,11 @@ measurements, camera statuses and coordinates remain source values.
 
 Setup reads the bundled index once through HA's executor. No Kartverket
 network request runs during setup or polling. Administrative names are a
-release snapshot; boundary or name changes require regeneration. Geographic
-prefixes require an exact source-ID and coordinate match. New, moved,
-coordinate-free or unclassified sources remain selectable by name and ID.
-An unavailable or malformed index falls back to that same unclassified list.
+release snapshot; boundary or name changes require regeneration. Membership
+requires an exact source-ID and coordinate match. New, moved, coordinate-free
+or unclassified sources remain selectable under **Unknown county → Unknown
+municipality**. An unavailable or malformed index puts all live sources in
+those explicit buckets rather than assigning guessed geography.
 
 Source catalogues are live, paginated and cached independently for weather and
 cameras for 15 minutes per HA instance. The first or expired lookup still needs
@@ -75,5 +96,6 @@ to entity polling.
 ## Updating through HACS
 
 Update or redownload the custom repository's latest default branch, restart HA,
-and confirm version **0.3.0**. Existing selections keep working. Use
-**Add weather station** or **Add road camera** to try the new picker.
+reload the Home Assistant page, and confirm version **0.4.0**. Existing
+selections keep working. Use **Add weather station** or **Add road camera**
+to try the three dropdowns.

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Velg en datakilde",
-        "description": "Velg en værstasjon eller et veikamera. Du kan legge til flere datakilder i den samme integrasjonen.",
+        "description": "Velg en værstasjon eller et veikamera. Du kan legge til flere datakilder i den samme integrasjonen.\n\nVed første installasjon: lukk denne dialogen, last Home Assistant-siden på nytt, og åpne oppsettet igjen før du velger en datakilde.",
         "menu_options": {
           "weather_station": "Værstasjon",
           "camera": "Veikamera"
@@ -11,22 +11,22 @@
       },
       "weather_station": {
         "title": "Velg en værstasjon",
-        "description": "Søk etter fylke, kommune, navn eller kilde-ID. Velg et treff og trykk Send inn én gang. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
+        "description": "Velg et fylke, deretter en kommune, og til slutt en datakilde. Listene oppdateres med én gang. Trykk Send inn én gang når alle tre er valgt. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.\n\nHvis nedtrekkslistene ikke vises, lukk oppsettet, last siden på nytt, og åpne oppsettet igjen.",
         "data": {
           "station_id": "Værstasjon"
         },
         "data_description": {
-          "station_id": "Velg et av treffene i søkelisten."
+          "station_id": "Velg en datakilde etter at du har valgt fylke og kommune."
         }
       },
       "camera": {
         "title": "Velg et veikamera",
-        "description": "Søk etter fylke, kommune, navn eller kilde-ID. Velg et treff og trykk Send inn én gang. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
+        "description": "Velg et fylke, deretter en kommune, og til slutt en datakilde. Listene oppdateres med én gang. Trykk Send inn én gang når alle tre er valgt. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.\n\nHvis nedtrekkslistene ikke vises, lukk oppsettet, last siden på nytt, og åpne oppsettet igjen.",
         "data": {
           "camera_id": "Veikamera"
         },
         "data_description": {
-          "camera_id": "Velg et av treffene i søkelisten."
+          "camera_id": "Velg en datakilde etter at du har valgt fylke og kommune."
         }
       }
     },
@@ -37,7 +37,7 @@
       "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
       "camera_missing": "Dette kameraet finnes ikke lenger i svaret fra datakilden. Velg et annet kamera eller prøv igjen.",
       "select_source": "Velg en kilde fra listen.",
-      "invalid_source": "Velg et av treffene i listen, ikke fritekst."
+      "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten."
     },
     "abort": {
       "already_configured": "Statens vegvesen er allerede konfigurert. Legg til værstasjoner eller veikameraer i den eksisterende integrasjonen."
@@ -48,12 +48,12 @@
       "step": {
         "user": {
           "title": "Velg en værstasjon",
-          "description": "Søk etter fylke, kommune, navn eller kilde-ID. Velg et treff og trykk Send inn én gang. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
+          "description": "Velg et fylke, deretter en kommune, og til slutt en datakilde. Listene oppdateres med én gang. Trykk Send inn én gang når alle tre er valgt. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.\n\nHvis nedtrekkslistene ikke vises, lukk oppsettet, last siden på nytt, og åpne oppsettet igjen.",
           "data": {
             "station_id": "Værstasjon"
           },
           "data_description": {
-            "station_id": "Velg et av treffene i søkelisten."
+            "station_id": "Velg en datakilde etter at du har valgt fylke og kommune."
           }
         }
       },
@@ -62,7 +62,7 @@
         "station_missing": "Denne stasjonen finnes ikke lenger i svaret fra datakilden. Velg en annen stasjon eller prøv igjen.",
         "no_stations": "Datakilden returnerte ingen stasjoner. Prøv igjen senere.",
         "select_source": "Velg en kilde fra listen.",
-        "invalid_source": "Velg et av treffene i listen, ikke fritekst."
+        "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten."
       },
       "abort": {
         "already_configured": "Denne stasjonen er allerede konfigurert."
@@ -76,12 +76,12 @@
       "step": {
         "user": {
           "title": "Velg et veikamera",
-          "description": "Søk etter fylke, kommune, navn eller kilde-ID. Velg et treff og trykk Send inn én gang. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
+          "description": "Velg et fylke, deretter en kommune, og til slutt en datakilde. Listene oppdateres med én gang. Trykk Send inn én gang når alle tre er valgt. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.\n\nHvis nedtrekkslistene ikke vises, lukk oppsettet, last siden på nytt, og åpne oppsettet igjen.",
           "data": {
             "camera_id": "Veikamera"
           },
           "data_description": {
-            "camera_id": "Velg et av treffene i søkelisten."
+            "camera_id": "Velg en datakilde etter at du har valgt fylke og kommune."
           }
         }
       },
@@ -90,7 +90,7 @@
         "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
         "camera_missing": "Dette kameraet finnes ikke lenger i svaret fra datakilden. Velg et annet kamera eller prøv igjen.",
         "select_source": "Velg en kilde fra listen.",
-        "invalid_source": "Velg et av treffene i listen, ikke fritekst."
+        "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten."
       },
       "abort": {
         "already_configured": "Dette kameraet er allerede konfigurert."

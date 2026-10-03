@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Select a source",
-        "description": "Choose a weather station or road camera. Additional sources can be added to the same integration.",
+        "description": "Choose a weather station or road camera. Additional sources can be added to the same integration.\n\nOn first installation: close this dialog, reload the Home Assistant page, then reopen setup before choosing a source.",
         "menu_options": {
           "weather_station": "Weather station",
           "camera": "Road camera"
@@ -11,22 +11,22 @@
       },
       "weather_station": {
         "title": "Select a weather station",
-        "description": "Search by county, municipality, name or source ID. Choose a result and submit once. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
+        "description": "Choose a county, then a municipality, then a source. The lists update immediately. Submit once when all three are selected. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.\n\nIf the dropdowns are missing, close setup, reload the page, and reopen setup.",
         "data": {
           "station_id": "Weather station"
         },
         "data_description": {
-          "station_id": "Choose one of the search results."
+          "station_id": "Select a source after choosing its county and municipality."
         }
       },
       "camera": {
         "title": "Select a road camera",
-        "description": "Search by county, municipality, name or source ID. Choose a result and submit once. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
+        "description": "Choose a county, then a municipality, then a source. The lists update immediately. Submit once when all three are selected. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.\n\nIf the dropdowns are missing, close setup, reload the page, and reopen setup.",
         "data": {
           "camera_id": "Road camera"
         },
         "data_description": {
-          "camera_id": "Choose one of the search results."
+          "camera_id": "Select a source after choosing its county and municipality."
         }
       }
     },
@@ -37,7 +37,7 @@
       "no_cameras": "The source returned no cameras. Try again later.",
       "camera_missing": "This camera is no longer present in the source response. Select another camera or try again.",
       "select_source": "Select a source from the list.",
-      "invalid_source": "Choose a listed search result rather than free text."
+      "invalid_source": "Choose an available source from the dropdown."
     },
     "abort": {
       "already_configured": "Statens vegvesen is already configured. Add weather stations or road cameras to the existing integration."
@@ -48,12 +48,12 @@
       "step": {
         "user": {
           "title": "Select a weather station",
-          "description": "Search by county, municipality, name or source ID. Choose a result and submit once. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
+          "description": "Choose a county, then a municipality, then a source. The lists update immediately. Submit once when all three are selected. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.\n\nIf the dropdowns are missing, close setup, reload the page, and reopen setup.",
           "data": {
             "station_id": "Weather station"
           },
           "data_description": {
-            "station_id": "Choose one of the search results."
+            "station_id": "Select a source after choosing its county and municipality."
           }
         }
       },
@@ -62,7 +62,7 @@
         "station_missing": "This station is no longer present in the source response. Select another station or try again.",
         "no_stations": "The source returned no stations. Try again later.",
         "select_source": "Select a source from the list.",
-        "invalid_source": "Choose a listed search result rather than free text."
+        "invalid_source": "Choose an available source from the dropdown."
       },
       "abort": {
         "already_configured": "This station is already configured."
@@ -76,12 +76,12 @@
       "step": {
         "user": {
           "title": "Select a road camera",
-          "description": "Search by county, municipality, name or source ID. Choose a result and submit once. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
+          "description": "Choose a county, then a municipality, then a source. The lists update immediately. Submit once when all three are selected. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.\n\nIf the dropdowns are missing, close setup, reload the page, and reopen setup.",
           "data": {
             "camera_id": "Road camera"
           },
           "data_description": {
-            "camera_id": "Choose one of the search results."
+            "camera_id": "Select a source after choosing its county and municipality."
           }
         }
       },
@@ -90,7 +90,7 @@
         "no_cameras": "The source returned no cameras. Try again later.",
         "camera_missing": "This camera is no longer present in the source response. Select another camera or try again.",
         "select_source": "Select a source from the list.",
-        "invalid_source": "Choose a listed search result rather than free text."
+        "invalid_source": "Choose an available source from the dropdown."
       },
       "abort": {
         "already_configured": "This camera is already configured."

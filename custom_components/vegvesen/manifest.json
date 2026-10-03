@@ -2,7 +2,9 @@
   "domain": "vegvesen",
   "name": "Statens vegvesen",
   "after_dependencies": [
-    "camera"
+    "camera",
+    "frontend",
+    "http"
   ],
   "codeowners": [
     "@RonnyAL"
@@ -14,5 +16,5 @@
   "issue_tracker": "https://github.com/RonnyAL/ha-vegvesen/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.3.0"
+  "version": "0.4.0"
 }

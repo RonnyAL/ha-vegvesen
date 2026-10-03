@@ -1,4 +1,4 @@
-"""Exercise one-submit searchable source selection through HA's flow managers."""
+"""Exercise dependent-selector metadata and scalar source-ID flow submission."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.data_entry_flow import FlowManagerIndexView
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.vegvesen.const import CONF_CAMERA_ID, CONF_STATION_ID, DOMAIN
@@ -62,12 +63,19 @@ async def test_one_submit_selection(
         manager, result = await start_flow(hass, family, kind, camera_entry)
         assert list(result["data_schema"].schema) == [field]
         selector = result["data_schema"].schema[field]
-        assert selector.config["custom_value"]  # HA's searchable native picker.
+        assert selector.selector_type == "vegvesen_source"
+        serialized = FlowManagerIndexView(
+            hass.config_entries.flow
+        )._prepare_result_json(result)
+        assert serialized["data_schema"][0]["default"] == ""
+        assert "vegvesen_source" in serialized["data_schema"][0]["selector"]
         options = selector.config["options"]
         assert len(options) == len(records)
         option = next(option for option in options if option["value"] == source_id)
-        expected_area = "Trøndelag / Orkland" if weather else "Vestland / Kinn"
-        assert expected_area in option["label"]
+        assert option["county"] == ("Trøndelag" if weather else "Vestland")
+        assert option["municipality"] == ("Orkland" if weather else "Kinn")
+        assert source_id in option["label"]
+        assert " / " not in option["label"]
         result = await manager.async_configure(result["flow_id"], {field: source_id})
         await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -82,7 +90,7 @@ async def test_one_submit_selection(
 
 @pytest.mark.parametrize("family", ["weather_station", "camera"])
 @pytest.mark.parametrize("kind", ["parent", "subentry"])
-async def test_unknown_autocomplete_text_is_rejected(
+async def test_unknown_source_id_is_rejected(
     hass: HomeAssistant,
     mock_http: aioresponses,
     features: list[dict[str, Any]],
@@ -91,7 +99,7 @@ async def test_unknown_autocomplete_text_is_rejected(
     family: str,
     kind: str,
 ) -> None:
-    """Typing a search term never saves it as a source ID or makes a lookup."""
+    """Unknown client input never creates a source or makes a lookup."""
     weather = family == "weather_station"
     endpoint = weather_url if weather else camera_url
     field = CONF_STATION_ID if weather else CONF_CAMERA_ID
@@ -141,6 +149,8 @@ async def test_unclassified_sources_remain_selectable(
             {
                 "value": source_id,
                 "label": f"{name} ({source_id})",
+                "county": None,
+                "municipality": None,
             }
         ]
         result = await manager.async_configure(

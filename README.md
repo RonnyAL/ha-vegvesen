@@ -24,6 +24,7 @@ This integration is available through a HACS custom repository.
 3. Find **Statens vegvesen** and download it.
 4. Restart Home Assistant.
 5. Go to **Settings → Devices & services → Add integration** and search for **Statens vegvesen**.
+6. On first installation, close that setup dialog, reload the Home Assistant page, then open **Add integration → Statens vegvesen** again. This loads the bundled source picker.
 
 See HACS's [custom repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/) if you cannot find the menu.
 
@@ -31,9 +32,15 @@ For manual installation, copy the repository's `custom_components/vegvesen` fold
 
 ## Choose stations and cameras
 
-Choose **Weather station / Værstasjon** or **Road camera / Veikamera**. Search the picker by fylke, kommune, source name or source ID, select a result, then press **Submit / Send inn** once.
+Choose **Weather station / Værstasjon** or **Road camera / Veikamera**, then use the three dropdowns:
 
-Results include their source IDs and camera direction. Geographic labels look like **Trøndelag / Orkland / Fv 714 Våvatnet (1629006)**. Only actual sources appear in the picker. New or relocated sources may appear by name and ID without a fylke/kommune prefix.
+1. Select a **county / fylke**. The municipality dropdown becomes available.
+2. Select a **municipality / kommune**. The station/camera dropdown becomes available.
+3. Select a station or camera, then press **Submit / Send inn** once.
+
+Only counties and municipalities with actual sources of the selected type appear. Changing the county clears the municipality and source; changing the municipality clears the source. These changes are immediate and make no API requests. Source labels show the name, camera direction where available, and source ID, including when the dropdown is closed.
+
+New or relocated sources without verified administrative membership appear under **Unknown county / Ukjent fylke → Unknown municipality / Ukjent kommune**. Their measurements and identities are unchanged.
 
 Use **Add weather station / Legg til værstasjon** or **Add road camera / Legg til veikamera** on the same integration to add more sources. Each selection can be anywhere in Norway; selecting one region does not restrict later selections. The same source cannot be added twice. Existing selections and device/entity identities are retained across updates and restarts.
 
@@ -52,7 +59,7 @@ Readings and statuses are exposed as provided by the source. Missing readings ar
 
 ## Updates and removal
 
-Update or redownload the integration in HACS, then restart Home Assistant. This repository currently distributes the default branch; HACS may show a commit identifier instead of the version displayed in the integration details.
+Update or redownload the integration in HACS, then restart Home Assistant **and reload the Home Assistant page in your browser or app**. This repository currently distributes the default branch; HACS may show a commit identifier instead of the version displayed in the integration details.
 
 To remove one source, remove its station/camera subentry in **Devices & services**. To remove everything, remove the integration entry, remove the download in HACS, and restart Home Assistant.
 
@@ -60,7 +67,9 @@ To remove one source, remove its station/camera subentry in **Devices & services
 
 **The integration does not appear:** confirm HACS downloaded it, restart Home Assistant, then search again in **Add integration**.
 
-**A source is missing from search:** try its name or source ID instead of its fylke/kommune. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
+**The dropdowns are missing:** close the setup dialog, reload the Home Assistant page, then reopen setup. On first installation, opening setup once registers the frontend module; updates require a restart and browser reload.
+
+**A source is missing:** check the appropriate county/municipality, including **Unknown county → Unknown municipality** for unclassified sources. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
 
 **A reading or image is unavailable:** check **Settings → System → Logs**, then allow another refresh. Source faults and outages can affect individual stations or cameras. Camera metadata publication times do not establish when an image was captured.
 
