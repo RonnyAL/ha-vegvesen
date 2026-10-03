@@ -23,7 +23,7 @@ from .const import (
     SUBENTRY_CAMERA,
     SUBENTRY_WEATHER_STATION,
 )
-from .geography import GeographyError
+from .discovery import async_get_discovery
 from .selection import SourcePicker
 
 
@@ -58,40 +58,41 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         try:
             if not self._stations:
-                self._stations = await client.async_get_weather()
+                self._stations = await async_get_discovery(
+                    self.hass
+                ).weather.async_get()
             selecting = False
             if self._stations:
                 selecting = await self._weather_picker.async_prepare(
-                    user_input, self._stations, async_get_clientsession(self.hass)
+                    user_input, self._stations, self.hass
                 )
             if selecting and user_input and CONF_STATION_ID in user_input:
                 station_id = user_input[CONF_STATION_ID]
-                selected = await client.async_get_weather({station_id})
-                if station_id not in selected:
-                    errors["base"] = "station_missing"
+                if station_id not in self._stations:
+                    errors[CONF_STATION_ID] = "invalid_source"
                 else:
-                    self._abort_if_unique_id_configured()
-                    station = selected[station_id]
-                    return self.async_create_entry(
-                        title=NAME,
-                        data={},
-                        subentries=[
-                            {
-                                "subentry_type": SUBENTRY_WEATHER_STATION,
-                                "unique_id": f"weather_station:{station_id}",
-                                "title": station.label,
-                                "data": {CONF_STATION_ID: station_id},
-                            }
-                        ],
-                    )
+                    selected = await client.async_get_weather({station_id})
+                    if station_id not in selected:
+                        errors["base"] = "station_missing"
+                    else:
+                        self._abort_if_unique_id_configured()
+                        station = selected[station_id]
+                        return self.async_create_entry(
+                            title=NAME,
+                            data={},
+                            subentries=[
+                                {
+                                    "subentry_type": SUBENTRY_WEATHER_STATION,
+                                    "unique_id": f"weather_station:{station_id}",
+                                    "title": station.label,
+                                    "data": {CONF_STATION_ID: station_id},
+                                }
+                            ],
+                        )
             elif not self._stations:
                 errors["base"] = "no_stations"
-            elif self._weather_picker.sources == {}:
-                errors["base"] = "no_sources_in_area"
             elif selecting:
                 errors["base"] = "select_source"
-        except GeographyError:
-            errors["base"] = "geography_unavailable"
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
@@ -109,39 +110,38 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         try:
             if not self._cameras:
-                self._cameras = await client.async_get_cameras()
+                self._cameras = await async_get_discovery(self.hass).cameras.async_get()
             selecting = False
             if self._cameras:
                 selecting = await self._camera_picker.async_prepare(
-                    user_input, self._cameras, async_get_clientsession(self.hass)
+                    user_input, self._cameras, self.hass
                 )
             if selecting and user_input and CONF_CAMERA_ID in user_input:
                 camera_id = user_input[CONF_CAMERA_ID]
-                selected = await client.async_get_cameras({camera_id})
-                if camera_id not in selected:
-                    errors["base"] = "camera_missing"
+                if camera_id not in self._cameras:
+                    errors[CONF_CAMERA_ID] = "invalid_source"
                 else:
-                    self._abort_if_unique_id_configured()
-                    return self.async_create_entry(
-                        title=NAME,
-                        data={},
-                        subentries=[
-                            {
-                                "subentry_type": SUBENTRY_CAMERA,
-                                "unique_id": f"camera:{camera_id}",
-                                "title": selected[camera_id].label,
-                                "data": {CONF_CAMERA_ID: camera_id},
-                            }
-                        ],
-                    )
+                    selected = await client.async_get_cameras({camera_id})
+                    if camera_id not in selected:
+                        errors["base"] = "camera_missing"
+                    else:
+                        self._abort_if_unique_id_configured()
+                        return self.async_create_entry(
+                            title=NAME,
+                            data={},
+                            subentries=[
+                                {
+                                    "subentry_type": SUBENTRY_CAMERA,
+                                    "unique_id": f"camera:{camera_id}",
+                                    "title": selected[camera_id].label,
+                                    "data": {CONF_CAMERA_ID: camera_id},
+                                }
+                            ],
+                        )
             elif not self._cameras:
                 errors["base"] = "no_cameras"
-            elif self._camera_picker.sources == {}:
-                errors["base"] = "no_sources_in_area"
             elif selecting:
                 errors["base"] = "select_source"
-        except GeographyError:
-            errors["base"] = "geography_unavailable"
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
@@ -188,37 +188,38 @@ class WeatherStationSubentryFlow(ConfigSubentryFlow):
         errors: dict[str, str] = {}
         try:
             if not self._stations:
-                self._stations = await client.async_get_weather()
+                self._stations = await async_get_discovery(
+                    self.hass
+                ).weather.async_get()
             selecting = False
             if self._stations:
                 selecting = await self._weather_picker.async_prepare(
-                    user_input, self._stations, async_get_clientsession(self.hass)
+                    user_input, self._stations, self.hass
                 )
             if selecting and user_input and CONF_STATION_ID in user_input:
                 station_id = user_input[CONF_STATION_ID]
-                if self._is_configured(station_id):
-                    return self.async_abort(reason="already_configured")
-                selected = await client.async_get_weather({station_id})
-                if station_id not in selected:
-                    errors["base"] = "station_missing"
+                if station_id not in self._stations:
+                    errors[CONF_STATION_ID] = "invalid_source"
                 else:
-                    # Recheck after I/O, before the manager creates the subentry.
                     if self._is_configured(station_id):
                         return self.async_abort(reason="already_configured")
-                    station = selected[station_id]
-                    return self.async_create_entry(
-                        title=station.label,
-                        data={CONF_STATION_ID: station_id},
-                        unique_id=f"weather_station:{station_id}",
-                    )
+                    selected = await client.async_get_weather({station_id})
+                    if station_id not in selected:
+                        errors["base"] = "station_missing"
+                    else:
+                        # Recheck after I/O, before the manager creates the subentry.
+                        if self._is_configured(station_id):
+                            return self.async_abort(reason="already_configured")
+                        station = selected[station_id]
+                        return self.async_create_entry(
+                            title=station.label,
+                            data={CONF_STATION_ID: station_id},
+                            unique_id=f"weather_station:{station_id}",
+                        )
             elif not self._stations:
                 errors["base"] = "no_stations"
-            elif self._weather_picker.sources == {}:
-                errors["base"] = "no_sources_in_area"
             elif selecting:
                 errors["base"] = "select_source"
-        except GeographyError:
-            errors["base"] = "geography_unavailable"
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
@@ -253,35 +254,34 @@ class CameraSubentryFlow(ConfigSubentryFlow):
         errors: dict[str, str] = {}
         try:
             if not self._cameras:
-                self._cameras = await client.async_get_cameras()
+                self._cameras = await async_get_discovery(self.hass).cameras.async_get()
             selecting = False
             if self._cameras:
                 selecting = await self._camera_picker.async_prepare(
-                    user_input, self._cameras, async_get_clientsession(self.hass)
+                    user_input, self._cameras, self.hass
                 )
             if selecting and user_input and CONF_CAMERA_ID in user_input:
                 camera_id = user_input[CONF_CAMERA_ID]
-                if self._is_configured(camera_id):
-                    return self.async_abort(reason="already_configured")
-                selected = await client.async_get_cameras({camera_id})
-                if camera_id not in selected:
-                    errors["base"] = "camera_missing"
+                if camera_id not in self._cameras:
+                    errors[CONF_CAMERA_ID] = "invalid_source"
                 else:
                     if self._is_configured(camera_id):
                         return self.async_abort(reason="already_configured")
-                    return self.async_create_entry(
-                        title=selected[camera_id].label,
-                        data={CONF_CAMERA_ID: camera_id},
-                        unique_id=f"camera:{camera_id}",
-                    )
+                    selected = await client.async_get_cameras({camera_id})
+                    if camera_id not in selected:
+                        errors["base"] = "camera_missing"
+                    else:
+                        if self._is_configured(camera_id):
+                            return self.async_abort(reason="already_configured")
+                        return self.async_create_entry(
+                            title=selected[camera_id].label,
+                            data={CONF_CAMERA_ID: camera_id},
+                            unique_id=f"camera:{camera_id}",
+                        )
             elif not self._cameras:
                 errors["base"] = "no_cameras"
-            elif self._camera_picker.sources == {}:
-                errors["base"] = "no_sources_in_area"
             elif selecting:
                 errors["base"] = "select_source"
-        except GeographyError:
-            errors["base"] = "geography_unavailable"
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(

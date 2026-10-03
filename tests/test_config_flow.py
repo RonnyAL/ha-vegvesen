@@ -15,7 +15,7 @@ from custom_components.vegvesen.const import (
     SUBENTRY_WEATHER_STATION,
 )
 
-from .helpers import browse_all, page, weather_url
+from .helpers import page, weather_url
 
 if TYPE_CHECKING:
     from aioresponses import aioresponses
@@ -38,7 +38,6 @@ async def test_parent_flow(
             result["flow_id"], {"next_step_id": SUBENTRY_WEATHER_STATION}
         )
         assert result["type"] is FlowResultType.FORM
-        result = await browse_all(hass.config_entries.flow, result)
         selector = result["data_schema"].schema[CONF_STATION_ID]
         options = selector.config["options"]
         assert any(
@@ -47,7 +46,6 @@ async def test_parent_flow(
             and "1629006" in option["label"]
             for option in options
         )
-        result = await browse_all(hass.config_entries.flow, result)
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {CONF_STATION_ID: "1629006"}
         )
@@ -116,7 +114,6 @@ async def test_parent_selection_failure(
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"next_step_id": SUBENTRY_WEATHER_STATION}
     )
-    result = await browse_all(hass.config_entries.flow, result)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_STATION_ID: "1629006"}
     )
@@ -141,7 +138,6 @@ async def test_add_station_and_duplicate(
         (config_entry.entry_id, SUBENTRY_WEATHER_STATION),
         context={"source": SOURCE_USER},
     )
-    result = await browse_all(hass.config_entries.subentries, result)
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {CONF_STATION_ID: "1629004"}
     )
@@ -151,7 +147,6 @@ async def test_add_station_and_duplicate(
         (config_entry.entry_id, SUBENTRY_WEATHER_STATION),
         context={"source": SOURCE_USER},
     )
-    duplicate = await browse_all(hass.config_entries.subentries, duplicate)
     duplicate = await hass.config_entries.subentries.async_configure(
         duplicate["flow_id"], {CONF_STATION_ID: "1629004"}
     )
@@ -186,7 +181,6 @@ async def test_subentry_failure(
             mock_http.get(weather_url(("1629004",)), status=503)
         else:
             mock_http.get(weather_url(("1629004",)), payload=page([]))
-        result = await browse_all(hass.config_entries.subentries, result)
         result = await hass.config_entries.subentries.async_configure(
             result["flow_id"], {CONF_STATION_ID: "1629004"}
         )
@@ -224,7 +218,6 @@ async def test_concurrent_duplicate_selection(
                 (config_entry.entry_id, SUBENTRY_WEATHER_STATION),
                 context={"source": SOURCE_USER},
             )
-            other = await browse_all(hass.config_entries.subentries, other)
             await hass.config_entries.subentries.async_configure(
                 other["flow_id"], {CONF_STATION_ID: station.source_id}
             )
@@ -242,11 +235,10 @@ async def test_concurrent_duplicate_selection(
         "custom_components.vegvesen.api.VegvesenApiClient.async_get_weather",
         new=AsyncMock(side_effect=selected),
     ):
-        result = await browse_all(hass.config_entries.subentries, result)
         result = await hass.config_entries.subentries.async_configure(
             result["flow_id"], {CONF_STATION_ID: station.source_id}
         )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert len(config_entry.subentries) == 3
-    assert len(mock_http.requests) == 1  # Only the flow's administrative directory.
+    assert not mock_http.requests  # All source I/O was mocked at the client boundary.

@@ -11,26 +11,22 @@
       },
       "weather_station": {
         "title": "Velg en værstasjon",
-        "description": "Velg et fylke og trykk Send inn, deretter en kommune og Send inn. Velg en kilde fra den filtrerte listen, eller velg Hele Norge. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
+        "description": "Søk etter fylke, kommune, navn eller kilde-ID. Velg et treff og trykk Send inn én gang. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
         "data": {
-          "station_id": "Værstasjon",
-          "county": "Fylke",
-          "municipality": "Kommune"
+          "station_id": "Værstasjon"
         },
         "data_description": {
-          "station_id": "La feltet stå tomt når du endrer fylke eller kommune."
+          "station_id": "Velg et av treffene i søkelisten."
         }
       },
       "camera": {
         "title": "Velg et veikamera",
-        "description": "Velg et fylke og trykk Send inn, deretter en kommune og Send inn. Velg en kilde fra den filtrerte listen, eller velg Hele Norge. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
+        "description": "Søk etter fylke, kommune, navn eller kilde-ID. Velg et treff og trykk Send inn én gang. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
         "data": {
-          "camera_id": "Veikamera",
-          "county": "Fylke",
-          "municipality": "Kommune"
+          "camera_id": "Veikamera"
         },
         "data_description": {
-          "camera_id": "La feltet stå tomt når du endrer fylke eller kommune."
+          "camera_id": "Velg et av treffene i søkelisten."
         }
       }
     },
@@ -40,9 +36,8 @@
       "no_stations": "Datakilden returnerte ingen stasjoner. Prøv igjen senere.",
       "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
       "camera_missing": "Dette kameraet finnes ikke lenger i svaret fra datakilden. Velg et annet kamera eller prøv igjen.",
-      "geography_unavailable": "Kunne ikke hente fylke-/kommuneinformasjon. Prøv igjen eller velg Hele Norge og trykk Send inn.",
-      "no_sources_in_area": "Fant ingen kilder med kjente koordinater i dette området. Velg en annen kommune eller Hele Norge.",
-      "select_source": "Velg en kilde fra listen."
+      "select_source": "Velg en kilde fra listen.",
+      "invalid_source": "Velg et av treffene i listen, ikke fritekst."
     },
     "abort": {
       "already_configured": "Statens vegvesen er allerede konfigurert. Legg til værstasjoner eller veikameraer i den eksisterende integrasjonen."
@@ -53,14 +48,12 @@
       "step": {
         "user": {
           "title": "Velg en værstasjon",
-          "description": "Velg et fylke og trykk Send inn, deretter en kommune og Send inn. Velg en kilde fra den filtrerte listen, eller velg Hele Norge. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
+          "description": "Søk etter fylke, kommune, navn eller kilde-ID. Velg et treff og trykk Send inn én gang. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
           "data": {
-            "station_id": "Værstasjon",
-            "county": "Fylke",
-            "municipality": "Kommune"
+            "station_id": "Værstasjon"
           },
           "data_description": {
-            "station_id": "La feltet stå tomt når du endrer fylke eller kommune."
+            "station_id": "Velg et av treffene i søkelisten."
           }
         }
       },
@@ -68,9 +61,8 @@
         "cannot_connect": "Kunne ikke hente et fullstendig sett med værdata. Prøv igjen.",
         "station_missing": "Denne stasjonen finnes ikke lenger i svaret fra datakilden. Velg en annen stasjon eller prøv igjen.",
         "no_stations": "Datakilden returnerte ingen stasjoner. Prøv igjen senere.",
-        "geography_unavailable": "Kunne ikke hente fylke-/kommuneinformasjon. Prøv igjen eller velg Hele Norge og trykk Send inn.",
-        "no_sources_in_area": "Fant ingen kilder med kjente koordinater i dette området. Velg en annen kommune eller Hele Norge.",
-        "select_source": "Velg en kilde fra listen."
+        "select_source": "Velg en kilde fra listen.",
+        "invalid_source": "Velg et av treffene i listen, ikke fritekst."
       },
       "abort": {
         "already_configured": "Denne stasjonen er allerede konfigurert."
@@ -84,14 +76,12 @@
       "step": {
         "user": {
           "title": "Velg et veikamera",
-          "description": "Velg et fylke og trykk Send inn, deretter en kommune og Send inn. Velg en kilde fra den filtrerte listen, eller velg Hele Norge. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
+          "description": "Søk etter fylke, kommune, navn eller kilde-ID. Velg et treff og trykk Send inn én gang. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.",
           "data": {
-            "camera_id": "Veikamera",
-            "county": "Fylke",
-            "municipality": "Kommune"
+            "camera_id": "Veikamera"
           },
           "data_description": {
-            "camera_id": "La feltet stå tomt når du endrer fylke eller kommune."
+            "camera_id": "Velg et av treffene i søkelisten."
           }
         }
       },
@@ -99,9 +89,8 @@
         "cannot_connect": "Kunne ikke hente et fullstendig datasett. Prøv igjen.",
         "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
         "camera_missing": "Dette kameraet finnes ikke lenger i svaret fra datakilden. Velg et annet kamera eller prøv igjen.",
-        "geography_unavailable": "Kunne ikke hente fylke-/kommuneinformasjon. Prøv igjen eller velg Hele Norge og trykk Send inn.",
-        "no_sources_in_area": "Fant ingen kilder med kjente koordinater i dette området. Velg en annen kommune eller Hele Norge.",
-        "select_source": "Velg en kilde fra listen."
+        "select_source": "Velg en kilde fra listen.",
+        "invalid_source": "Velg et av treffene i listen, ikke fritekst."
       },
       "abort": {
         "already_configured": "Dette kameraet er allerede konfigurert."
@@ -122,18 +111,6 @@
       },
       "source_availability": {
         "name": "Kildestatus"
-      }
-    }
-  },
-  "selector": {
-    "county": {
-      "options": {
-        "all": "Hele Norge"
-      }
-    },
-    "municipality": {
-      "options": {
-        "all": "Alle kommuner"
       }
     }
   }

@@ -132,6 +132,26 @@ class GeographyClient:
             await self._async_get("fylkerkommuner", {"utkoordsys": "4326"})
         )
 
+    async def async_get_membership(
+        self, point: tuple[float, float]
+    ) -> tuple[str, str] | None:
+        """Look up one exact coordinate, reusing successful results and 404s."""
+        if point in self._points:
+            return self._points[point]
+        payload = await self._async_get(
+            "punkt",
+            {"nord": str(point[0]), "ost": str(point[1]), "koordsys": "4326"},
+        )
+        result = None
+        if payload is not None:
+            code, _ = _identity(payload, "kommune", 4)
+            county_code, _ = _identity(payload, "fylkes", 2)
+            if not code.startswith(county_code):
+                raise GeographyError("Inconsistent point administrative codes")
+            result = county_code, code
+        self._points[point] = result
+        return result
+
     async def async_filter[T: WeatherStation | RoadCamera](
         self, sources: dict[str, T], county: County, municipality: str | None
     ) -> dict[str, T]:
@@ -154,21 +174,8 @@ class GeographyClient:
         semaphore = asyncio.Semaphore(LOOKUP_CONCURRENCY)
 
         async def lookup(point: tuple[float, float]) -> None:
-            if point in self._points:
-                return
             async with semaphore:
-                payload = await self._async_get(
-                    "punkt",
-                    {"nord": str(point[0]), "ost": str(point[1]), "koordsys": "4326"},
-                )
-                result = None
-                if payload is not None:
-                    code, _ = _identity(payload, "kommune", 4)
-                    county_code, _ = _identity(payload, "fylkes", 2)
-                    if not code.startswith(county_code):
-                        raise GeographyError("Inconsistent point administrative codes")
-                    result = county_code, code
-                self._points[point] = result
+                await self.async_get_membership(point)
 
         try:
             async with asyncio.timeout(REQUEST_TIMEOUT):

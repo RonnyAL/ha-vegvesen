@@ -43,41 +43,56 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_role("button", name="Add integration", exact=True).click()
             page.get_by_placeholder("Search for a brand name").fill("Statens vegvesen")
             page.get_by_text("Statens vegvesen", exact=True).click()
+            weather_started = time.monotonic()
             page.get_by_text("Weather station", exact=True).click()
             print("Weather configuration dialog opened")
             expect(page.get_by_role("link", name="© Kartverket")).to_be_visible()
+            expect(page.locator("ha-selector-select")).to_have_count(1)
+            expect(page.locator("ha-selector-select ha-picker-field")).to_be_visible()
+            weather_list_seconds = time.monotonic() - weather_started
             page.locator("ha-selector-select ha-picker-field").click()
-            page.locator("ha-dropdown-item").filter(has_text="Trøndelag").click()
-            page.get_by_role("button", name="Submit", exact=True).click()
-            page.locator("ha-selector-select ha-picker-field").nth(1).click()
-            page.locator("ha-dropdown-item").filter(has_text="Orkland").click()
-            page.get_by_role("button", name="Submit", exact=True).click()
-            page.locator("ha-selector-select ha-picker-field").nth(2).click()
-            page.locator("ha-dropdown-item").filter(
-                has_text="Fv 714 Våvatnet (1629006)"
+            search = page.locator("ha-picker-combo-box ha-input-search input")
+            search.fill("Trøndelag")
+            search.fill("Trøndelag Orkland")
+            search.fill("Orkland Våvatnet")
+            page.locator("ha-combo-box-item").filter(
+                has_text="Trøndelag / Orkland / Fv 714 Våvatnet (1629006)"
             ).click()
+            expect(page.locator("ha-selector-select")).to_have_js_property(
+                "value", "1629006"
+            )
+            expect(search).to_be_hidden()
             page.screenshot(path=str(RESULTS / "weather-selection.png"))
             page.get_by_role("button", name="Submit", exact=True).click()
             page.get_by_role("button", name="Skip and finish", exact=True).click()
             print("Weather parent created through UI")
             page.get_by_text("Statens vegvesen", exact=True).click()
+            camera_started = time.monotonic()
             page.get_by_role("button", name="Add road camera", exact=True).click()
             expect(page.get_by_role("link", name="© Kartverket")).to_be_visible()
+            expect(page.locator("ha-selector-select")).to_have_count(1)
+            expect(page.locator("ha-selector-select ha-picker-field")).to_be_visible()
+            camera_list_seconds = time.monotonic() - camera_started
             page.locator("ha-selector-select ha-picker-field").click()
-            page.locator("ha-dropdown-item").filter(has_text="Møre og Romsdal").click()
-            page.get_by_role("button", name="Submit", exact=True).click()
-            page.locator("ha-selector-select ha-picker-field").nth(1).click()
-            page.locator("ha-dropdown-item").filter(has_text="Herøy").click()
-            page.get_by_role("button", name="Submit", exact=True).click()
-            page.locator("ha-selector-select ha-picker-field").nth(2).click()
-            page.locator("ha-dropdown-item").filter(
-                has_text="Rundebrua — Runde (3000047_2)"
+            search.fill("Herøy Rundebrua")
+            page.locator("ha-combo-box-item").filter(
+                has_text="Møre og Romsdal / Herøy / Rundebrua — Runde (3000047_2)"
             ).click()
+            expect(page.locator("ha-selector-select")).to_have_js_property(
+                "value", "3000047_2"
+            )
+            expect(search).to_be_hidden()
             page.screenshot(path=str(RESULTS / "camera-selection.png"))
             page.get_by_role("button", name="Submit", exact=True).click()
             page.get_by_role("button", name="Finish", exact=True).click()
             expect(page.get_by_role("button", name="Finish", exact=True)).to_be_hidden()
             print("Camera subentry added through UI")
+            warm_started = time.monotonic()
+            page.get_by_role("button", name="Add weather station", exact=True).click()
+            expect(page.locator("ha-selector-select ha-picker-field")).to_be_visible()
+            warm_list_seconds = time.monotonic() - warm_started
+            page.keyboard.press("Escape")
+            expect(page.locator("ha-selector-select")).to_have_count(0)
             expect(
                 page.get_by_text("Fv 714 Våvatnet (1629006)", exact=True)
             ).to_be_visible()
@@ -139,6 +154,9 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 "observation": observations[0]["entity_id"],
                 "camera": camera["entity_id"],
                 "jpeg_bytes": len(image.content),
+                "weather_list_seconds": round(weather_list_seconds, 2),
+                "camera_list_seconds": round(camera_list_seconds, 2),
+                "cached_weather_list_seconds": round(warm_list_seconds, 2),
             }
             (RESULTS / "result.json").write_text(json.dumps(summary, indent=2) + "\n")
             print("UI smoke test passed:", summary)

@@ -11,26 +11,22 @@
       },
       "weather_station": {
         "title": "Select a weather station",
-        "description": "Choose a county and submit, then choose a municipality and submit. Select a source from the filtered list, or choose All Norway. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
+        "description": "Search by county, municipality, name or source ID. Choose a result and submit once. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
         "data": {
-          "station_id": "Weather station",
-          "county": "County (fylke)",
-          "municipality": "Municipality (kommune)"
+          "station_id": "Weather station"
         },
         "data_description": {
-          "station_id": "Leave this empty when changing the county or municipality."
+          "station_id": "Choose one of the search results."
         }
       },
       "camera": {
         "title": "Select a road camera",
-        "description": "Choose a county and submit, then choose a municipality and submit. Select a source from the filtered list, or choose All Norway. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
+        "description": "Search by county, municipality, name or source ID. Choose a result and submit once. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
         "data": {
-          "camera_id": "Road camera",
-          "county": "County (fylke)",
-          "municipality": "Municipality (kommune)"
+          "camera_id": "Road camera"
         },
         "data_description": {
-          "camera_id": "Leave this empty when changing the county or municipality."
+          "camera_id": "Choose one of the search results."
         }
       }
     },
@@ -40,9 +36,8 @@
       "no_stations": "The source returned no stations. Try again later.",
       "no_cameras": "The source returned no cameras. Try again later.",
       "camera_missing": "This camera is no longer present in the source response. Select another camera or try again.",
-      "geography_unavailable": "County/municipality lookup failed. Try again or choose All Norway and submit.",
-      "no_sources_in_area": "No sources with recognized coordinates were found in this area. Choose another municipality or All Norway.",
-      "select_source": "Select a source from the list."
+      "select_source": "Select a source from the list.",
+      "invalid_source": "Choose a listed search result rather than free text."
     },
     "abort": {
       "already_configured": "Statens vegvesen is already configured. Add weather stations or road cameras to the existing integration."
@@ -53,14 +48,12 @@
       "step": {
         "user": {
           "title": "Select a weather station",
-          "description": "Choose a county and submit, then choose a municipality and submit. Select a source from the filtered list, or choose All Norway. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
+          "description": "Search by county, municipality, name or source ID. Choose a result and submit once. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
           "data": {
-            "station_id": "Weather station",
-            "county": "County (fylke)",
-            "municipality": "Municipality (kommune)"
+            "station_id": "Weather station"
           },
           "data_description": {
-            "station_id": "Leave this empty when changing the county or municipality."
+            "station_id": "Choose one of the search results."
           }
         }
       },
@@ -68,9 +61,8 @@
         "cannot_connect": "Unable to retrieve a complete weather snapshot. Try again.",
         "station_missing": "This station is no longer present in the source response. Select another station or try again.",
         "no_stations": "The source returned no stations. Try again later.",
-        "geography_unavailable": "County/municipality lookup failed. Try again or choose All Norway and submit.",
-        "no_sources_in_area": "No sources with recognized coordinates were found in this area. Choose another municipality or All Norway.",
-        "select_source": "Select a source from the list."
+        "select_source": "Select a source from the list.",
+        "invalid_source": "Choose a listed search result rather than free text."
       },
       "abort": {
         "already_configured": "This station is already configured."
@@ -84,14 +76,12 @@
       "step": {
         "user": {
           "title": "Select a road camera",
-          "description": "Choose a county and submit, then choose a municipality and submit. Select a source from the filtered list, or choose All Norway. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
+          "description": "Search by county, municipality, name or source ID. Choose a result and submit once. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.",
           "data": {
-            "camera_id": "Road camera",
-            "county": "County (fylke)",
-            "municipality": "Municipality (kommune)"
+            "camera_id": "Road camera"
           },
           "data_description": {
-            "camera_id": "Leave this empty when changing the county or municipality."
+            "camera_id": "Choose one of the search results."
           }
         }
       },
@@ -99,9 +89,8 @@
         "cannot_connect": "Unable to retrieve a complete source snapshot. Try again.",
         "no_cameras": "The source returned no cameras. Try again later.",
         "camera_missing": "This camera is no longer present in the source response. Select another camera or try again.",
-        "geography_unavailable": "County/municipality lookup failed. Try again or choose All Norway and submit.",
-        "no_sources_in_area": "No sources with recognized coordinates were found in this area. Choose another municipality or All Norway.",
-        "select_source": "Select a source from the list."
+        "select_source": "Select a source from the list.",
+        "invalid_source": "Choose a listed search result rather than free text."
       },
       "abort": {
         "already_configured": "This camera is already configured."
@@ -122,18 +111,6 @@
       },
       "source_availability": {
         "name": "Source availability"
-      }
-    }
-  },
-  "selector": {
-    "county": {
-      "options": {
-        "all": "All Norway"
-      }
-    },
-    "municipality": {
-      "options": {
-        "all": "All municipalities"
       }
     }
   }

@@ -1,0 +1,133 @@
+"""Short-lived source catalogues and bundled, coordinate-checked UI geography."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from time import monotonic
+from typing import TYPE_CHECKING, Any
+
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+from .api import RoadCamera, VegvesenApiClient, WeatherStation
+from .const import DOMAIN, LOGGER
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from homeassistant.core import HomeAssistant
+
+CATALOGUE_TTL = 15 * 60
+
+
+@dataclass(frozen=True, slots=True)
+class SourceLocation:
+    """Administrative names apply only to the captured source coordinates."""
+
+    latitude: float
+    longitude: float
+    county: str
+    municipality: str
+
+    def label(self, source: WeatherStation | RoadCamera) -> str:
+        """Do not apply a source's old location if its coordinates have changed."""
+        if (source.latitude, source.longitude) != (self.latitude, self.longitude):
+            return source.label
+        return f"{self.county} / {self.municipality} / {source.label}"
+
+
+def parse_source_geography(payload: Any) -> dict[str, SourceLocation]:
+    """Reject the entire supplemental index if its format is malformed."""
+    if (
+        not isinstance(payload, dict)
+        or payload.get("version") != 1
+        or not isinstance(payload.get("sources"), dict)
+    ):
+        raise ValueError("Invalid source geography index")
+    locations = {}
+    for key, record in payload["sources"].items():
+        if (
+            not isinstance(key, str)
+            or not key.startswith(("weather_station:", "camera:"))
+            or not isinstance(record, dict)
+            or any(
+                type(record.get(field)) not in (int, float)
+                for field in ("latitude", "longitude")
+            )
+            or any(
+                not isinstance(record.get(field), str) or not record[field]
+                for field in ("county", "municipality")
+            )
+        ):
+            raise ValueError("Invalid source geography record")
+        locations[key] = SourceLocation(
+            record["latitude"],
+            record["longitude"],
+            record["county"],
+            record["municipality"],
+        )
+    return locations
+
+
+def _read_source_geography() -> dict[str, SourceLocation]:
+    """Read and parse package metadata in HA's executor, never on its event loop."""
+    return parse_source_geography(
+        json.loads(Path(__file__).with_name("source_geography.json").read_text())
+    )
+
+
+class CatalogueCache[T: WeatherStation | RoadCamera]:
+    """Coalesce simultaneous flows without caching failures or partial pages."""
+
+    def __init__(self, fetch: Callable[[], Awaitable[dict[str, T]]]) -> None:
+        """Keep one family independent from the other."""
+        self._fetch = fetch
+        self._lock = asyncio.Lock()
+        self._snapshot: dict[str, T] = {}
+        self._expires = 0.0
+
+    async def async_get(self) -> dict[str, T]:
+        """Return a flow-owned copy; expired refresh failures propagate normally."""
+        async with self._lock:
+            if not self._snapshot or monotonic() >= self._expires:
+                snapshot = await self._fetch()
+                self._snapshot = snapshot
+                self._expires = monotonic() + CATALOGUE_TTL
+            return dict(self._snapshot)
+
+
+class DiscoveryCache:
+    """HA-scoped discovery only; no timers, persistent tasks or entity state."""
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        """Use the shared session; the cache never closes it."""
+        self._hass = hass
+        client = VegvesenApiClient(async_get_clientsession(hass))
+        self.weather = CatalogueCache(client.async_get_weather)
+        self.cameras = CatalogueCache(client.async_get_cameras)
+        self._geography: dict[str, SourceLocation] | None = None
+        self._geography_lock = asyncio.Lock()
+
+    async def async_geography(self) -> dict[str, SourceLocation]:
+        """Unavailable supplemental geography cannot hide any real sources."""
+        async with self._geography_lock:
+            if self._geography is None:
+                try:
+                    self._geography = await self._hass.async_add_executor_job(
+                        _read_source_geography
+                    )
+                except (OSError, ValueError):
+                    LOGGER.warning(
+                        "Cannot read source geography; showing source names and IDs"
+                    )
+                    self._geography = {}
+            return self._geography
+
+
+def async_get_discovery(hass: HomeAssistant) -> DiscoveryCache:
+    """Share catalogues between flows within this HA instance only."""
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = DiscoveryCache(hass)
+    return hass.data[DOMAIN]

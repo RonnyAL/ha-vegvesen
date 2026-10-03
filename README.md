@@ -1,69 +1,77 @@
 # Statens vegvesen for Home Assistant
 
-Custom integration with domain `vegvesen`. Available as a **HACS custom repository**; inclusion in HACS's default list is deferred. Manually selected road weather stations and road camera stills are implemented. Geographic monitors remain future work. See the [custom-repository test guide](docs/custom-repository-test.md) for prerequisites, installation, updates and removal. Use the public repository https://github.com/RonnyAL/ha-vegvesen with category **Integration**.
+Bring road weather readings and road-camera still images from Statens vegvesen into Home Assistant. Choose the stations and cameras you want, anywhere in Norway.
 
-Add **Statens vegvesen** from Settings → Devices & services and choose a weather station or road camera as the first source. Select a fylke and submit, select a kommune (or all municipalities) and submit, then choose the source. **Hele Norge / All Norway** retains nationwide selection. Labels include names, direction where available, and source identifiers. Use the parent entry's **Add weather station** or **Add road camera** action for further selections; an existing source ID cannot be selected twice within its source type. Remove individual source subentries to remove their entities. Additions and removals reload the parent entry.
+| Source | Entities | Refresh interval |
+| --- | --- | --- |
+| Weather station | Air temperature and observation time | 10 minutes |
+| Road camera | Still image and source availability | 1 minute |
 
-Each station has one device and two sensors: air temperature (native °C) and observation time. Device and entity identifiers use the exact `REFERENCE_ID`, including leading zeroes. Names, coordinates, and GeoServer row identifiers do not determine identity.
+Setup is available in English and Norwegian Bokmål. No API key or Statens vegvesen account is required.
 
-Weather polls every ten minutes using one filtered request chain for the selected IDs. Null or omitted measurements are **unknown**. A failed, malformed, or incomplete refresh makes weather sensors **unavailable**, retaining the previous internal snapshot until recovery. A station absent from a successful complete snapshot is unavailable individually. Unusual numeric source values are preserved. Home Assistant may display temperatures in the user's preferred units and timestamp states in UTC.
+## Requirements
 
-Each camera has one device, a cached still-camera entity, and a raw **Source availability** sensor. Camera IDs include their direction suffix. Selected camera metadata and available JPEGs poll once a minute; frontend requests use the memory cache. A failed JPEG makes only that camera unavailable, while its source-status sensor stays available. Metadata failures make the CCTV family unavailable. Weather and cameras recover independently, including during mixed-entry setup. Publication/update timestamps are metadata attributes, not image capture times. See [camera API and behavior notes](docs/camera-milestone.md).
+- Home Assistant **2025.12.0 or newer**.
+- [HACS](https://www.hacs.xyz/docs/use/) **2.0.5 or newer** for HACS installation.
+- Internet access to Statens vegvesen's public services.
 
-## Development
+## Install with HACS
 
-The locked test environment is **CPython 3.14.8**, **Home Assistant 2026.9.4**, and **pytest-homeassistant-custom-component 0.13.367**, managed with **uv 0.12.22**. `pyproject.toml` describes development tooling, not a Python requirement imposed on users' HA installations. Debian's system Python is not used for the virtual environment.
+This integration is available through a HACS custom repository.
 
-From this repository, with uv already installed:
+1. Open HACS, then its menu → **Custom repositories**.
+2. Add `https://github.com/RonnyAL/ha-vegvesen` with type **Integration**.
+3. Find **Statens vegvesen** and download it.
+4. Restart Home Assistant.
+5. Go to **Settings → Devices & services → Add integration** and search for **Statens vegvesen**.
 
-```bash
-VEGVESEN_UV=/home/dev/.local/bin/uv scripts/setup
-VEGVESEN_UV=/home/dev/.local/bin/uv scripts/check
-```
+See HACS's [custom repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/) if you cannot find the menu.
 
-`setup` creates `.venv` and installs `uv.lock` with `--locked`. `check` runs Ruff lint, Ruff formatting verification, and the mocked pytest suite. CI runs the same scripts with the same Python and uv versions. The scripts use a repository-local uv cache and fall back to `$HOME/.local/bin/uv` when uv is absent from PATH. Separate checks:
+For manual installation, copy the repository's `custom_components/vegvesen` folder into your Home Assistant configuration's `custom_components` folder, then restart Home Assistant and add the integration as above.
 
-```bash
-scripts/lint
-UV_CACHE_DIR="$PWD/.cache/uv" /home/dev/.local/bin/uv run --locked --no-sync pytest
-```
+## Choose stations and cameras
 
-To intentionally format edits:
+Choose **Weather station / Værstasjon** or **Road camera / Veikamera**. Search the picker by fylke, kommune, source name or source ID, select a result, then press **Submit / Send inn** once.
 
-```bash
-UV_CACHE_DIR="$PWD/.cache/uv" /home/dev/.local/bin/uv run --locked --no-sync ruff format .
-```
+Results include their source IDs and camera direction. Geographic labels look like **Trøndelag / Orkland / Fv 714 Våvatnet (1629006)**. Only actual sources appear in the picker. New or relocated sources may appear by name and ID without a fylke/kommune prefix.
 
-Tests disable external sockets and mock HTTP. They cover pagination atomicity, parsing, flows, duplicates, identities, unknown/unavailable states, rate limiting, automatic setup retry, recovery, subentry changes, and unloading including an in-flight poll. A test-only response-factory adapter supplies the stream writer argument omitted by aioresponses 0.7.9 for HA's aiohttp 3.14; production dependencies remain unchanged. The dev lock also includes HA's camera platform requirement, PyTurboJPEG 1.8.3, and pins its setuptools build dependency. Native host libraries are not installed by setup.
+Use **Add weather station / Legg til værstasjon** or **Add road camera / Legg til veikamera** on the same integration to add more sources. Each selection can be anywhere in Norway; selecting one region does not restrict later selections. The same source cannot be added twice. Existing selections and device/entity identities are retained across updates and restarts.
 
-The minimum supported HA version is **2025.12.0**, distinct from the primary development target. It supplies subentries with unique IDs and entity registration, typed entry runtime data, coordinator lifecycle integration, and [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/). The complete suite also passes against this minimum using **CPython 3.13.11** and **pytest-homeassistant-custom-component 0.13.298**. Ruff targets Python 3.13 syntax.
+Discovery lists are reused for up to 15 minutes. The first list after startup or cache expiry needs a complete response from Statens vegvesen; later selections usually open faster. Your selected source is checked again when you submit.
 
-```bash
-scripts/check-minimum
-scripts/validate-hassfest
-scripts/validate-hacs
-```
+## Using the entities
 
-The minimum environment has a separate `environments/minimum/uv.lock` and `.venv`. Its pycares pin avoids an incompatible newer transitive dependency of HA's aiodns. The old lru-dict requirement needs a native build on Python 3.13; a pinned Zig compiler runs inside uv's isolated build environment, with caches and the managed interpreter inside the repository. No host compiler or system Python change is required. Hassfest uses checksum-pinned HA 2026.9.4 source. Local HACS checks use the official HACS 2.0.5 manifest schemas plus package structure and image checks; they do not validate remote repository metadata or releases. CI runs these same commands and a separate remote HACS action with PR comments disabled.
+Each source creates a device in **Settings → Devices & services**. Add its entities to a dashboard or use them in automations.
 
-The explicit live UI smoke test is available for Debian 12 amd64:
+- **Air temperature** uses the source's measurement. Home Assistant displays it in your preferred temperature unit.
+- **Observation time** tells you when the weather reading was measured. It can differ from the last refresh time.
+- **Road camera** displays the latest retrieved still image. Images can remain unchanged when the source does not publish a new one.
+- **Source availability** reports the camera status supplied by Statens vegvesen.
 
-```bash
-scripts/smoke-ui
-```
+Readings and statuses are exposed as provided by the source. Missing readings are **unknown**. Request failures make the affected entities **unavailable**, and they recover after a successful refresh. A failed camera image does not prevent weather readings or other camera images from updating.
 
-This installs locked optional frontend/browser dependencies, extracts checksum-pinned Debian packages into `.tools`, builds and extracts the runtime package, and starts a disposable HA instance bound to `127.0.0.1:18123`. It creates an ephemeral test owner, selects public fixture stations/cameras through the real frontend, verifies entity states and a cached JPEG, then stops HA and removes its temporary configuration even on test failure. Screenshots and logs stay in ignored `.tools/smoke-results`. It uses live public APIs, so source changes and outages can fail this optional check. Existing port occupancy fails before starting anything. The normal mocked checks do not start an HTTP server. See [validation details](docs/validation.md).
+## Updates and removal
 
-No standalone HA process is started by setup or checks; pytest exercises HA in its temporary test environment. `scripts/develop` is an explicit foreground-only launcher for the repository's ignored runtime configuration, bound to `127.0.0.1:18123`; reserve running it for a separately approved development session. The optional devcontainer configuration does not auto-start HA. Do not use the household instance or modify existing Docker services for development.
+Update or redownload the integration in HACS, then restart Home Assistant. This repository currently distributes the default branch; HACS may show a commit identifier instead of the version displayed in the integration details.
 
-`.venv`, caches, runtime files, `first_output.md`, `codex-session-*.md`, and `conversation_exports/` are excluded from Git. Keep all conversation exports in that ignored directory. Do not add credentials or personal locations to tracked files.
+To remove one source, remove its station/camera subentry in **Devices & services**. To remove everything, remove the integration entry, remove the download in HACS, and restart Home Assistant.
+
+## Troubleshooting and support
+
+**The integration does not appear:** confirm HACS downloaded it, restart Home Assistant, then search again in **Add integration**.
+
+**A source is missing from search:** try its name or source ID instead of its fylke/kommune. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
+
+**A reading or image is unavailable:** check **Settings → System → Logs**, then allow another refresh. Source faults and outages can affect individual stations or cameras. Camera metadata publication times do not establish when an image was captured.
+
+[Report a problem](https://github.com/RonnyAL/ha-vegvesen/issues) with your Home Assistant version, integration version, entity type, source ID if you are comfortable sharing it, and relevant error messages. Remove credentials and private details from logs or screenshots.
 
 ## Data and licensing
 
-**Data provided by Statens vegvesen.** The official [CCTV dataset catalogue](https://dataut.vegvesen.no/en/dataset/webkamera) and [weather data catalogue](https://dataut.vegvesen.no/nb/dataservice/vaerdata-malinger-api) identifies NLOD licensing, and the [DATEX publication documentation](https://www.vegvesen.no/en/fag/technology/open-data/a-selection-of-open-data/what-is-datex/publications/) requires source attribution. The public OGC representation has been observed to work without credentials; the separate DATEX XML service requires registration. See [API and architecture notes](docs/weather-milestone.md) and [fixture provenance](tests/fixtures/README.md) for verified behavior and limitations.
+**Data provided by Statens vegvesen / Data levert av Statens vegvesen.** Weather and camera data use [NLOD](https://dataut.vegvesen.no/nb/dataservice/vaerdata-malinger-api); see also the [camera dataset](https://dataut.vegvesen.no/en/dataset/webkamera).
 
-The integration retains the scaffold's [MIT license](LICENSE), including Joakim Sørensen's copyright notice. It is based on [ludeeus/integration_blueprint](https://github.com/ludeeus/integration_blueprint).
+Administrative geography: [© Kartverket](https://www.kartverket.no/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), under [Kartverket's terms of use](https://www.kartverket.no/api-og-data/vilkar-for-bruk).
 
-Local HACS packaging includes English and Norwegian Bokmål translations, original generic road/weather icons, the preserved MIT license and an attribution notice in the installed component directory. The initial custom-repository installation has been reported working by the user; version 0.2.0 upgrade testing remains a user installation check. HACS default-list submission is deferred. No monitor framework or camera video streaming is included.
+The integration uses the [MIT license](LICENSE) and retains the license and attribution of [ludeeus/integration_blueprint](https://github.com/ludeeus/integration_blueprint). The road/weather icon is original artwork, not Statens vegvesen's official logo.
 
-Administrative geography for the **0.2.0** picker: [© Kartverket](https://www.kartverket.no/), CC BY 4.0. See [picker details and update instructions](docs/geographic-selection.md).
+For contributing and development documentation, see [CONTRIBUTING.md](CONTRIBUTING.md).

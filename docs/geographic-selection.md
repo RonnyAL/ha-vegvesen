@@ -1,67 +1,79 @@
-# Fylke and kommune source selection (0.2.0)
+# Searchable source selection (0.3.0)
 
-Both weather-station and camera setup now begin with **Fylke / County**.
-Choose a county and submit, choose a kommune or **All municipalities** and
-submit, then select a source from the smaller list. Each form retains the
-region controls: leave the source empty, change a region and submit to browse
-elsewhere. **All Norway / Hele Norge** opens the original nationwide list.
-The same picker works for the first source and subsequent subentries.
+Weather stations and cameras use one native Home Assistant searchable picker.
+Type a fylke, kommune, source name or source ID, select a listed result, then
+submit once. Labels have the form **Trøndelag / Orkland / Fv 714 Våvatnet
+(1629006)**. Only actual records from the requested source catalogue appear;
+there are no county or municipality choices that lead to an empty list.
+The same form works for the first source and subsequent subentries.
+
+Home Assistant's [standard data-entry forms](https://developers.home-assistant.io/docs/data_entry_flow_index/)
+do not provide reactive dependent dropdowns without a submission. This uses
+its [select selector](https://www.home-assistant.io/docs/blueprint/selectors/#select-selector)
+instead of introducing a custom frontend. The tested frontend uses its searchable,
+virtualized picker for `custom_value` selectors; the flow explicitly rejects
+unknown text. Choose a listed result rather than the frontend's generic
+**Add custom item** option. This behavior is covered by flow tests and a real
+frontend smoke test. [Official frontend implementation](https://github.com/home-assistant/frontend/blob/20260826.7/src/components/ha-selector/ha-selector-select.ts).
 
 Existing devices, entities and subentries need no migration. Only the chosen
-source ID is saved; fylke/kommune choices are temporary discovery filters.
-Each additional source can be selected anywhere in Norway. Polling and source
-values are unchanged, and no geographic setting restricts the parent entry or
-future independent area/route monitors.
+source ID is saved. Each additional source can be selected anywhere in Norway.
+Polling and source values are unchanged; there is no parent-wide geographic
+restriction or dependency on future area/route monitors.
 
 ## Verified geography source
 
 Live `WeatherSimple_v2` responses include a `COUNTY` string but no kommune.
-`CctvSimple_v2` responses include neither administrative field. To give both
-pickers consistent current classifications, administrative metadata comes from
-[Kartverket's documented API](https://api.kartverket.no/kommuneinfo/v1/).
-The API describes the older `ws.geonorge.no` URL as a proxy and recommends the
-`api.kartverket.no` endpoint, which was verified directly on 2026-10-03.
+`CctvSimple_v2` responses include neither administrative field. Administrative
+labels for both source families come from [Kartverket's documented API](https://api.kartverket.no/kommuneinfo/v1/).
+The API recommends `api.kartverket.no` rather than the older `ws.geonorge.no`
+proxy. Endpoints were verified directly on 2026-10-03:
 
-- `GET /fylkerkommuner?utkoordsys=4326` returns the complete county/municipality
-  directory, names, string codes (including leading zeroes) and bounding boxes.
-- `GET /punkt?nord=<latitude>&ost=<longitude>&koordsys=4326` returns the county
-  and municipality containing a public source coordinate. Actual responses
-  classify Rundebrua as Herøy (1515), Møre og Romsdal (15), and Våvatnet as
-  Orkland (5059), Trøndelag (50). A point outside Norway returned HTTP 404.
-- No authentication is required, according to the API's OpenAPI description.
+- `GET /fylkerkommuner?utkoordsys=4326` supplies county/municipality names,
+  string codes (including leading zeroes) and bounding boxes.
+- `GET /punkt?nord=<latitude>&ost=<longitude>&koordsys=4326` gives the exact
+  administrative membership of a public source coordinate. Rundebrua is
+  Herøy (1515), Møre og Romsdal (15); Våvatnet is Orkland (5059), Trøndelag (50).
+  A point outside Norway returned HTTP 404.
+- The OpenAPI description specifies no authentication.
 
-Bounding boxes only reduce the candidates that need a point lookup. They do
-not establish membership: overlapping boxes cannot incorrectly put a source
-in the chosen county or kommune. Direction-specific camera IDs remain intact.
-Names and administrative codes are taken from Kartverket rather than guessed
-from source names, road numbers or source IDs.
+The bundled `source_geography.json` was generated from complete live Statens
+vegvesen catalogues and Kartverket point responses. It contains all 468 weather
+stations and 896 direction-specific cameras in the 2026-10-03 snapshot.
+The 1,364 records required 907 distinct coordinate lookups; equal coordinates
+share a request, with at most four concurrent requests. Names and codes are
+supplied by Kartverket, not inferred from source IDs, names or bounding boxes.
+The generation script replaces the file only after all requests succeed.
+See [regeneration instructions](development.md#updating-source-geography).
 
-Administrative geography: [© Kartverket](https://www.kartverket.no/), licensed
-under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and
+Administrative geography: [© Kartverket](https://www.kartverket.no/),
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), under
 [Kartverket's terms](https://www.kartverket.no/api-og-data/vilkar-for-bruk).
-Attribution appears in the picker and installed `NOTICE.md`. No numerical
-measurements, camera statuses or source coordinates are corrected by this step.
+Attribution appears in the picker and installed `NOTICE.md`. Numerical
+measurements, camera statuses and coordinates remain source values.
 
-## Failures and request behavior
+## Discovery, failures and freshness
 
-The directory and exact-coordinate lookup cache last only for the current
-flow. Equal coordinates, including multiple camera directions, share a lookup.
-At most four point requests run concurrently; the entire filter has a
-30-second timeout. Cancellation stops outstanding lookup tasks. These requests
-never run from the weather or camera polling coordinators.
+Setup reads the bundled index once through HA's executor. No Kartverket
+network request runs during setup or polling. Administrative names are a
+release snapshot; boundary or name changes require regeneration. Geographic
+prefixes require an exact source-ID and coordinate match. New, moved,
+coordinate-free or unclassified sources remain selectable by name and ID.
+An unavailable or malformed index falls back to that same unclassified list.
 
-Any failed or malformed candidate lookup rejects the filter; a partially
-classified source list is never presented as complete. The user can retry,
-choose another region, or select **All Norway** even while Kartverket is down.
-An empty region shows an explicit message and keeps its region controls.
-Sources without coordinates or recognized administrative membership remain
-available in the nationwide list. A large county can require more lookups than
-a municipality; municipality selection reduces the requests.
+Source catalogues are live, paginated and cached independently for weather and
+cameras for 15 minutes per HA instance. The first or expired lookup still needs
+a complete network response. Concurrent flows share one fetch; each gets its
+own dictionary copy. Failed, cancelled, malformed or incomplete pagination
+cannot publish a partial catalogue or replace the previous successful cache.
+An expired cache is not served as a successful refresh after a request failure.
+The form reports the failure for retry. Empty responses are not reused.
+The chosen source is checked again with a filtered live request at submission.
+There are no discovery polling tasks, persistent runtime cache files or changes
+to entity polling.
 
 ## Updating through HACS
 
-Download/update or redownload the custom repository's latest default branch,
-then restart HA. Confirm the integration shows **0.2.0**. Existing configured
-sources keep working; use **Add weather station** or **Add road camera** to
-try the new picker. No default-list submission or household deployment was
-performed by the development agent.
+Update or redownload the custom repository's latest default branch, restart HA,
+and confirm version **0.3.0**. Existing selections keep working. Use
+**Add weather station** or **Add road camera** to try the new picker.

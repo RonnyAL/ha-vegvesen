@@ -1,6 +1,6 @@
 # Contributing
 
-Read [AGENTS.md](AGENTS.md) and the [development instructions](README.md). Work in the repository virtual environment; do not modify the host Python, existing services, or household Home Assistant.
+Read [AGENTS.md](AGENTS.md) and the [development instructions](docs/development.md). Work in the repository virtual environment; do not modify the host Python, existing services, or household Home Assistant.
 
 Run `scripts/setup` followed by `scripts/check`. These are also the CI commands. Ruff provides both linting and formatting; tests use Home Assistant's custom-component test package and mocked network responses. When changing dependency pins, regenerate `uv.lock` using the pinned uv version and rerun the checks.
 
