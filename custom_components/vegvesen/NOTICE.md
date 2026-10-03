@@ -16,7 +16,7 @@ codes, bounds and coordinate lookups come from Kartverket's
 [administrative units API](https://api.kartverket.no/kommuneinfo/v1/).
 These data are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/),
 subject to [Kartverket's terms of use](https://www.kartverket.no/api-og-data/vilkar-for-bruk).
-The integration uses them to filter source selection; bounding boxes only
-narrow candidates and point lookups establish administrative membership.
+The bundled source index uses point lookups to establish administrative
+membership. Runtime selection matches source IDs and coordinates to that index.
 
 The generic road/weather icon is original integration artwork, covered by the project's MIT license. It is not Statens vegvesen's official logo.

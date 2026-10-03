@@ -3,7 +3,6 @@
     "step": {
       "user": {
         "title": "Select a source",
-        "description": "Choose a weather station or road camera. Additional sources can be added to the same integration.\n\nOn first installation: close this dialog, reload the Home Assistant page, then reopen setup before choosing a source.",
         "menu_options": {
           "weather_station": "Weather station",
           "camera": "Road camera"
@@ -11,22 +10,38 @@
       },
       "weather_station": {
         "title": "Select a weather station",
-        "description": "Choose a county, then a municipality, then a source. The lists update immediately. Submit once when all three are selected. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.\n\nIf the dropdowns are missing, close setup, reload the page, and reopen setup.",
         "data": {
           "station_id": "Weather station"
-        },
-        "data_description": {
-          "station_id": "Select a source after choosing its county and municipality."
         }
       },
       "camera": {
         "title": "Select a road camera",
-        "description": "Choose a county, then a municipality, then a source. The lists update immediately. Submit once when all three are selected. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.\n\nIf the dropdowns are missing, close setup, reload the page, and reopen setup.",
         "data": {
           "camera_id": "Road camera"
-        },
-        "data_description": {
-          "camera_id": "Select a source after choosing its county and municipality."
+        }
+      },
+      "weather_station_county": {
+        "title": "County",
+        "data": {
+          "county": "County"
+        }
+      },
+      "weather_station_municipality": {
+        "title": "Municipality",
+        "data": {
+          "municipality": "Municipality"
+        }
+      },
+      "camera_county": {
+        "title": "County",
+        "data": {
+          "county": "County"
+        }
+      },
+      "camera_municipality": {
+        "title": "Municipality",
+        "data": {
+          "municipality": "Municipality"
         }
       }
     },
@@ -48,12 +63,20 @@
       "step": {
         "user": {
           "title": "Select a weather station",
-          "description": "Choose a county, then a municipality, then a source. The lists update immediately. Submit once when all three are selected. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.\n\nIf the dropdowns are missing, close setup, reload the page, and reopen setup.",
           "data": {
             "station_id": "Weather station"
-          },
-          "data_description": {
-            "station_id": "Select a source after choosing its county and municipality."
+          }
+        },
+        "user_county": {
+          "title": "County",
+          "data": {
+            "county": "County"
+          }
+        },
+        "user_municipality": {
+          "title": "Municipality",
+          "data": {
+            "municipality": "Municipality"
           }
         }
       },
@@ -76,12 +99,20 @@
       "step": {
         "user": {
           "title": "Select a road camera",
-          "description": "Choose a county, then a municipality, then a source. The lists update immediately. Submit once when all three are selected. Administrative geography: [© Kartverket]({kartverket_url}). Road data: Statens vegvesen.\n\nIf the dropdowns are missing, close setup, reload the page, and reopen setup.",
           "data": {
             "camera_id": "Road camera"
-          },
-          "data_description": {
-            "camera_id": "Select a source after choosing its county and municipality."
+          }
+        },
+        "user_county": {
+          "title": "County",
+          "data": {
+            "county": "County"
+          }
+        },
+        "user_municipality": {
+          "title": "Municipality",
+          "data": {
+            "municipality": "Municipality"
           }
         }
       },
@@ -111,6 +142,18 @@
       },
       "source_availability": {
         "name": "Source availability"
+      }
+    }
+  },
+  "selector": {
+    "county": {
+      "options": {
+        "unknown": "Unknown county"
+      }
+    },
+    "municipality": {
+      "options": {
+        "unknown": "Unknown municipality"
       }
     }
   }

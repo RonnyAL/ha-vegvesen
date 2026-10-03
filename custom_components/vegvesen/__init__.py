@@ -7,20 +7,17 @@ from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import VegvesenApiClient
 from .const import (
     CONF_CAMERA_ID,
     CONF_STATION_ID,
-    DOMAIN,
     SUBENTRY_CAMERA,
     SUBENTRY_WEATHER_STATION,
 )
 from .coordinator import CameraCoordinator, WeatherCoordinator
 from .data import VegvesenData
-from .frontend import async_ensure_source_selector
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -28,13 +25,6 @@ if TYPE_CHECKING:
     from .data import VegvesenConfigEntry
 
 PLATFORMS = [Platform.SENSOR, Platform.CAMERA]
-CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-
-
-async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
-    """Register this integration's UI before browsers load an existing setup."""
-    await async_ensure_source_selector(hass)
-    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> bool:

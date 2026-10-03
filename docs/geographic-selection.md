@@ -1,45 +1,42 @@
-# Dependent source selection (0.4.0)
+# Native source selection (0.4.1)
 
-Weather stations and cameras use three dropdowns in the Home Assistant setup
-form: county, municipality, source. The latter two start disabled. Choosing a
-county enables its municipality list; choosing a municipality enables its
-source list. Changing a county clears both child choices; changing a
-municipality clears the source. There is one final submission. Counties and
-municipalities are derived from actual sources of the requested family, so
-there are no empty regions or “Hele Norge” option. Names and IDs remain readable
-in the closed source dropdown.
+Weather stations and cameras use three native Home Assistant forms: county,
+municipality, source. The first two use HA's **Next** action; the final form
+uses **Submit**. Fields are initially blank and use built-in dropdown selectors.
+County/municipality options are derived from actual sources of the requested
+family, so there are no empty regions or “Hele Norge” option. The selected
+source displays its name and ID in the closed dropdown.
 
-Existing devices, entities and subentries need no migration. Only the chosen
-source ID is saved. Each additional source can be selected anywhere in Norway.
-Polling and source values are unchanged; there is no parent-wide geographic
-restriction or dependency on future area/route monitors.
+To change a region, close the unfinished flow and reopen it. The new flow has
+independent browsing state and reuses the HA-scoped catalogue cache. Only the
+final source ID is stored. Existing devices, entities and subentries need no
+migration; source polling and values are unchanged. Additional selections can
+be anywhere in Norway, with no parent-wide restriction or dependency on future
+area/route monitors.
 
-## Frontend implementation and loading
+## Verified HA conventions
 
-HA's [standard data-entry forms](https://developers.home-assistant.io/docs/data_entry_flow_index/)
-do not update dependent field schemas on local selections. A small bundled
-JavaScript module provides an integration-owned selector containing three
-native HTML selects. It does not replace HA widgets or patch frontend code.
-Changes filter the form's catalogue locally and emit a scalar source ID through
-HA's existing selector event contract. There are no runtime frontend dependencies,
-external scripts, network calls on dropdown changes, or polling timers.
+The [documented multi-step flow](https://developers.home-assistant.io/docs/data_entry_flow_index/#multi-step-flows)
+advances when the current form is submitted. HA's stock form does not send
+local select changes to the integration or reactively replace other field
+schemas. Native navigation menus choose among defined flow steps, rather than
+providing a data-bearing hierarchical browser. The [choose selector](https://www.home-assistant.io/docs/blueprint/selectors/#choose-selector)
+switches between selector types; current [core validation](https://github.com/home-assistant/core/blob/2026.9.4/homeassistant/helpers/selector.py)
+explicitly rejects nested choose selectors, and it is absent from the minimum
+2025.12.0 test target.
 
-The integration uses HA's extra-module registration and asynchronous static
-paths to serve a versioned local URL. HA's [frontend module loading](https://www.home-assistant.io/integrations/frontend/#loading-extra-javascript)
-occurs on page load. Existing entries register it at integration startup:
-restart HA after updating and reload the browser/app page. On first-ever
-installation, open **Add integration → Statens vegvesen** once, close the dialog,
-reload the page, then reopen setup. The setup text and README explain this step.
+The native wizard avoids custom selector rendering, extra modules, static asset
+registration and first-install browser reloads. The 0.4.0 custom selector could
+leave an empty custom element when its module was unavailable: its successful
+isolated test did not establish reliability on other installations. There is
+no integration JavaScript in 0.4.1. Setup text contains only titles and labels;
+source attribution is retained in the README and installed `NOTICE.md`.
 
-Custom selector rendering relies on the frontend's dynamic tag and event
-contract, which is an implementation detail rather than a documented extension
-API. The official [20260826.7 renderer](https://github.com/home-assistant/frontend/blob/20260826.7/src/components/ha-selector/ha-selector.ts)
-and [20251203.0 renderer](https://github.com/home-assistant/frontend/blob/20251203.0/src/components/ha-selector/ha-selector.ts)
-were checked. Backend serialization is tested on both HA targets, with an
-explicit blank default to avoid native default inference for the custom type.
-A real browser smoke test exercises the current frontend. The minimum
-frontend has not had the same live browser test; future HA frontend changes
-may require maintaining this bridge.
+Both supported backend targets test real native schema serialization, all four
+parent/subentry source paths, filtering, rejection of invalid or out-of-region
+choices, failure/retry and saving only source IDs. The primary frontend has a
+live first-use browser test with no close/reload workaround. A minimum-version
+live browser test remains unperformed.
 
 ## Verified geography source
 
@@ -69,7 +66,7 @@ See [regeneration instructions](development.md#updating-source-geography).
 Administrative geography: [© Kartverket](https://www.kartverket.no/),
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), under
 [Kartverket's terms](https://www.kartverket.no/api-og-data/vilkar-for-bruk).
-Attribution appears in the picker and installed `NOTICE.md`. Numerical
+Attribution appears in the README and installed `NOTICE.md`. Numerical
 measurements, camera statuses and coordinates remain source values.
 
 ## Discovery, failures and freshness
@@ -96,6 +93,6 @@ to entity polling.
 ## Updating through HACS
 
 Update or redownload the custom repository's latest default branch, restart HA,
-reload the Home Assistant page, and confirm version **0.4.0**. Existing
+and confirm version **0.4.1**. Existing
 selections keep working. Use **Add weather station** or **Add road camera**
-to try the three dropdowns.
+to try the native hierarchy.

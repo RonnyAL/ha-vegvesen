@@ -1,4 +1,4 @@
-"""Exercise dependent-selector metadata and scalar source-ID flow submission."""
+"""Exercise native hierarchical forms, filtering and source-ID submission."""
 
 from __future__ import annotations
 
@@ -9,13 +9,13 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant.config_entries import SOURCE_USER
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers.data_entry_flow import FlowManagerIndexView
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.vegvesen.const import CONF_CAMERA_ID, CONF_STATION_ID, DOMAIN
 
-from .helpers import camera_url, page, weather_url
+from .helpers import camera_url, choose_region, page, weather_url
 
 if TYPE_CHECKING:
     from aioresponses import aioresponses
@@ -42,7 +42,7 @@ async def start_flow(hass: HomeAssistant, family: str, kind: str, entry: Any) ->
 
 @pytest.mark.parametrize("family", ["weather_station", "camera"])
 @pytest.mark.parametrize("kind", ["parent", "subentry"])
-async def test_one_submit_selection(
+async def test_native_hierarchical_selection(
     hass: HomeAssistant,
     mock_http: aioresponses,
     features: list[dict[str, Any]],
@@ -51,7 +51,7 @@ async def test_one_submit_selection(
     family: str,
     kind: str,
 ) -> None:
-    """All four paths show only actual sources and require one submission."""
+    """All four paths serialize native selectors and save only the final source ID."""
     weather = family == "weather_station"
     records = features if weather else [camera_features[2]]
     endpoint = weather_url if weather else camera_url
@@ -61,19 +61,28 @@ async def test_one_submit_selection(
     mock_http.get(endpoint((source_id,)), payload=page(records[:1]))
     with patch("custom_components.vegvesen.async_setup_entry", return_value=True):
         manager, result = await start_flow(hass, family, kind, camera_entry)
+        assert list(result["data_schema"].schema) == ["county"]
+        assert result["last_step"] is False
+        county = "Trøndelag" if weather else "Vestland"
+        municipality = "Orkland" if weather else "Kinn"
+        assert result["data_schema"].schema["county"].config["options"] == [
+            {"value": county, "label": county}
+        ]
+        result = await choose_region(manager, result, county, municipality)
         assert list(result["data_schema"].schema) == [field]
         selector = result["data_schema"].schema[field]
-        assert selector.selector_type == "vegvesen_source"
+        assert selector.selector_type == "select"
+        assert selector.config["mode"] == "dropdown"
+        assert not selector.config["custom_value"]
         serialized = FlowManagerIndexView(
             hass.config_entries.flow
         )._prepare_result_json(result)
-        assert serialized["data_schema"][0]["default"] == ""
-        assert "vegvesen_source" in serialized["data_schema"][0]["selector"]
+        assert "select" in serialized["data_schema"][0]["selector"]
         options = selector.config["options"]
-        assert len(options) == len(records)
+        assert {option["value"] for option in options} == (
+            {"1629006", "1629004"} if weather else {source_id}
+        )
         option = next(option for option in options if option["value"] == source_id)
-        assert option["county"] == ("Trøndelag" if weather else "Vestland")
-        assert option["municipality"] == ("Orkland" if weather else "Kinn")
         assert source_id in option["label"]
         assert " / " not in option["label"]
         result = await manager.async_configure(result["flow_id"], {field: source_id})
@@ -105,9 +114,14 @@ async def test_unknown_source_id_is_rejected(
     field = CONF_STATION_ID if weather else CONF_CAMERA_ID
     mock_http.get(endpoint(), payload=page(features if weather else camera_features))
     manager, result = await start_flow(hass, family, kind, camera_entry)
-    result = await manager.async_configure(result["flow_id"], {field: "Orkland"})
-    assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {field: "invalid_source"}
+    result = await choose_region(
+        manager,
+        result,
+        "Trøndelag" if weather else "Vestland",
+        "Orkland" if weather else "Kinn",
+    )
+    with pytest.raises(InvalidData):
+        await manager.async_configure(result["flow_id"], {field: "not_a_source"})
     assert len(mock_http.requests) == 1
     assert len(camera_entry.subentries) == 2
 
@@ -143,14 +157,13 @@ async def test_unclassified_sources_remain_selectable(
         manager, result = await start_flow(
             hass, "weather_station", "subentry", camera_entry
         )
+        result = await choose_region(manager, result, "unknown", "unknown")
         options = result["data_schema"].schema[CONF_STATION_ID].config["options"]
         name = feature["properties"]["LOCATION_DESCRIPTION"]
         assert options == [
             {
                 "value": source_id,
                 "label": f"{name} ({source_id})",
-                "county": None,
-                "municipality": None,
             }
         ]
         result = await manager.async_configure(
@@ -160,9 +173,70 @@ async def test_unclassified_sources_remain_selectable(
 
 
 async def test_bokmal_picker_translation(hass: HomeAssistant) -> None:
-    """Load the one-submit search instructions through HA's translation loader."""
+    """Labels are translated without obvious instructions or attribution clutter."""
     labels = await async_get_translations(hass, "nb", "config", {DOMAIN})
-    text = labels["component.vegvesen.config.step.weather_station.description"]
-    assert "én gang" in text
-    assert "fylke" in text
-    assert "kommune" in text
+    assert (
+        labels["component.vegvesen.config.step.weather_station_county.title"] == "Fylke"
+    )
+    assert (
+        labels["component.vegvesen.config.step.weather_station_municipality.title"]
+        == "Kommune"
+    )
+    assert not any(key.endswith(".description") for key in labels)
+    selectors = await async_get_translations(hass, "nb", "selector", {DOMAIN})
+    assert (
+        selectors["component.vegvesen.selector.county.options.unknown"]
+        == "Ukjent fylke"
+    )
+    assert (
+        selectors["component.vegvesen.selector.municipality.options.unknown"]
+        == "Ukjent kommune"
+    )
+
+
+@pytest.mark.parametrize("family", ["weather_station", "camera"])
+@pytest.mark.parametrize("kind", ["parent", "subentry"])
+async def test_regions_and_sources_are_prefiltered(
+    hass: HomeAssistant,
+    mock_http: aioresponses,
+    features: list[dict[str, Any]],
+    camera_features: list[dict[str, Any]],
+    camera_entry: MockConfigEntry,
+    family: str,
+    kind: str,
+) -> None:
+    """Every native path excludes empty regions and sources in other municipalities."""
+    weather = family == "weather_station"
+    mock_http.get(
+        weather_url() if weather else camera_url(),
+        payload=page(features if weather else camera_features),
+    )
+    manager, result = await start_flow(hass, family, kind, camera_entry)
+    county_options = result["data_schema"].schema["county"].config["options"]
+    assert {option["value"] for option in county_options} == (
+        {"Trøndelag"} if weather else {"Møre og Romsdal", "Vestland"}
+    )
+    with pytest.raises(InvalidData):
+        await manager.async_configure(result["flow_id"], {"county": "Oslo"})
+    result = await manager.async_configure(
+        result["flow_id"], {"county": "Trøndelag" if weather else "Vestland"}
+    )
+    municipalities = result["data_schema"].schema["municipality"].config["options"]
+    assert {option["value"] for option in municipalities} == (
+        {"Orkland", "Åfjord"} if weather else {"Bremanger", "Kinn"}
+    )
+    with pytest.raises(InvalidData):
+        await manager.async_configure(result["flow_id"], {"municipality": "Herøy"})
+    result = await manager.async_configure(
+        result["flow_id"], {"municipality": "Åfjord" if weather else "Kinn"}
+    )
+    field = CONF_STATION_ID if weather else CONF_CAMERA_ID
+    options = result["data_schema"].schema[field].config["options"]
+    assert {option["value"] for option in options} == (
+        {"1629013"} if weather else {"1429014_1"}
+    )
+    with pytest.raises(InvalidData):
+        await manager.async_configure(
+            result["flow_id"], {field: "1629006" if weather else "3000047_2"}
+        )
+    assert len(mock_http.requests) == 1

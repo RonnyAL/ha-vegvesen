@@ -81,66 +81,29 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_role("button", name="Add integration", exact=True).click()
             page.get_by_placeholder("Search for a brand name").fill("Statens vegvesen")
             page.get_by_text("Statens vegvesen", exact=True).click()
-            # First-ever installation registers the module during this flow.
-            # A reload picks up HA's extra-module list; updates with an existing
-            # entry register it during integration startup instead.
-            expect(page.get_by_text("Weather station", exact=True)).to_be_visible()
-            index = session.get(BASE + "/", timeout=10)
-            index.raise_for_status()
-            if "/vegvesen/frontend/" not in index.text:
-                raise RuntimeError("The source-picker module was not registered")
-            with page.expect_response(
-                lambda response: (
-                    response.request.method == "DELETE"
-                    and "/api/config/config_entries/flow/" in response.url
-                )
-            ):
-                page.locator("dialog-data-entry-flow").get_by_role(
-                    "button", name="Close", exact=True
-                ).click()
-            page.reload()
-            page.get_by_role("button", name="Add integration", exact=True).click()
-            page.get_by_placeholder("Search for a brand name").fill("Statens vegvesen")
-            page.get_by_text("Statens vegvesen", exact=True).click()
             weather_started = time.monotonic()
             page.get_by_text("Weather station", exact=True).click()
             print("Weather configuration dialog opened")
-            expect(page.get_by_role("link", name="© Kartverket")).to_be_visible()
-            picker = page.locator("ha-selector-vegvesen_source")
-            county = picker.locator("#county")
-            municipality = picker.locator("#municipality")
-            source = picker.locator("#source")
-            expect(picker.locator("select")).to_have_count(3)
-            expect(county).to_be_enabled()
-            expect(municipality).to_be_disabled()
-            expect(source).to_be_disabled()
-            expect(county).not_to_contain_text("Hele Norge")
-            expect(county).not_to_contain_text("All Norway")
+            picker = page.locator("ha-selector-select")
+            county = picker
+            expect(county).to_have_count(1)
+            expect(page.get_by_role("link", name="© Kartverket")).to_have_count(0)
             weather_list_seconds = time.monotonic() - weather_started
-            county.select_option(label="Trøndelag")
-            expect(municipality).to_be_enabled()
-            expect(source).to_be_disabled()
-            municipality.select_option(label="Orkland")
-            expect(source).to_be_enabled()
-            source.select_option("1629006")
-            expect(source.locator("option:checked")).to_have_text(
-                "Fv 714 Våvatnet (1629006)"
-            )
-            # Changing either parent must discard the previously chosen source.
-            other_municipality = municipality.locator("option").evaluate_all(
-                "options => options.find(o => o.value && o.value !== 'Orkland').value"
-            )
-            municipality.select_option(other_municipality)
-            expect(source).to_have_value("")
-            expect(source.locator("option[value='1629006']")).to_have_count(0)
-            county.select_option(label="Møre og Romsdal")
-            expect(municipality).to_have_value("")
-            expect(source).to_have_value("")
-            expect(source).to_be_disabled()
-            county.select_option(label="Trøndelag")
-            municipality.select_option(label="Orkland")
-            source.select_option("1629006")
-            expect(picker).to_have_js_property("value", "1629006")
+
+            def select_option(label: str) -> None:
+                picker.locator("ha-picker-field").click()
+                page.locator("ha-dropdown-item").get_by_text(label, exact=True).click()
+                expect(picker.locator("ha-picker-field")).to_have_js_property(
+                    "value", label
+                )
+
+            select_option("Trøndelag")
+            page.screenshot(path=str(RESULTS / "county-selection.png"))
+            page.get_by_role("button", name="Next", exact=True).click()
+            expect(page.get_by_text("Municipality", exact=True).first).to_be_visible()
+            select_option("Orkland")
+            page.get_by_role("button", name="Next", exact=True).click()
+            select_option("Fv 714 Våvatnet (1629006)")
             page.screenshot(path=str(RESULTS / "weather-selection.png"))
             page.get_by_role("button", name="Submit", exact=True).click()
             page.get_by_role("button", name="Skip and finish", exact=True).click()
@@ -148,19 +111,13 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_text("Statens vegvesen", exact=True).click()
             camera_started = time.monotonic()
             page.get_by_role("button", name="Add road camera", exact=True).click()
-            expect(page.get_by_role("link", name="© Kartverket")).to_be_visible()
-            expect(picker.locator("select")).to_have_count(3)
-            expect(county).to_be_enabled()
-            expect(municipality).to_be_disabled()
-            expect(source).to_be_disabled()
+            expect(picker).to_have_count(1)
             camera_list_seconds = time.monotonic() - camera_started
-            county.select_option(label="Møre og Romsdal")
-            municipality.select_option(label="Herøy")
-            source.select_option("3000047_2")
-            expect(source.locator("option:checked")).to_have_text(
-                "Rundebrua — Runde (3000047_2)"
-            )
-            expect(picker).to_have_js_property("value", "3000047_2")
+            select_option("Møre og Romsdal")
+            page.get_by_role("button", name="Next", exact=True).click()
+            select_option("Herøy")
+            page.get_by_role("button", name="Next", exact=True).click()
+            select_option("Rundebrua — Runde (3000047_2)")
             page.screenshot(path=str(RESULTS / "camera-selection.png"))
             page.get_by_role("button", name="Submit", exact=True).click()
             page.get_by_role("button", name="Finish", exact=True).click()
@@ -250,7 +207,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             print(
                 "Module diagnostics:",
                 page.evaluate("""() => ({
-                defined: !!customElements.get('ha-selector-vegvesen_source'),
+                nativeSelects: document.querySelector("home-assistant") !== null,
                 modules: performance.getEntriesByType('resource')
                     .filter(entry => entry.name.includes('/vegvesen/frontend/'))
                     .map(entry => entry.name)

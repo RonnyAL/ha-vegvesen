@@ -24,7 +24,6 @@ from .const import (
     SUBENTRY_WEATHER_STATION,
 )
 from .discovery import async_get_discovery
-from .frontend import async_ensure_source_selector
 from .selection import SourcePicker
 
 
@@ -47,7 +46,6 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
         """Choose the first source family without requesting either catalogue."""
         await self.async_set_unique_id("public_service")
         self._abort_if_unique_id_configured()
-        await async_ensure_source_selector(self.hass)
         return self.async_show_menu(
             step_id="user", menu_options=[SUBENTRY_WEATHER_STATION, SUBENTRY_CAMERA]
         )
@@ -70,7 +68,7 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             if selecting and user_input and CONF_STATION_ID in user_input:
                 station_id = user_input[CONF_STATION_ID]
-                if station_id not in self._stations:
+                if station_id not in self._weather_picker.sources:
                     errors[CONF_STATION_ID] = "invalid_source"
                 else:
                     selected = await client.async_get_weather({station_id})
@@ -98,10 +96,10 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
-            step_id="weather_station",
+            step_id=self._weather_picker.step_id("weather_station"),
+            last_step=self._weather_picker.last_step,
             data_schema=self._weather_picker.schema(CONF_STATION_ID),
             errors=errors,
-            description_placeholders={"kartverket_url": "https://www.kartverket.no/"},
         )
 
     async def async_step_camera(
@@ -120,7 +118,7 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             if selecting and user_input and CONF_CAMERA_ID in user_input:
                 camera_id = user_input[CONF_CAMERA_ID]
-                if camera_id not in self._cameras:
+                if camera_id not in self._camera_picker.sources:
                     errors[CONF_CAMERA_ID] = "invalid_source"
                 else:
                     selected = await client.async_get_cameras({camera_id})
@@ -147,11 +145,35 @@ class VegvesenConfigFlow(ConfigFlow, domain=DOMAIN):
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
-            step_id="camera",
+            step_id=self._camera_picker.step_id("camera"),
+            last_step=self._camera_picker.last_step,
             data_schema=self._camera_picker.schema(CONF_CAMERA_ID),
             errors=errors,
-            description_placeholders={"kartverket_url": "https://www.kartverket.no/"},
         )
+
+    async def async_step_weather_station_county(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Advance weather region selection through the native form."""
+        return await self.async_step_weather_station(user_input)
+
+    async def async_step_weather_station_municipality(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Advance weather municipality selection through the native form."""
+        return await self.async_step_weather_station(user_input)
+
+    async def async_step_camera_county(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Advance camera region selection through the native form."""
+        return await self.async_step_camera(user_input)
+
+    async def async_step_camera_municipality(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Advance camera municipality selection through the native form."""
+        return await self.async_step_camera(user_input)
 
     @classmethod
     @callback
@@ -173,6 +195,18 @@ class WeatherStationSubentryFlow(ConfigSubentryFlow):
         """Cache the catalogue for this flow only."""
         self._stations: dict[str, WeatherStation] = {}
         self._weather_picker = SourcePicker()
+
+    async def async_step_user_county(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Advance native county selection."""
+        return await self.async_step_user(user_input)
+
+    async def async_step_user_municipality(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Advance native municipality selection."""
+        return await self.async_step_user(user_input)
 
     def _is_configured(self, station_id: str) -> bool:
         """Check source identity, including selections made by other flows."""
@@ -200,7 +234,7 @@ class WeatherStationSubentryFlow(ConfigSubentryFlow):
                 )
             if selecting and user_input and CONF_STATION_ID in user_input:
                 station_id = user_input[CONF_STATION_ID]
-                if station_id not in self._stations:
+                if station_id not in self._weather_picker.sources:
                     errors[CONF_STATION_ID] = "invalid_source"
                 else:
                     if self._is_configured(station_id):
@@ -225,10 +259,10 @@ class WeatherStationSubentryFlow(ConfigSubentryFlow):
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
-            step_id="user",
+            step_id=self._weather_picker.step_id("user"),
+            last_step=self._weather_picker.last_step,
             data_schema=self._weather_picker.schema(CONF_STATION_ID),
             errors=errors,
-            description_placeholders={"kartverket_url": "https://www.kartverket.no/"},
         )
 
 
@@ -239,6 +273,18 @@ class CameraSubentryFlow(ConfigSubentryFlow):
         """Cache discovery only during this flow."""
         self._cameras: dict[str, RoadCamera] = {}
         self._camera_picker = SourcePicker()
+
+    async def async_step_user_county(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Advance native county selection."""
+        return await self.async_step_user(user_input)
+
+    async def async_step_user_municipality(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Advance native municipality selection."""
+        return await self.async_step_user(user_input)
 
     def _is_configured(self, camera_id: str) -> bool:
         """Check the source ID before and after selection I/O."""
@@ -264,7 +310,7 @@ class CameraSubentryFlow(ConfigSubentryFlow):
                 )
             if selecting and user_input and CONF_CAMERA_ID in user_input:
                 camera_id = user_input[CONF_CAMERA_ID]
-                if camera_id not in self._cameras:
+                if camera_id not in self._camera_picker.sources:
                     errors[CONF_CAMERA_ID] = "invalid_source"
                 else:
                     if self._is_configured(camera_id):
@@ -287,8 +333,8 @@ class CameraSubentryFlow(ConfigSubentryFlow):
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
         return self.async_show_form(
-            step_id="user",
+            step_id=self._camera_picker.step_id("user"),
+            last_step=self._camera_picker.last_step,
             data_schema=self._camera_picker.schema(CONF_CAMERA_ID),
             errors=errors,
-            description_placeholders={"kartverket_url": "https://www.kartverket.no/"},
         )

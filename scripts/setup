@@ -2,9 +2,4 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/common
-if [[ "$(node --version)" != "v22.23.2" ]]; then
-    echo "Development requires Node 22.23.2 (see docs/development.md)." >&2
-    exit 1
-fi
 "${VEGVESEN_UV}" sync --locked --python 3.14.8
-npm ci --ignore-scripts --cache .cache/npm

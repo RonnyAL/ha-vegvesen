@@ -1,40 +1,85 @@
-"""Three dependent frontend dropdowns with one final source-ID submission."""
+"""Native county, municipality and source steps backed by cached discovery."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
-from homeassistant.helpers.selector import Selector
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
+from .api import WeatherStation
 from .discovery import async_get_discovery
-from .frontend import async_ensure_source_selector
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-    from .api import RoadCamera, WeatherStation
-    from .discovery import SourceLocation
+    from .api import RoadCamera
+
+CONF_COUNTY = "county"
+CONF_MUNICIPALITY = "municipality"
+UNKNOWN = "unknown"
 
 
-class SourceSelector(Selector[dict[str, Any]]):
-    """Serialize a locally rendered selector while retaining scalar source IDs."""
-
-    selector_type = "vegvesen_source"
-    CONFIG_SCHEMA = vol.Schema({vol.Required("options"): [dict]})
-
-    def __call__(self, value: Any) -> str:
-        """Leave catalogue membership and duplicate validation to the flow."""
-        return vol.Schema(str)(value)
+def _selector(options: list[SelectOptionDict], translation_key: str) -> SelectSelector:
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=options,
+            mode=SelectSelectorMode.DROPDOWN,
+            custom_value=False,
+            translation_key=translation_key,
+        )
+    )
 
 
 class SourcePicker:
-    """Provide real sources and exact-coordinate administrative membership."""
+    """Keep browsing state within one flow; save only the final source ID."""
 
     def __init__(self) -> None:
-        """Retain this flow's catalogue and supplemental administrative names."""
-        self.sources: dict[str, WeatherStation] | dict[str, RoadCamera] = {}
-        self._locations: dict[str, SourceLocation] = {}
+        """Start at the county step, with no automatic geographic selection."""
+        self._catalogue: dict[str, WeatherStation] | dict[str, RoadCamera] = {}
+        self._areas: dict[str, tuple[str, str]] = {}
+        self._county: str | None = None
+        self._municipality: str | None = None
+
+    @property
+    def counties(self) -> list[str]:
+        """Only counties containing sources of this family are offered."""
+        return sorted({area[0] for area in self._areas.values()}, key=str.casefold)
+
+    @property
+    def municipalities(self) -> list[str]:
+        """Only municipalities containing sources in this county are offered."""
+        return sorted(
+            {area[1] for area in self._areas.values() if area[0] == self._county},
+            key=str.casefold,
+        )
+
+    @property
+    def sources(self) -> dict[str, WeatherStation | RoadCamera]:
+        """Restrict final validation to the chosen county and municipality."""
+        return {
+            source_id: source
+            for source_id, source in self._catalogue.items()
+            if self._areas[source_id] == (self._county, self._municipality)
+        }
+
+    @property
+    def last_step(self) -> bool:
+        """Use HA's Next button for regions and Submit for the source."""
+        return self._county is not None and self._municipality is not None
+
+    def step_id(self, source_step: str) -> str:
+        """Use distinct native steps, titles and field labels."""
+        if self._county is None:
+            return f"{source_step}_county"
+        if self._municipality is None:
+            return f"{source_step}_municipality"
+        return source_step
 
     async def async_prepare(
         self,
@@ -42,42 +87,71 @@ class SourcePicker:
         sources: dict[str, WeatherStation] | dict[str, RoadCamera],
         hass: HomeAssistant,
     ) -> bool:
-        """Read shared package metadata without making geography HTTP requests."""
-        self.sources = sources
-        self._locations = await async_get_discovery(hass).async_geography()
-        await async_ensure_source_selector(hass)
-        return bool(user_input)
-
-    def schema(self, field: str) -> vol.Schema:
-        """Send complete discovery metadata; dropdown changes stay in the browser."""
-        if not self.sources:
-            return vol.Schema({})
-        family = "weather_station" if field == "station_id" else "camera"
-        options = []
-        for source in self.sources.values():
-            location = self._locations.get(f"{family}:{source.source_id}")
-            matched = location is not None and (
+        """Advance native steps using local metadata; no geography HTTP calls."""
+        self._catalogue = sources
+        locations = await async_get_discovery(hass).async_geography()
+        family = (
+            "weather_station"
+            if isinstance(next(iter(sources.values())), WeatherStation)
+            else "camera"
+        )
+        self._areas = {}
+        for source in sources.values():
+            location = locations.get(f"{family}:{source.source_id}")
+            if location is not None and (
                 source.latitude,
                 source.longitude,
-            ) == (location.latitude, location.longitude)
-            options.append(
-                {
-                    "value": source.source_id,
-                    "label": source.label,
-                    "county": location.county if matched else None,
-                    "municipality": location.municipality if matched else None,
-                }
-            )
-        return vol.Schema(
-            {
-                # An explicit blank initial value also avoids HA trying to infer
-                # an initial value for an integration-owned selector type.
-                vol.Required(field, default=""): SourceSelector(
-                    {
-                        "options": sorted(
-                            options, key=lambda option: option["label"].casefold()
-                        )
-                    }
+            ) == (location.latitude, location.longitude):
+                self._areas[source.source_id] = (location.county, location.municipality)
+            else:
+                self._areas[source.source_id] = (UNKNOWN, UNKNOWN)
+        if self._county not in self.counties:
+            self._county = None
+            self._municipality = None
+        elif self._municipality not in self.municipalities:
+            self._municipality = None
+        if not user_input:
+            return False
+        if CONF_COUNTY in user_input:
+            county = user_input[CONF_COUNTY]
+            if county in self.counties:
+                self._county = county
+                self._municipality = None
+            return False
+        if CONF_MUNICIPALITY in user_input:
+            municipality = user_input[CONF_MUNICIPALITY]
+            if municipality in self.municipalities:
+                self._municipality = municipality
+            return False
+        return self.last_step
+
+    def schema(self, field: str) -> vol.Schema:
+        """Use built-in dropdowns; no integration-owned frontend is required."""
+        if not self._catalogue:
+            return vol.Schema({})
+        if self._county is None:
+            key = CONF_COUNTY
+            options = [
+                SelectOptionDict(
+                    value=value, label="Unknown county" if value == UNKNOWN else value
                 )
-            }
-        )
+                for value in self.counties
+            ]
+        elif self._municipality is None:
+            key = CONF_MUNICIPALITY
+            options = [
+                SelectOptionDict(
+                    value=value,
+                    label="Unknown municipality" if value == UNKNOWN else value,
+                )
+                for value in self.municipalities
+            ]
+        else:
+            key = field
+            options = [
+                SelectOptionDict(value=source.source_id, label=source.label)
+                for source in sorted(
+                    self.sources.values(), key=lambda item: item.label.casefold()
+                )
+            ]
+        return vol.Schema({vol.Required(key, default=""): _selector(options, key)})

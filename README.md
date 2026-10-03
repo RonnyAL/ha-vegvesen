@@ -24,7 +24,6 @@ This integration is available through a HACS custom repository.
 3. Find **Statens vegvesen** and download it.
 4. Restart Home Assistant.
 5. Go to **Settings → Devices & services → Add integration** and search for **Statens vegvesen**.
-6. On first installation, close that setup dialog, reload the Home Assistant page, then open **Add integration → Statens vegvesen** again. This loads the bundled source picker.
 
 See HACS's [custom repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/) if you cannot find the menu.
 
@@ -32,13 +31,13 @@ For manual installation, copy the repository's `custom_components/vegvesen` fold
 
 ## Choose stations and cameras
 
-Choose **Weather station / Værstasjon** or **Road camera / Veikamera**, then use the three dropdowns:
+Choose **Weather station / Værstasjon** or **Road camera / Veikamera**. Setup uses three native Home Assistant steps:
 
-1. Select a **county / fylke**. The municipality dropdown becomes available.
-2. Select a **municipality / kommune**. The station/camera dropdown becomes available.
-3. Select a station or camera, then press **Submit / Send inn** once.
+1. Select a **county / fylke**, then **Next / Neste**.
+2. Select a **municipality / kommune**, then **Next / Neste**.
+3. Select a station or camera, then **Submit / Send inn**.
 
-Only counties and municipalities with actual sources of the selected type appear. Changing the county clears the municipality and source; changing the municipality clears the source. These changes are immediate and make no API requests. Source labels show the name, camera direction where available, and source ID, including when the dropdown is closed.
+Only counties and municipalities with sources of the selected type appear. Source labels show the name, camera direction where available, and source ID. To choose a different region, close the unfinished setup and reopen it; the discovery list is reused.
 
 New or relocated sources without verified administrative membership appear under **Unknown county / Ukjent fylke → Unknown municipality / Ukjent kommune**. Their measurements and identities are unchanged.
 
@@ -59,7 +58,7 @@ Readings and statuses are exposed as provided by the source. Missing readings ar
 
 ## Updates and removal
 
-Update or redownload the integration in HACS, then restart Home Assistant **and reload the Home Assistant page in your browser or app**. This repository currently distributes the default branch; HACS may show a commit identifier instead of the version displayed in the integration details.
+Update or redownload the integration in HACS, then restart Home Assistant. This repository currently distributes the default branch; HACS may show a commit identifier instead of the version displayed in the integration details.
 
 To remove one source, remove its station/camera subentry in **Devices & services**. To remove everything, remove the integration entry, remove the download in HACS, and restart Home Assistant.
 
@@ -67,7 +66,7 @@ To remove one source, remove its station/camera subentry in **Devices & services
 
 **The integration does not appear:** confirm HACS downloaded it, restart Home Assistant, then search again in **Add integration**.
 
-**The dropdowns are missing:** close the setup dialog, reload the Home Assistant page, then reopen setup. On first installation, opening setup once registers the frontend module; updates require a restart and browser reload.
+**Setup is still blank after updating:** confirm the integration reports **0.4.1 or newer**, restart HA and reopen setup. This version uses built-in fields and requires no integration frontend module.
 
 **A source is missing:** check the appropriate county/municipality, including **Unknown county → Unknown municipality** for unclassified sources. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
 

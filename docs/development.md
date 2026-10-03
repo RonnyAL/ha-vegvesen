@@ -2,16 +2,14 @@
 
 The locked test environment is **CPython 3.14.8**, **Home Assistant 2026.9.4**, and **pytest-homeassistant-custom-component 0.13.367**, managed with **uv 0.12.22**. `pyproject.toml` describes development tooling, not a Python requirement imposed on users' HA installations. Debian's system Python is not used for the virtual environment.
 
-Frontend development also requires **Node 22.23.2**. It is already installed for the dev user; do not change the host Node or Python. ESLint 10.12.0 and Prettier 3.9.9 are exact development pins in `package.json`, with resolved dependencies and integrity hashes in `package-lock.json`. The installed integration needs no Node or npm.
-
-From this repository, with uv and Node already installed:
+From this repository, with uv already installed:
 
 ```bash
 VEGVESEN_UV=/home/dev/.local/bin/uv scripts/setup
 VEGVESEN_UV=/home/dev/.local/bin/uv scripts/check
 ```
 
-`setup` creates `.venv` and installs `uv.lock` with `--locked`, then runs `npm ci --ignore-scripts` using a repository-local cache. `check` runs Ruff and ESLint linting, Ruff and Prettier formatting verification, the mocked pytest suite, and Node selection-state tests. CI runs the same scripts with the same Python, uv and Node versions. The scripts use a repository-local uv cache and fall back to `$HOME/.local/bin/uv` when uv is absent from PATH. Separate checks:
+`setup` creates `.venv` and installs `uv.lock` with `--locked`. `check` runs Ruff linting, Ruff formatting verification and the mocked pytest suite. CI runs the same scripts with the same Python and uv versions. Native config-flow selectors require no integration JavaScript or Node tooling. The scripts use a repository-local uv cache and fall back to `$HOME/.local/bin/uv` when uv is absent from PATH. Separate checks:
 
 ```bash
 scripts/lint

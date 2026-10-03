@@ -49,3 +49,22 @@ def camera_url(
         .replace(WEATHER_ITEMS_URL, CAMERA_ITEMS_URL)
         .replace("REFERENCE_ID", "CAMERA_ID")
     )
+
+
+async def choose_region(
+    manager: Any,
+    result: dict[str, Any],
+    county: str = "Trøndelag",
+    municipality: str = "Orkland",
+) -> dict[str, Any]:
+    """Exercise native region steps before selecting a fixture source."""
+    assert list(result["data_schema"].schema) == ["county"]
+    assert result["last_step"] is False
+    result = await manager.async_configure(result["flow_id"], {"county": county})
+    assert list(result["data_schema"].schema) == ["municipality"]
+    assert result["last_step"] is False
+    result = await manager.async_configure(
+        result["flow_id"], {"municipality": municipality}
+    )
+    assert result["last_step"] is True
+    return result

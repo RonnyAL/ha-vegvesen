@@ -3,7 +3,6 @@
     "step": {
       "user": {
         "title": "Velg en datakilde",
-        "description": "Velg en værstasjon eller et veikamera. Du kan legge til flere datakilder i den samme integrasjonen.\n\nVed første installasjon: lukk denne dialogen, last Home Assistant-siden på nytt, og åpne oppsettet igjen før du velger en datakilde.",
         "menu_options": {
           "weather_station": "Værstasjon",
           "camera": "Veikamera"
@@ -11,22 +10,38 @@
       },
       "weather_station": {
         "title": "Velg en værstasjon",
-        "description": "Velg et fylke, deretter en kommune, og til slutt en datakilde. Listene oppdateres med én gang. Trykk Send inn én gang når alle tre er valgt. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.\n\nHvis nedtrekkslistene ikke vises, lukk oppsettet, last siden på nytt, og åpne oppsettet igjen.",
         "data": {
           "station_id": "Værstasjon"
-        },
-        "data_description": {
-          "station_id": "Velg en datakilde etter at du har valgt fylke og kommune."
         }
       },
       "camera": {
         "title": "Velg et veikamera",
-        "description": "Velg et fylke, deretter en kommune, og til slutt en datakilde. Listene oppdateres med én gang. Trykk Send inn én gang når alle tre er valgt. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.\n\nHvis nedtrekkslistene ikke vises, lukk oppsettet, last siden på nytt, og åpne oppsettet igjen.",
         "data": {
           "camera_id": "Veikamera"
-        },
-        "data_description": {
-          "camera_id": "Velg en datakilde etter at du har valgt fylke og kommune."
+        }
+      },
+      "weather_station_county": {
+        "title": "Fylke",
+        "data": {
+          "county": "Fylke"
+        }
+      },
+      "weather_station_municipality": {
+        "title": "Kommune",
+        "data": {
+          "municipality": "Kommune"
+        }
+      },
+      "camera_county": {
+        "title": "Fylke",
+        "data": {
+          "county": "Fylke"
+        }
+      },
+      "camera_municipality": {
+        "title": "Kommune",
+        "data": {
+          "municipality": "Kommune"
         }
       }
     },
@@ -48,12 +63,20 @@
       "step": {
         "user": {
           "title": "Velg en værstasjon",
-          "description": "Velg et fylke, deretter en kommune, og til slutt en datakilde. Listene oppdateres med én gang. Trykk Send inn én gang når alle tre er valgt. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.\n\nHvis nedtrekkslistene ikke vises, lukk oppsettet, last siden på nytt, og åpne oppsettet igjen.",
           "data": {
             "station_id": "Værstasjon"
-          },
-          "data_description": {
-            "station_id": "Velg en datakilde etter at du har valgt fylke og kommune."
+          }
+        },
+        "user_county": {
+          "title": "Fylke",
+          "data": {
+            "county": "Fylke"
+          }
+        },
+        "user_municipality": {
+          "title": "Kommune",
+          "data": {
+            "municipality": "Kommune"
           }
         }
       },
@@ -76,12 +99,20 @@
       "step": {
         "user": {
           "title": "Velg et veikamera",
-          "description": "Velg et fylke, deretter en kommune, og til slutt en datakilde. Listene oppdateres med én gang. Trykk Send inn én gang når alle tre er valgt. Administrative inndelinger: [© Kartverket]({kartverket_url}). Vegdata: Statens vegvesen.\n\nHvis nedtrekkslistene ikke vises, lukk oppsettet, last siden på nytt, og åpne oppsettet igjen.",
           "data": {
             "camera_id": "Veikamera"
-          },
-          "data_description": {
-            "camera_id": "Velg en datakilde etter at du har valgt fylke og kommune."
+          }
+        },
+        "user_county": {
+          "title": "Fylke",
+          "data": {
+            "county": "Fylke"
+          }
+        },
+        "user_municipality": {
+          "title": "Kommune",
+          "data": {
+            "municipality": "Kommune"
           }
         }
       },
@@ -111,6 +142,18 @@
       },
       "source_availability": {
         "name": "Kildestatus"
+      }
+    }
+  },
+  "selector": {
+    "county": {
+      "options": {
+        "unknown": "Ukjent fylke"
+      }
+    },
+    "municipality": {
+      "options": {
+        "unknown": "Ukjent kommune"
       }
     }
   }

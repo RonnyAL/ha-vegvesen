@@ -4,4 +4,3 @@ cd "$(dirname "$0")/.."
 source scripts/common
 scripts/lint
 "${VEGVESEN_UV}" run --locked --no-sync pytest
-npm test
