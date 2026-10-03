@@ -9,75 +9,78 @@
         },
         "description": ""
       },
-      "weather_station": {
-        "title": "Velg en værstasjon",
+      "county": {
+        "title": "Fylke",
         "data": {
-          "station_id": "Værstasjon"
+          "county": "Fylke"
         },
-        "description": "",
-        "data_description": {
-          "station_id": ""
+        "submit": "Ferdig"
+      },
+      "municipality": {
+        "title": "Kommune",
+        "data": {
+          "municipality": "Kommune"
+        },
+        "submit": "Ferdig"
+      },
+      "weather_station_overview": {
+        "title": "Værstasjoner",
+        "description": "Fylke: **{county}**\n\nKommune: **{municipality}**\n\nValgt: **{count}**",
+        "menu_options": {
+          "county": "Velg fylke",
+          "edit_county": "Endre fylke",
+          "municipality": "Velg kommune",
+          "edit_municipality": "Endre kommune",
+          "weather_station_sources": "Velg værstasjoner",
+          "add": "Legg til"
         }
+      },
+      "weather_station_sources": {
+        "title": "Værstasjoner",
+        "data": {
+          "sources": "Værstasjoner"
+        },
+        "submit": "Ferdig"
+      },
+      "camera_overview": {
+        "title": "Veikameraer",
+        "description": "Fylke: **{county}**\n\nKommune: **{municipality}**\n\nValgt: **{count}**",
+        "menu_options": {
+          "county": "Velg fylke",
+          "edit_county": "Endre fylke",
+          "municipality": "Velg kommune",
+          "edit_municipality": "Endre kommune",
+          "camera_sources": "Velg veikameraer",
+          "add": "Legg til"
+        }
+      },
+      "camera_sources": {
+        "title": "Veikameraer",
+        "data": {
+          "sources": "Veikameraer"
+        },
+        "submit": "Ferdig"
+      },
+      "weather_station": {
+        "title": "Værstasjoner",
+        "description": "",
+        "submit": "Prøv igjen"
       },
       "camera": {
-        "title": "Velg et veikamera",
-        "data": {
-          "camera_id": "Veikamera"
-        },
+        "title": "Veikameraer",
         "description": "",
-        "data_description": {
-          "camera_id": ""
-        }
-      },
-      "weather_station_county": {
-        "title": "Fylke",
-        "data": {
-          "county": "Fylke"
-        },
-        "description": "",
-        "data_description": {
-          "county": ""
-        }
-      },
-      "weather_station_municipality": {
-        "title": "Kommune",
-        "data": {
-          "municipality": "Kommune"
-        },
-        "description": "",
-        "data_description": {
-          "municipality": ""
-        }
-      },
-      "camera_county": {
-        "title": "Fylke",
-        "data": {
-          "county": "Fylke"
-        },
-        "description": "",
-        "data_description": {
-          "county": ""
-        }
-      },
-      "camera_municipality": {
-        "title": "Kommune",
-        "data": {
-          "municipality": "Kommune"
-        },
-        "description": "",
-        "data_description": {
-          "municipality": ""
-        }
+        "submit": "Prøv igjen"
       }
     },
     "error": {
       "cannot_connect": "Kunne ikke hente et fullstendig datasett. Prøv igjen.",
-      "station_missing": "Denne stasjonen finnes ikke lenger i svaret fra datakilden. Velg en annen stasjon eller prøv igjen.",
+      "station_missing": "En eller flere valgte datakilder mangler i svaret. Endre utvalget eller prøv igjen.",
       "no_stations": "Datakilden returnerte ingen stasjoner. Prøv igjen senere.",
       "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
-      "camera_missing": "Dette kameraet finnes ikke lenger i svaret fra datakilden. Velg et annet kamera eller prøv igjen.",
+      "camera_missing": "En eller flere valgte datakilder mangler i svaret. Endre utvalget eller prøv igjen.",
       "select_source": "Velg en kilde fra listen.",
-      "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten."
+      "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten.",
+      "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget."
     },
     "abort": {
       "already_configured": "Statens vegvesen er allerede konfigurert. Legg til værstasjoner eller veikameraer i den eksisterende integrasjonen."
@@ -87,97 +90,115 @@
     "weather_station": {
       "step": {
         "user": {
-          "title": "Velg en værstasjon",
-          "data": {
-            "station_id": "Værstasjon"
-          },
+          "title": "Værstasjoner",
           "description": "",
-          "data_description": {
-            "station_id": ""
-          }
+          "submit": "Prøv igjen"
         },
-        "user_county": {
+        "county": {
           "title": "Fylke",
           "data": {
             "county": "Fylke"
           },
-          "description": "",
-          "data_description": {
-            "county": ""
-          }
+          "submit": "Ferdig"
         },
-        "user_municipality": {
+        "municipality": {
           "title": "Kommune",
           "data": {
             "municipality": "Kommune"
           },
-          "description": "",
-          "data_description": {
-            "municipality": ""
+          "submit": "Ferdig"
+        },
+        "weather_station_overview": {
+          "title": "Værstasjoner",
+          "description": "Fylke: **{county}**\n\nKommune: **{municipality}**\n\nValgt: **{count}**",
+          "menu_options": {
+            "county": "Velg fylke",
+            "edit_county": "Endre fylke",
+            "municipality": "Velg kommune",
+            "edit_municipality": "Endre kommune",
+            "weather_station_sources": "Velg værstasjoner",
+            "add": "Legg til"
           }
+        },
+        "weather_station_sources": {
+          "title": "Værstasjoner",
+          "data": {
+            "sources": "Værstasjoner"
+          },
+          "submit": "Ferdig"
         }
       },
       "error": {
         "cannot_connect": "Kunne ikke hente et fullstendig sett med værdata. Prøv igjen.",
-        "station_missing": "Denne stasjonen finnes ikke lenger i svaret fra datakilden. Velg en annen stasjon eller prøv igjen.",
+        "station_missing": "En eller flere valgte datakilder mangler i svaret. Endre utvalget eller prøv igjen.",
         "no_stations": "Datakilden returnerte ingen stasjoner. Prøv igjen senere.",
         "select_source": "Velg en kilde fra listen.",
-        "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten."
+        "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten.",
+        "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget."
       },
       "abort": {
         "already_configured": "Denne stasjonen er allerede konfigurert."
       },
       "entry_type": "Værstasjon",
       "initiate_flow": {
-        "user": "Legg til værstasjon"
+        "user": "Legg til værstasjoner"
       }
     },
     "camera": {
       "step": {
         "user": {
-          "title": "Velg et veikamera",
-          "data": {
-            "camera_id": "Veikamera"
-          },
+          "title": "Veikameraer",
           "description": "",
-          "data_description": {
-            "camera_id": ""
-          }
+          "submit": "Prøv igjen"
         },
-        "user_county": {
+        "county": {
           "title": "Fylke",
           "data": {
             "county": "Fylke"
           },
-          "description": "",
-          "data_description": {
-            "county": ""
-          }
+          "submit": "Ferdig"
         },
-        "user_municipality": {
+        "municipality": {
           "title": "Kommune",
           "data": {
             "municipality": "Kommune"
           },
-          "description": "",
-          "data_description": {
-            "municipality": ""
+          "submit": "Ferdig"
+        },
+        "camera_overview": {
+          "title": "Veikameraer",
+          "description": "Fylke: **{county}**\n\nKommune: **{municipality}**\n\nValgt: **{count}**",
+          "menu_options": {
+            "county": "Velg fylke",
+            "edit_county": "Endre fylke",
+            "municipality": "Velg kommune",
+            "edit_municipality": "Endre kommune",
+            "camera_sources": "Velg veikameraer",
+            "add": "Legg til"
           }
+        },
+        "camera_sources": {
+          "title": "Veikameraer",
+          "data": {
+            "sources": "Veikameraer"
+          },
+          "submit": "Ferdig"
         }
       },
       "error": {
         "cannot_connect": "Kunne ikke hente et fullstendig datasett. Prøv igjen.",
         "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
-        "camera_missing": "Dette kameraet finnes ikke lenger i svaret fra datakilden. Velg et annet kamera eller prøv igjen.",
+        "camera_missing": "En eller flere valgte datakilder mangler i svaret. Endre utvalget eller prøv igjen.",
         "select_source": "Velg en kilde fra listen.",
-        "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten."
+        "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten.",
+        "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget."
       },
       "abort": {
         "already_configured": "Dette kameraet er allerede konfigurert."
       },
       "entry_type": "Veikamera",
       "initiate_flow": {
-        "user": "Legg til veikamera"
+        "user": "Legg til veikameraer"
       }
     }
   },
@@ -202,18 +223,7 @@
     },
     "municipality": {
       "options": {
-        "unknown": "Ukjent kommune",
-        "back": "Endre fylke"
-      }
-    },
-    "station_id": {
-      "options": {
-        "back": "Endre kommune"
-      }
-    },
-    "camera_id": {
-      "options": {
-        "back": "Endre kommune"
+        "unknown": "Ukjent kommune"
       }
     }
   }

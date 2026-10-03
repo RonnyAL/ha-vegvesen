@@ -9,75 +9,78 @@
         },
         "description": ""
       },
-      "weather_station": {
-        "title": "Select a weather station",
+      "county": {
+        "title": "County",
         "data": {
-          "station_id": "Weather station"
+          "county": "County"
         },
-        "description": "",
-        "data_description": {
-          "station_id": ""
+        "submit": "Done"
+      },
+      "municipality": {
+        "title": "Municipality",
+        "data": {
+          "municipality": "Municipality"
+        },
+        "submit": "Done"
+      },
+      "weather_station_overview": {
+        "title": "Weather stations",
+        "description": "County: **{county}**\n\nMunicipality: **{municipality}**\n\nSelected: **{count}**",
+        "menu_options": {
+          "county": "Choose county",
+          "edit_county": "Change county",
+          "municipality": "Choose municipality",
+          "edit_municipality": "Change municipality",
+          "weather_station_sources": "Select weather stations",
+          "add": "Add"
         }
+      },
+      "weather_station_sources": {
+        "title": "Weather stations",
+        "data": {
+          "sources": "Weather stations"
+        },
+        "submit": "Done"
+      },
+      "camera_overview": {
+        "title": "Road cameras",
+        "description": "County: **{county}**\n\nMunicipality: **{municipality}**\n\nSelected: **{count}**",
+        "menu_options": {
+          "county": "Choose county",
+          "edit_county": "Change county",
+          "municipality": "Choose municipality",
+          "edit_municipality": "Change municipality",
+          "camera_sources": "Select road cameras",
+          "add": "Add"
+        }
+      },
+      "camera_sources": {
+        "title": "Road cameras",
+        "data": {
+          "sources": "Road cameras"
+        },
+        "submit": "Done"
+      },
+      "weather_station": {
+        "title": "Weather stations",
+        "description": "",
+        "submit": "Retry"
       },
       "camera": {
-        "title": "Select a road camera",
-        "data": {
-          "camera_id": "Road camera"
-        },
+        "title": "Road cameras",
         "description": "",
-        "data_description": {
-          "camera_id": ""
-        }
-      },
-      "weather_station_county": {
-        "title": "County",
-        "data": {
-          "county": "County"
-        },
-        "description": "",
-        "data_description": {
-          "county": ""
-        }
-      },
-      "weather_station_municipality": {
-        "title": "Municipality",
-        "data": {
-          "municipality": "Municipality"
-        },
-        "description": "",
-        "data_description": {
-          "municipality": ""
-        }
-      },
-      "camera_county": {
-        "title": "County",
-        "data": {
-          "county": "County"
-        },
-        "description": "",
-        "data_description": {
-          "county": ""
-        }
-      },
-      "camera_municipality": {
-        "title": "Municipality",
-        "data": {
-          "municipality": "Municipality"
-        },
-        "description": "",
-        "data_description": {
-          "municipality": ""
-        }
+        "submit": "Retry"
       }
     },
     "error": {
       "cannot_connect": "Unable to retrieve a complete source snapshot. Try again.",
-      "station_missing": "This station is no longer present in the source response. Select another station or try again.",
+      "station_missing": "One or more selected sources are missing from the response. Change the selection or try again.",
       "no_stations": "The source returned no stations. Try again later.",
       "no_cameras": "The source returned no cameras. Try again later.",
-      "camera_missing": "This camera is no longer present in the source response. Select another camera or try again.",
+      "camera_missing": "One or more selected sources are missing from the response. Change the selection or try again.",
       "select_source": "Select a source from the list.",
-      "invalid_source": "Choose an available source from the dropdown."
+      "invalid_source": "Choose an available source from the dropdown.",
+      "already_configured": "One or more selected sources are already configured. Remove them from the selection."
     },
     "abort": {
       "already_configured": "Statens vegvesen is already configured. Add weather stations or road cameras to the existing integration."
@@ -87,97 +90,115 @@
     "weather_station": {
       "step": {
         "user": {
-          "title": "Select a weather station",
-          "data": {
-            "station_id": "Weather station"
-          },
+          "title": "Weather stations",
           "description": "",
-          "data_description": {
-            "station_id": ""
-          }
+          "submit": "Retry"
         },
-        "user_county": {
+        "county": {
           "title": "County",
           "data": {
             "county": "County"
           },
-          "description": "",
-          "data_description": {
-            "county": ""
-          }
+          "submit": "Done"
         },
-        "user_municipality": {
+        "municipality": {
           "title": "Municipality",
           "data": {
             "municipality": "Municipality"
           },
-          "description": "",
-          "data_description": {
-            "municipality": ""
+          "submit": "Done"
+        },
+        "weather_station_overview": {
+          "title": "Weather stations",
+          "description": "County: **{county}**\n\nMunicipality: **{municipality}**\n\nSelected: **{count}**",
+          "menu_options": {
+            "county": "Choose county",
+            "edit_county": "Change county",
+            "municipality": "Choose municipality",
+            "edit_municipality": "Change municipality",
+            "weather_station_sources": "Select weather stations",
+            "add": "Add"
           }
+        },
+        "weather_station_sources": {
+          "title": "Weather stations",
+          "data": {
+            "sources": "Weather stations"
+          },
+          "submit": "Done"
         }
       },
       "error": {
         "cannot_connect": "Unable to retrieve a complete weather snapshot. Try again.",
-        "station_missing": "This station is no longer present in the source response. Select another station or try again.",
+        "station_missing": "One or more selected sources are missing from the response. Change the selection or try again.",
         "no_stations": "The source returned no stations. Try again later.",
         "select_source": "Select a source from the list.",
-        "invalid_source": "Choose an available source from the dropdown."
+        "invalid_source": "Choose an available source from the dropdown.",
+        "already_configured": "One or more selected sources are already configured. Remove them from the selection."
       },
       "abort": {
         "already_configured": "This station is already configured."
       },
       "entry_type": "Weather station",
       "initiate_flow": {
-        "user": "Add weather station"
+        "user": "Add weather stations"
       }
     },
     "camera": {
       "step": {
         "user": {
-          "title": "Select a road camera",
-          "data": {
-            "camera_id": "Road camera"
-          },
+          "title": "Road cameras",
           "description": "",
-          "data_description": {
-            "camera_id": ""
-          }
+          "submit": "Retry"
         },
-        "user_county": {
+        "county": {
           "title": "County",
           "data": {
             "county": "County"
           },
-          "description": "",
-          "data_description": {
-            "county": ""
-          }
+          "submit": "Done"
         },
-        "user_municipality": {
+        "municipality": {
           "title": "Municipality",
           "data": {
             "municipality": "Municipality"
           },
-          "description": "",
-          "data_description": {
-            "municipality": ""
+          "submit": "Done"
+        },
+        "camera_overview": {
+          "title": "Road cameras",
+          "description": "County: **{county}**\n\nMunicipality: **{municipality}**\n\nSelected: **{count}**",
+          "menu_options": {
+            "county": "Choose county",
+            "edit_county": "Change county",
+            "municipality": "Choose municipality",
+            "edit_municipality": "Change municipality",
+            "camera_sources": "Select road cameras",
+            "add": "Add"
           }
+        },
+        "camera_sources": {
+          "title": "Road cameras",
+          "data": {
+            "sources": "Road cameras"
+          },
+          "submit": "Done"
         }
       },
       "error": {
         "cannot_connect": "Unable to retrieve a complete source snapshot. Try again.",
         "no_cameras": "The source returned no cameras. Try again later.",
-        "camera_missing": "This camera is no longer present in the source response. Select another camera or try again.",
+        "camera_missing": "One or more selected sources are missing from the response. Change the selection or try again.",
         "select_source": "Select a source from the list.",
-        "invalid_source": "Choose an available source from the dropdown."
+        "invalid_source": "Choose an available source from the dropdown.",
+        "already_configured": "One or more selected sources are already configured. Remove them from the selection."
       },
       "abort": {
         "already_configured": "This camera is already configured."
       },
       "entry_type": "Road camera",
       "initiate_flow": {
-        "user": "Add road camera"
+        "user": "Add road cameras"
       }
     }
   },
@@ -202,18 +223,7 @@
     },
     "municipality": {
       "options": {
-        "unknown": "Unknown municipality",
-        "back": "Change county"
-      }
-    },
-    "station_id": {
-      "options": {
-        "back": "Change municipality"
-      }
-    },
-    "camera_id": {
-      "options": {
-        "back": "Change municipality"
+        "unknown": "Unknown municipality"
       }
     }
   }

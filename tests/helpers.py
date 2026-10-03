@@ -51,20 +51,39 @@ def camera_url(
     )
 
 
+async def menu_action(
+    manager: Any, result: dict[str, Any], action: str
+) -> dict[str, Any]:
+    """Choose a visible native menu action through HA's manager."""
+    assert result["type"] == "menu"
+    assert action in result["menu_options"]
+    return await manager.async_configure(result["flow_id"], {"next_step_id": action})
+
+
 async def choose_region(
     manager: Any,
     result: dict[str, Any],
     county: str = "Trøndelag",
     municipality: str = "Orkland",
 ) -> dict[str, Any]:
-    """Exercise native region steps before selecting a fixture source."""
+    """Use the overview's region actions and open the source selection form."""
+    result = await menu_action(manager, result, "county")
     assert list(result["data_schema"].schema) == ["county"]
-    assert result["last_step"] is False
     result = await manager.async_configure(result["flow_id"], {"county": county})
+    result = await menu_action(manager, result, "municipality")
     assert list(result["data_schema"].schema) == ["municipality"]
-    assert result["last_step"] is False
     result = await manager.async_configure(
         result["flow_id"], {"municipality": municipality}
     )
-    assert result["last_step"] is True
-    return result
+    action = next(
+        action for action in result["menu_options"] if action.endswith("_sources")
+    )
+    return await menu_action(manager, result, action)
+
+
+async def save_sources(
+    manager: Any, result: dict[str, Any], *ids: str
+) -> dict[str, Any]:
+    """Save a draft, then explicitly confirm Add from the overview."""
+    result = await manager.async_configure(result["flow_id"], {"sources": list(ids)})
+    return await menu_action(manager, result, "add")

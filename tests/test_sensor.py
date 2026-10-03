@@ -129,9 +129,9 @@ async def test_bokmal_names_and_subentry_actions(
     )
     prefix = "component.vegvesen.config_subentries"
     assert translations[f"{prefix}.weather_station.initiate_flow.user"] == (
-        "Legg til værstasjon"
+        "Legg til værstasjoner"
     )
-    assert translations[f"{prefix}.camera.initiate_flow.user"] == "Legg til veikamera"
+    assert translations[f"{prefix}.camera.initiate_flow.user"] == "Legg til veikameraer"
 
 
 @pytest.mark.parametrize("temperature", [None, 0, -39.6, 9999])

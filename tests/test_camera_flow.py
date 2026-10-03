@@ -12,7 +12,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.vegvesen.const import CONF_CAMERA_ID, DOMAIN, SUBENTRY_CAMERA
 
-from .helpers import camera_url, choose_region, page
+from .helpers import camera_url, choose_region, page, save_sources
 
 if TYPE_CHECKING:
     from aioresponses import aioresponses
@@ -40,13 +40,11 @@ async def test_camera_only_parent(
         result = await choose_region(
             hass.config_entries.flow, result, "Møre og Romsdal", "Herøy"
         )
-        options = result["data_schema"].schema[CONF_CAMERA_ID].config["options"]
+        options = result["data_schema"].schema["sources"].config["options"]
         assert any(
             "Rundebrua — Runde (3000047_2)" in option["label"] for option in options
         )
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], {CONF_CAMERA_ID: "3000047_2"}
-        )
+        result = await save_sources(hass.config_entries.flow, result, "3000047_2")
         await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     entry = result["result"]
@@ -98,9 +96,7 @@ async def test_camera_flow_failure(
         else:
             mock_http.get(camera_url(("1429014_1",)), payload=page([]))
         result = await choose_region(manager, result, "Vestland", "Kinn")
-        result = await manager.async_configure(
-            result["flow_id"], {CONF_CAMERA_ID: "1429014_1"}
-        )
+        result = await save_sources(manager, result, "1429014_1")
     assert result["type"] is FlowResultType.FORM
     assert result["errors"]["base"] == {
         "empty": "no_cameras",
@@ -120,16 +116,14 @@ async def test_camera_add_and_duplicate(
     mock_http.get(camera_url(), payload=page(camera_features), repeat=True)
     mock_http.get(camera_url(("1429014_1",)), payload=page(camera_features[2:]))
     manager = hass.config_entries.subentries
-    for expected in (FlowResultType.CREATE_ENTRY, FlowResultType.ABORT):
+    for expected in (FlowResultType.CREATE_ENTRY, FlowResultType.FORM):
         result = await manager.async_init(
             (camera_entry.entry_id, SUBENTRY_CAMERA), context={"source": SOURCE_USER}
         )
         result = await choose_region(manager, result, "Vestland", "Kinn")
-        result = await manager.async_configure(
-            result["flow_id"], {CONF_CAMERA_ID: "1429014_1"}
-        )
+        result = await save_sources(manager, result, "1429014_1")
         assert result["type"] is expected
-    assert result["reason"] == "already_configured"
+    assert result["errors"]["base"] == "already_configured"
     assert len(camera_entry.subentries) == 3
 
 
@@ -161,9 +155,7 @@ async def test_camera_concurrent_duplicate(
         (camera_entry.entry_id, SUBENTRY_CAMERA), context={"source": SOURCE_USER}
     )
     result = await choose_region(manager, result, "Vestland", "Kinn")
-    result = await manager.async_configure(
-        result["flow_id"], {CONF_CAMERA_ID: "1429014_1"}
-    )
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
+    result = await save_sources(manager, result, "1429014_1")
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"]["base"] == "already_configured"
     assert len(camera_entry.subentries) == 3

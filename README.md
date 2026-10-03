@@ -31,19 +31,22 @@ For manual installation, copy the repository's `custom_components/vegvesen` fold
 
 ## Choose stations and cameras
 
-Choose **Weather station / Værstasjon** or **Road camera / Veikamera**. Setup uses three native Home Assistant steps:
+Choose **Weather station / Værstasjon** or **Road camera / Veikamera**. An overview shows your current choices and provides actions to:
 
-1. Select a **county / fylke**, then **Next / Neste**.
-2. Select a **municipality / kommune**, then **Next / Neste**.
-3. Select a station or camera, then **Submit / Send inn**.
+1. Choose a **county / fylke**.
+2. Choose a **municipality / kommune**.
+3. Select one or more stations or cameras.
+4. Choose **Add / Legg til** to save them.
 
-Only counties and municipalities with sources of the selected type appear. Source labels show the name, camera direction where available, and source ID. To revisit a previous step, choose **Change municipality / Endre kommune** in the source dropdown, or **Change county / Endre fylke** in the municipality dropdown, then use the form button. Your previous choice is retained; changing a region updates the available choices below it.
+Each editor returns to the overview with **Done / Ferdig**. Use **Change county / Endre fylke**, **Change municipality / Endre kommune**, or the source selection action to revise your draft before adding it. Changing county clears the municipality and source choices; changing municipality clears the source choices. Keeping the same region preserves them.
+
+Only counties and municipalities with sources of the selected type appear. Source labels show the name, camera direction where available, and source ID. You can select several sources from the current municipality before saving.
 
 New or relocated sources without verified administrative membership appear under **Unknown county / Ukjent fylke → Unknown municipality / Ukjent kommune**. Their measurements and identities are unchanged.
 
-Use **Add weather station / Legg til værstasjon** or **Add road camera / Legg til veikamera** on the same integration to add more sources. Each selection can be anywhere in Norway; selecting one region does not restrict later selections. The same source cannot be added twice. Existing selections and device/entity identities are retained across updates and restarts.
+Use **Add weather stations / Legg til værstasjoner** or **Add road cameras / Legg til veikameraer** on the same integration to add more sources. Each selection can be anywhere in Norway; selecting one region does not restrict later selections. The same source cannot be added twice. Existing selections and device/entity identities are retained across updates and restarts.
 
-Discovery lists are reused for up to 15 minutes. The first list after startup or cache expiry needs a complete response from Statens vegvesen; later selections usually open faster. Your selected source is checked again when you submit.
+Discovery lists are reused for up to 15 minutes. The first list after startup or cache expiry needs a complete response from Statens vegvesen; later selections usually open faster. All selected sources are checked again when you choose **Add**. If a request fails or a selected source is missing or already configured, nothing from that batch is added; you can adjust the selection and retry.
 
 ## Using the entities
 
@@ -66,7 +69,7 @@ To remove one source, remove its station/camera subentry in **Devices & services
 
 **The integration does not appear:** confirm HACS downloaded it, restart Home Assistant, then search again in **Add integration**.
 
-**Blank fields, old setup text or a `MISSING_VALUE` error after updating:** confirm the integration reports **0.4.2 or newer**, restart HA, then refresh your browser or reopen the companion app to load the updated translations.
+**Blank fields, old setup text or a `MISSING_VALUE` error after updating:** confirm the integration reports **0.5.0 or newer**, restart HA, then refresh the browser. If the companion app still shows old text, compare with a fresh browser window: restarting HA alone does not clear the app’s cached frontend translations.
 
 **A source is missing:** check the appropriate county/municipality, including **Unknown county → Unknown municipality** for unclassified sources. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
@@ -63,13 +64,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> 
     if results and all(isinstance(result, ConfigEntryNotReady) for result in results):
         raise results[0]
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
+    entry.async_on_unload(
+        entry.add_update_listener(
+            partial(_async_reload_entry, runtime=entry.runtime_data)
+        )
+    )
     return True
 
 
-async def _async_reload_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> None:
-    """Reconcile additions and removals by reloading the parent entry."""
-    await hass.config_entries.async_reload(entry.entry_id)
+async def _async_reload_entry(
+    hass: HomeAssistant, entry: VegvesenConfigEntry, *, runtime: VegvesenData
+) -> None:
+    """Coalesce a batch's update callbacks into one parent reload."""
+    if runtime.reload_pending:
+        return
+    runtime.reload_pending = True
+    try:
+        # HA starts listeners eagerly. Let the synchronous batch finish before
+        # taking its snapshot or unloading resources.
+        await asyncio.sleep(0)
+        while True:
+            subentry_ids = set(entry.subentries)
+            if not await hass.config_entries.async_reload(entry.entry_id):
+                break
+            # A later selection can arrive while setup is awaiting source I/O,
+            # before its new update listener has been installed.
+            if subentry_ids == set(entry.subentries):
+                break
+    finally:
+        runtime.reload_pending = False
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> bool:

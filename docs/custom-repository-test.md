@@ -20,14 +20,14 @@ Once the reviewed source is available on the public default branch:
 3. Find **Statens vegvesen** in HACS and download it. Without a release, HACS uses the default branch.
 4. Restart Home Assistant using your normal UI controls.
 5. Open **Settings → Devices & services → Add integration** and search for **Statens vegvesen**.
-6. Select **Weather station / Værstasjon** or **Road camera / Veikamera**. Select county and choose **Next**, select municipality and choose **Next**, then select the source and choose **Submit**. Only populated regions appear; labels retain source IDs and camera direction.
+6. Select **Weather station / Værstasjon** or **Road camera / Veikamera**. Use the overview to choose county, municipality, then one or more sources. Each editor returns with **Done**; choose **Add** on the overview to save the batch. Try the visible **Change county** and **Change municipality** actions before saving. Only populated regions appear; labels retain source IDs and camera direction.
 7. Use **Add weather station / Legg til værstasjon** and **Add road camera / Legg til veikamera** on the same parent entry to add other sources.
 
 There is no API credential or integration-wide location setting. Geographic monitors are not implemented. Existing source names and statuses are kept as provided by Statens vegvesen; UI labels have English and Norwegian Bokmål translations.
 
 ## First test session
 
-Record your HA version and integration version **0.4.2**, plus selected source IDs. These are public source identifiers, but your choice of sources can reveal locations of interest; omit them from public reports if needed.
+Record your HA version and integration version **0.5.0**, plus selected source IDs. These are public source identifiers, but your choice of sources can reveal locations of interest; omit them from public reports if needed.
 
 | Check | Expected result |
 | --- | --- |
@@ -54,7 +54,7 @@ Include version numbers, the affected entity type, relevant timestamps and the e
 
 ## Updates and removal
 
-For a later reviewed revision, use HACS's download/redownload or update control, restart HA, then refresh the browser or reopen the companion app. Record which source revision you tested: without releases, the default-branch revision is the available package. The current manifest version is 0.4.2; a default-branch development update may require redownload rather than an update notification. Confirm selections and registry identities survive the restart. The categorized picker uses unchanged saved source IDs; actual HACS upgrade testing remains the user installation check.
+For a later reviewed revision, use HACS's download/redownload or update control, restart HA, then refresh the browser. An app can retain stale frontend translations after restarting HA; compare with a fresh browser window if needed. Record which source revision you tested: without releases, the default-branch revision is the available package. The current manifest version is 0.5.0; a default-branch development update may require redownload rather than an update notification. Confirm selections and registry identities survive the restart. The categorized picker uses unchanged saved source IDs; actual HACS upgrade testing remains the user installation check.
 
 To remove the integration, remove its parent entry from **Devices & services**, remove the downloaded package through HACS, and restart HA. Removing an individual station/camera subentry keeps the parent and other sources. Export anything you want to retain before removing the parent; this guide does not ask the development agent to perform removal on your instance.
 
@@ -65,6 +65,6 @@ scripts/package
 scripts/smoke-ui
 ```
 
-The local archive is `.tools/packages/vegvesen-0.4.2.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including native-flow translations, brand images, the original MIT license and the data-attribution notice. It excludes environments, developer tools, tests, API fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds from the same files deterministic in the pinned environment.
+The local archive is `.tools/packages/vegvesen-0.5.0.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including native-flow translations, brand images, the original MIT license and the data-attribution notice. It excludes environments, developer tools, tests, API fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds from the same files deterministic in the pinned environment.
 
 The smoke runner extracts this package into a disposable HA configuration, then selects sources through the UI and verifies temperature, observation time and camera display. This proves the installed files work independently of a development source-tree link. It is not an actual HACS download test. The archive is a local review artifact; `hacs.json` still uses the ordinary repository layout, without ZIP-release mode.

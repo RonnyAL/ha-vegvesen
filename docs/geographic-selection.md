@@ -1,55 +1,53 @@
-# Native source selection (0.4.2)
+# Native source selection (0.5.0)
 
-Weather stations and cameras use three native Home Assistant forms: county,
-municipality, source. The first two use HA's **Next** action; the final form
-uses **Submit**. Fields are initially blank and use built-in dropdown selectors.
-County/municipality options are derived from actual sources of the requested
-family, so there are no empty regions or “Hele Norge” option. The selected
-source displays its name and ID in the closed dropdown.
+Weather stations and cameras use a native Home Assistant menu as an editable
+selection overview. It shows the chosen county, municipality and source count.
+Choose/change actions open a native form; **Done** returns to the overview.
+The source form accepts multiple source IDs and renders readable selected labels.
+**Add** appears only when sources are selected. There are no navigation sentinels
+inside the source or region dropdowns and no custom frontend module.
 
-The municipality dropdown includes **Change county**, and the source dropdown
-includes **Change municipality**. Submitting either returns to the previous
-form, retaining its selected value. Resubmitting the same county retains the
-municipality; changing county clears it. A changed municipality refilters the
-source list. Navigation makes no additional API requests and saves no data. Only the
-final source ID is stored. Existing devices, entities and subentries need no
-migration; source polling and values are unchanged. Additional selections can
-be anywhere in Norway, with no parent-wide restriction or dependency on future
-area/route monitors.
+Only populated regions are offered; there is no “Hele Norge” choice. Changing
+county clears municipality and sources. Changing municipality clears sources.
+Resubmitting an unchanged region preserves its dependants. Closing the flow
+before Add saves nothing. Each batch is from one municipality; subsequent batches
+can be anywhere in Norway. The parent has no geographic restriction.
 
-## Verified HA conventions
+## Verified HA conventions and lifecycle
 
-The [documented multi-step flow](https://developers.home-assistant.io/docs/data_entry_flow_index/#multi-step-flows)
-advances when the current form is submitted. HA's stock form does not send
-local select changes to the integration or reactively replace other field
-schemas. Native navigation menus choose among defined flow steps, rather than
-providing a data-bearing hierarchical browser. Stock forms expose no configurable
-Back button; navigation choices use the built-in dropdown and submit action.
-They are handled before source validation and cannot create a source entry. The [choose selector](https://www.home-assistant.io/docs/blueprint/selectors/#choose-selector)
-switches between selector types; current [core validation](https://github.com/home-assistant/core/blob/2026.9.4/homeassistant/helpers/selector.py)
-explicitly rejects nested choose selectors, and it is absent from the minimum
-2025.12.0 test target.
+The [documented native menu](https://developers.home-assistant.io/docs/data_entry_flow_index/#show-menu)
+selects defined flow steps. Native forms send data on submission, not whenever
+a local field changes. They do not expose a configurable Back button. The overview
+therefore supplies explicit editing actions between forms, without claiming a
+Back button inside an editor. The [select selector](https://www.home-assistant.io/docs/blueprint/selectors/#select-selector)
+supports multiple selections with separate machine values and readable labels.
 
-The native wizard avoids custom selector rendering, extra modules, static asset
-registration and first-install browser reloads. The 0.4.0 custom selector could
-leave an empty custom element when its module was unavailable: its successful
-isolated test did not establish reliability on other installations. There is
-no integration JavaScript in 0.4.2. Setup text contains only titles and labels;
-source attribution is retained in the README and installed `NOTICE.md`.
+All four parent/subentry paths share this behavior. Initial parent creation uses
+the public flow result's `subentries` list. An existing parent uses the public
+`async_add_subentry` API for additional selections and the normal subentry flow
+result for the final source. Every requested source is checked by one complete,
+filtered live snapshot before any is saved. Duplicate checking runs both before
+and after network I/O. Saving the validated batch is synchronous, so overlapping
+flows cannot insert a duplicate between the final check and persistence.
 
-HA merges new translation resources over its existing browser resources. Deleted
-keys can therefore retain old descriptions across a backend reconnect. Explicit
-empty description and field-description strings overwrite the previous setup
-instructions and attribution once fresh resources are loaded. They cannot force
-an already open browser tab to fetch new translations. English
-and Bokmål include matching labels for every parent/subentry step. After a HACS
-update, restart HA and refresh the browser or reopen the companion app.
+HA eagerly runs update listeners. The listener yields one event-loop turn before
+reloading, allowing a synchronous batch to finish and coalescing its callbacks.
+If another selection arrives during reload I/O, membership is checked again and
+the entry reloads to include it. Old coordinators are shut down. Weather/camera
+polling remains independent and physical source identities are unchanged.
+No migration is needed. Future monitor ownership and deduplication remain
+architecture considerations; no monitor framework is introduced.
 
-Both supported backend targets test real native schema serialization, all four
-parent/subentry source paths, filtering, rejection of invalid or out-of-region
-choices, failure/retry and saving only source IDs. The primary frontend has a
-live first-use browser test with no close/reload workaround. A minimum-version
-live browser test remains unperformed.
+English and Bokmål have matching titles, field labels and menu actions. Setup
+contains only the selection summary and necessary labels/errors. Attribution
+remains in the README and installed `NOTICE.md`. An open frontend can keep older
+translations across a backend restart; refresh it after updating. This release
+cannot force the companion app to discard its cached frontend resources.
+
+Both supported HA versions test native serialization, filtering, draft editing,
+batch creation, failed/incomplete pagination, duplicate races and reload lifecycle.
+The primary frontend also has a real browser smoke test of an extracted runtime
+package. A minimum-version frontend test remains unperformed.
 
 ## Verified geography source
 
@@ -99,13 +97,13 @@ own dictionary copy. Failed, cancelled, malformed or incomplete pagination
 cannot publish a partial catalogue or replace the previous successful cache.
 An expired cache is not served as a successful refresh after a request failure.
 The form reports the failure for retry. Empty responses are not reused.
-The chosen source is checked again with a filtered live request at submission.
+All chosen sources are checked again with a filtered live request at Add.
 There are no discovery polling tasks, persistent runtime cache files or changes
 to entity polling.
 
 ## Updating through HACS
 
 Update or redownload the custom repository's latest default branch, restart HA,
-refresh the frontend, and confirm version **0.4.2**. Existing
-selections keep working. Use **Add weather station** or **Add road camera**
-to try the native hierarchy.
+refresh the frontend, and confirm version **0.5.0**. Existing
+selections keep working. Use **Add weather stations** or **Add road cameras**
+to try the editable overview.

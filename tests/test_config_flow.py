@@ -15,7 +15,7 @@ from custom_components.vegvesen.const import (
     SUBENTRY_WEATHER_STATION,
 )
 
-from .helpers import choose_region, page, weather_url
+from .helpers import choose_region, page, save_sources, weather_url
 
 if TYPE_CHECKING:
     from aioresponses import aioresponses
@@ -37,9 +37,9 @@ async def test_parent_flow(
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"next_step_id": SUBENTRY_WEATHER_STATION}
         )
-        assert result["type"] is FlowResultType.FORM
+        assert result["type"] is FlowResultType.MENU
         result = await choose_region(hass.config_entries.flow, result)
-        selector = result["data_schema"].schema[CONF_STATION_ID]
+        selector = result["data_schema"].schema["sources"]
         options = selector.config["options"]
         assert any(
             option["value"] == "1629006"
@@ -47,9 +47,7 @@ async def test_parent_flow(
             and "1629006" in option["label"]
             for option in options
         )
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], {CONF_STATION_ID: "1629006"}
-        )
+        result = await save_sources(hass.config_entries.flow, result, "1629006")
         await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     entry = result["result"]
@@ -92,8 +90,8 @@ async def test_parent_discovery_failure_recovery(
     )
     mock_http.get(weather_url(), payload=page(features))
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
-    assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {}
+    assert result["type"] is FlowResultType.MENU
+    assert result["menu_options"] == ["county"]
 
 
 @pytest.mark.parametrize("missing", [False, True])
@@ -116,9 +114,7 @@ async def test_parent_selection_failure(
         result["flow_id"], {"next_step_id": SUBENTRY_WEATHER_STATION}
     )
     result = await choose_region(hass.config_entries.flow, result)
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_STATION_ID: "1629006"}
-    )
+    result = await save_sources(hass.config_entries.flow, result, "1629006")
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {
         "base": "station_missing" if missing else "cannot_connect"
@@ -141,9 +137,7 @@ async def test_add_station_and_duplicate(
         context={"source": SOURCE_USER},
     )
     result = await choose_region(hass.config_entries.subentries, result)
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], {CONF_STATION_ID: "1629004"}
-    )
+    result = await save_sources(hass.config_entries.subentries, result, "1629004")
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert len(config_entry.subentries) == 3
     duplicate = await hass.config_entries.subentries.async_init(
@@ -151,11 +145,9 @@ async def test_add_station_and_duplicate(
         context={"source": SOURCE_USER},
     )
     duplicate = await choose_region(hass.config_entries.subentries, duplicate)
-    duplicate = await hass.config_entries.subentries.async_configure(
-        duplicate["flow_id"], {CONF_STATION_ID: "1629004"}
-    )
-    assert duplicate["type"] is FlowResultType.ABORT
-    assert duplicate["reason"] == "already_configured"
+    duplicate = await save_sources(hass.config_entries.subentries, duplicate, "1629004")
+    assert duplicate["type"] is FlowResultType.FORM
+    assert duplicate["errors"]["base"] == "already_configured"
     assert len(config_entry.subentries) == 3
     assert len(hass.config_entries.async_entries(DOMAIN)) == 1
 
@@ -186,9 +178,7 @@ async def test_subentry_failure(
         else:
             mock_http.get(weather_url(("1629004",)), payload=page([]))
         result = await choose_region(hass.config_entries.subentries, result)
-        result = await hass.config_entries.subentries.async_configure(
-            result["flow_id"], {CONF_STATION_ID: "1629004"}
-        )
+        result = await save_sources(hass.config_entries.subentries, result, "1629004")
     assert result["type"] is FlowResultType.FORM
     assert (
         result["errors"]["base"]
@@ -224,9 +214,7 @@ async def test_concurrent_duplicate_selection(
                 context={"source": SOURCE_USER},
             )
             other = await choose_region(hass.config_entries.subentries, other)
-            await hass.config_entries.subentries.async_configure(
-                other["flow_id"], {CONF_STATION_ID: station.source_id}
-            )
+            await save_sources(hass.config_entries.subentries, other, station.source_id)
         return {station.source_id: station}
 
     with patch(
@@ -242,10 +230,10 @@ async def test_concurrent_duplicate_selection(
         new=AsyncMock(side_effect=selected),
     ):
         result = await choose_region(hass.config_entries.subentries, result)
-        result = await hass.config_entries.subentries.async_configure(
-            result["flow_id"], {CONF_STATION_ID: station.source_id}
+        result = await save_sources(
+            hass.config_entries.subentries, result, station.source_id
         )
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"]["base"] == "already_configured"
     assert len(config_entry.subentries) == 3
     assert not mock_http.requests  # All source I/O was mocked at the client boundary.

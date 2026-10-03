@@ -21,3 +21,4 @@ class VegvesenData:
     client: VegvesenApiClient
     weather: WeatherCoordinator
     cameras: CameraCoordinator
+    reload_pending: bool = False
