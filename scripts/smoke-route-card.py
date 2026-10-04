@@ -23,6 +23,143 @@ def choose_route(selector: Locator) -> None:
     selector.get_by_text("Trondheim - Orkanger", exact=True).click()
 
 
+def presentation_settings(dialog: Locator) -> None:
+    """Change each setting using the supported frontend's native controls."""
+    dialog.locator("ha-selector-text").get_by_role("textbox").fill("Route overview")
+    dialog.locator("ha-selector-number input").fill("480")
+    mode = dialog.locator("ha-selector-select")
+    if mode.locator("ha-picker-field").count():
+        mode.locator("ha-picker-field").click()
+    else:
+        mode.get_by_role("combobox").click()
+    mode.get_by_text("Slipperiness", exact=True).click()
+    expect(mode).to_have_js_property("value", "slip")
+    # Native switches can paint a control above their input. Exercise
+    # normal keyboard activation instead of clicking through that layer.
+    dialog.locator("ha-selector-boolean").get_by_role("switch").press("Space")
+    dialog.get_by_role("button", name="Save", exact=True).click()
+    expect(dialog).not_to_be_visible()
+
+
+def expanded_map(page: Page, card: Locator, results: Path) -> None:
+    """Exercise native fullscreen and the library's mobile CSS fallback."""
+    for fallback in (False, True):
+        if fallback:
+            # Emulate a browser without native fullscreen APIs in this test.
+            card.evaluate("""c => {
+                c._card.requestFullscreen = undefined;
+                c._card.webkitRequestFullscreen = undefined;
+                document.exitFullscreen = undefined;
+                document.webkitCancelFullScreen = undefined;
+            }""")
+        card.get_by_role("button", name="Expand map", exact=True).click()
+        expect(card.get_by_role("button", name="Close expanded map")).to_be_visible()
+        page.wait_for_timeout(300)
+        assert card.evaluate("""c => {
+            const box = c._card.getBoundingClientRect();
+            return Math.abs(box.width - innerWidth) < 2 &&
+                Math.abs(box.height - innerHeight) < 2;
+        }""")
+        if fallback:
+            assert card.evaluate(
+                "c => c._card.classList.contains('maplibregl-pseudo-fullscreen')"
+            )
+        page.screenshot(
+            path=str(
+                results / ("expanded-fallback.png" if fallback else "expanded.png")
+            )
+        )
+        card.get_by_role("button", name="Close expanded map").click()
+        expect(
+            card.get_by_role("button", name="Expand map", exact=True)
+        ).to_be_visible()
+        if fallback:
+            card.evaluate("""c => {
+                delete c._card.requestFullscreen;
+                delete c._card.webkitRequestFullscreen;
+                delete document.exitFullscreen;
+                delete document.webkitCancelFullScreen;
+            }""")
+    assert card.locator(".map").bounding_box()["height"] == 400
+    card.evaluate(
+        "async c => { if (!c._map.loaded()) await new Promise("
+        "resolve => c._map.once('idle', resolve)); }"
+    )
+
+
+def inspector_updates(page: Page, card: Locator, results: Path) -> None:
+    """Deliver fixture snapshots through the card's normal subscription callback."""
+    inspector = card.locator(".inspector")
+    expect(inspector).to_be_visible()
+    original = card.evaluate("c => c._snapshot")
+    selected_id = card.evaluate("c => c._segmentId")
+    center = card.evaluate("c => c._map.getCenter().toArray()")
+    for temperature, expected in (
+        (0, "0 °C"),
+        (-123.75, "-123.75 °C"),
+        (None, "Missing data"),
+    ):
+        card.evaluate(
+            """(c, value) => {
+            const data = structuredClone(c._snapshot);
+            const segment = data.segments.find(s => s.id === c._segmentId);
+            segment.properties.ROAD_TEMPERATURE = value;
+            c._data.onData(data);
+        }""",
+            temperature,
+        )
+        expect(inspector).to_contain_text(expected)
+        assert card.evaluate("c => c._segmentId") == selected_id
+        assert card.evaluate("c => c._map.getCenter().toArray()") == center
+        assert (
+            card.evaluate("c => c._map.getFilter('segment-outline').at(-1)")
+            == selected_id
+        )
+    card.evaluate("""c => {
+        const data = structuredClone(c._snapshot);
+        data.summary.road_condition.missing_segments = 2;
+        data.summary.slip_risk.unrecognized_segments = 1;
+        c._data.onData(data);
+    }""")
+    expect(card.locator(".data-quality summary")).to_have_text("Incomplete data")
+    expect(card.locator(".quality")).not_to_be_visible()
+    card.locator(".data-quality summary").click()
+    expect(card.locator(".quality")).to_contain_text("Unrecognized values: 1")
+    card.get_by_role("button", name="Expand map", exact=True).click()
+    expect(inspector).to_be_visible()
+    expect(
+        inspector.get_by_role("button", name="Close segment details")
+    ).to_be_in_viewport()
+    page.screenshot(path=str(results / "expanded-inspector.png"))
+    card.get_by_role("button", name="Close expanded map").click()
+    # A missing source cannot leave stale details or a highlighted old segment.
+    card.evaluate("""c => {
+        const data = structuredClone(c._snapshot);
+        data.segments = data.segments.filter(s => s.id !== c._segmentId);
+        c._data.onData(data);
+    }""")
+    expect(inspector).not_to_be_visible()
+    assert card.evaluate("c => c._segmentId === undefined")
+    card.evaluate("(c, data) => c._data.onData(data)", original)
+    # An unavailable subscription clears selected details and forecast geometry.
+    card.evaluate(
+        """(c, id) => {
+        c._segmentId = id;
+        c._renderInspector();
+        c._data.onReset();
+        c._data.onError('unavailable');
+    }""",
+        selected_id,
+    )
+    expect(inspector).not_to_be_visible()
+    assert (
+        card.evaluate("c => c._map.getStyle().sources.forecasts.data.features.length")
+        == 0
+    )
+    expect(card.locator(".status")).to_contain_text("Route unavailable")
+    card.evaluate("(c, data) => c._data.onData(data)", original)
+
+
 def cold_views(browser: Browser, base: str, tokens: dict, results: Path) -> None:
     """Cold storage dashboards must find the automatically registered card."""
     for view, path in (
@@ -343,9 +480,7 @@ def run(instance: SmokeInstance) -> None:
             card.get_by_role("button", name="Fit route", exact=True).click()
             page.wait_for_timeout(1000)
             assert abs(card.evaluate("c => c._map.getZoom()") - zoom) < 0.01
-            expect(card.locator(".headline")).to_contain_text(
-                "Highest forecast slipperiness:"
-            )
+            expect(card.locator(".headline")).to_contain_text("Highest slipperiness:")
             card.locator(".modes").get_by_role(
                 "button", name="Slipperiness", exact=True
             ).click()
@@ -369,44 +504,58 @@ def run(instance: SmokeInstance) -> None:
             )
             print("Basemap status:", card.locator(".basemap").inner_text(), flush=True)
             assert not card.locator(".basemap").inner_text()
+            expanded_map(page, card, instance.results)
             # Tap a rendered source segment. Geometry stays in the map, with
-            # source values rendered as text in the popup.
+            # source values rendered as text in a panel below the map.
             point = card.evaluate("""c => {
                 const map = c._map;
+                const canvas = map.getCanvas();
+                const box = canvas.getBoundingClientRect();
                 for (const f of map.queryRenderedFeatures({layers: ['forecasts']})) {
                     const lines = f.geometry.type === 'LineString'
                         ? [f.geometry.coordinates] : f.geometry.coordinates;
                     for (const line of lines) for (const coordinate of line) {
                         const p = map.project(coordinate);
                         if (p.x > 50 && p.x < map.getCanvas().clientWidth - 50
-                            && p.y > 70 && p.y < map.getCanvas().clientHeight - 70)
+                            && p.y > 70 && p.y < map.getCanvas().clientHeight - 70
+                            && c.shadowRoot.elementFromPoint(
+                                box.left + p.x, box.top + p.y) === canvas)
                             return p;
                     }
                 }
             }""")
             assert point, "Expected a visible source forecast segment"
             canvas.click(position=point)
-            expect(card.locator(".popup")).to_be_visible()
-            expect(card.locator(".popup")).to_contain_text("Road temperature:")
-            page.screenshot(path=str(instance.results / "segment-popup.png"))
-            card.locator(".maplibregl-popup-close-button").click()
+            expect(card.locator(".inspector")).to_be_visible()
+            expect(card.locator(".inspector")).to_contain_text("Road temperature")
+            assert (
+                card.locator(".inspector").bounding_box()["y"]
+                >= canvas.bounding_box()["y"] + canvas.bounding_box()["height"]
+            )
+            page.screenshot(path=str(instance.results / "segment-inspector.png"))
+            inspector_updates(page, card, instance.results)
             # A touch just outside a narrow painted line still opens its data.
             near_line = card.evaluate("""c => {
                 const map = c._map;
+                const canvas = map.getCanvas();
+                const box = canvas.getBoundingClientRect();
                 for (let x = 60; x < map.getCanvas().clientWidth - 60; x += 4) {
                     for (let y = 80; y < map.getCanvas().clientHeight - 80; y += 4) {
                         const point = [x, y];
                         if (!map.queryRenderedFeatures(point,
                             {layers: ['forecasts']}).length &&
                             map.queryRenderedFeatures(point,
-                            {layers: ['forecasts-hit']}).length) return {x, y};
+                            {layers: ['forecasts-hit']}).length &&
+                            c.shadowRoot.elementFromPoint(
+                                box.left + x, box.top + y) === canvas) return {x, y};
                     }
                 }
             }""")
             assert near_line, "Expected a touch target beyond the painted stroke"
             canvas.tap(position=near_line)
-            expect(card.locator(".popup")).to_be_visible()
-            card.locator(".maplibregl-popup-close-button").click()
+            expect(card.locator(".inspector")).to_be_visible()
+            card.get_by_role("button", name="Close segment details").click()
+            expect(card.locator(".inspector")).not_to_be_visible()
             # Capture the same source line at street scales for visual review.
             center = card.evaluate(
                 "(c, p) => c._map.unproject([p.x, p.y]).toArray()", point
@@ -474,6 +623,12 @@ def run(instance: SmokeInstance) -> None:
                 }));
             }""")
             expect(selector).to_have_js_property("label", "Rute")
+            expect(dialog.locator("ha-selector-number")).to_have_js_property(
+                "label", "Karthøyde"
+            )
+            expect(dialog.locator("ha-selector-select")).to_have_js_property(
+                "label", "Kartlag ved åpning"
+            )
             page.screenshot(path=str(instance.results / "card-editor.png"))
             page.locator("home-assistant").evaluate("""element => {
                 element.dispatchEvent(new CustomEvent('hass-language-select', {
@@ -483,8 +638,7 @@ def run(instance: SmokeInstance) -> None:
             expect(selector).to_have_js_property("label", "Route")
             choose_route(selector)
             expect(selector).to_have_js_property("value", device_id)
-            dialog.get_by_role("button", name="Save", exact=True).click()
-            expect(dialog).not_to_be_visible()
+            presentation_settings(dialog)
             # Normal editor saving writes the device; no dashboard storage hacks.
             saved = card.evaluate("""c => c._hass.callWS({
                 type: 'lovelace/config', url_path: 'route-test'
@@ -492,10 +646,20 @@ def run(instance: SmokeInstance) -> None:
             saved_card = saved["views"][0]["cards"][0]
             assert saved_card["device_id"] == device_id, saved_card
             assert "entity" not in saved_card, saved_card
+            assert saved_card["title"] == "Route overview"
+            assert saved_card["height"] == 480
+            assert saved_card["default_mode"] == "slip"
+            assert saved_card["legend_expanded"] is False
             for _ in range(3):
                 page.reload()
                 expect(card.locator("canvas")).to_be_visible(timeout=30000)
                 assert card.evaluate("c => c._config.device_id") == device_id
+                expect(card.locator("h2")).to_have_text("Route overview")
+                assert card.locator(".map").bounding_box()["height"] == 480
+                expect(
+                    card.locator(".modes").get_by_role("button", name="Slipperiness")
+                ).to_have_attribute("aria-pressed", "true")
+                expect(card.locator(".legend")).not_to_be_visible()
             cold_views(browser, base, tokens, instance.results)
             automatic_loading_lifecycle(page, base, entry_id)
             # HA 2025.12 can reject a skipped native view transition on a
@@ -524,6 +688,10 @@ def run(instance: SmokeInstance) -> None:
                         "segment_touch_target": True,
                         "visual_editor": True,
                         "summary_highlight": True,
+                        "expanded_map": True,
+                        "fullscreen_css_fallback": True,
+                        "persistent_segment_details": True,
+                        "visual_presentation_settings": True,
                         "forecast_hours": 0,
                         "automatic_registration": True,
                         "card_picker": True,

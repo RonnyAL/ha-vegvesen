@@ -1,6 +1,6 @@
 # Interactive route-map card
 
-Route-map development is now on `main`. The latest published beta is **0.8.0b7**;
+Route-map development is now on `main`. The latest published beta is **0.8.0b8**;
 the stable release remains **0.7.4**. Installation and upgrade instructions are in the
 [README](../README.md#interactive-dashboard-card).
 
@@ -12,6 +12,11 @@ excluding weather stations and cameras. The card stores `device_id`; the backend
 resolves it using registry identifiers and route subentries, never display names
 or model strings. A single route is preselected for a new card; several routes
 require a choice. No extra entity, route catalogue or source request is needed.
+
+The same native form exposes `title`, `height`, `default_mode` and
+`legend_expanded`, with English and Bokmål labels. Cleared optional fields return
+to defaults; advanced YAML such as `map_style_url` is retained. Presentation
+changes do not change route settings or request new source data.
 
 The editor uses HA's documented `getConfigElement`, `setConfig`, `hass` and
 `config-changed` lifecycle with a native `ha-form` and device selector. Existing
@@ -73,13 +78,30 @@ a verified physical width or shared OSM road identifier, so neither exact
 alignment nor exact width matching is promised, including with custom styles.
 A transparent, at least 20-pixel line makes thin segments easier to tap; a direct
 hit on a painted segment takes priority over another segment's touch area.
-The A/B markers use centered letters inside 24-pixel circles. Popups render source
-values as text and preserve zero, null and unusual readings. String feature IDs
-are explicitly promoted through GeoJSON properties so vector-tile conversion
+The A/B markers use centered letters inside 24-pixel circles. The segment panel
+renders source values as text and preserves zero, null and unusual readings.
+Feature IDs are explicitly promoted through GeoJSON properties so vector-tile conversion
 does not discard them. Disconnected geometry stays disconnected; longitude
 wrapping only changes its display representation. A basemap failure leaves
 route/forecast geometry usable and shows a message. The configuration preview
 continues to use the existing simple static route image.
+
+Since 0.8.0b8, tapping a segment selects its stable source ID, draws an outline
+without changing its condition colour, and shows details below the map. A new
+snapshot refreshes those details without changing the viewport. Missing records,
+missing geometry, failures and disconnects clear the selection; choosing a
+category or fitting the route also resets it. Data-quality counts sit in an
+expandable section, while its incomplete-data label stays visible.
+
+Expansion uses MapLibre's public `FullscreenControl` with the whole card as its
+container. Its built-in CSS fallback supports browsers without the Fullscreen
+API. The map fills the remaining height, with the legend and segment details
+available in the same view. Controls have translated labels, and card teardown
+releases its expanded container. No HA dialogs, private frontend hooks or map
+components are used for expansion. Companion WebView behavior still needs
+physical-device testing.
+
+Fit bounds reserve space for the map controls so endpoint markers remain visible.
 
 ## Supported extension points
 
@@ -157,9 +179,10 @@ disconnect/recovery, route changes, editor migration, default selection, source
 categories and highlight bounds.
 
 `scripts/smoke-ui --beta --route-card` exercises the packaged card in a disposable
-HA, with mobile-width vector rendering, touch pan/zoom, source popups, category
-highlighting, English/Bokmål labels, the native route picker and saving a legacy
-card with a device selection. Use `--minimum`
+HA, with mobile-width vector rendering, touch pan/zoom, persistent segment details,
+category highlighting, native fullscreen and the library's CSS fallback. It also
+checks English/Bokmål labels, the native route picker, saving a legacy card with
+a device selection and retaining presentation settings after reload. Use `--minimum`
 instead of `--beta` for the minimum frontend. Logs/screenshots remain ignored
 under `.tools/card-results-*`; temporary HA, credentials and database are removed
 on exit. Companion apps and physical mobile devices remain beta test targets.
@@ -189,3 +212,19 @@ with a manual resource, deleting that resource, and disabling/re-enabling the
 integration with a frontend refresh. The minimum frontend also passes the
 deliberately delayed HA-app startup check. These use disposable configurations
 and public route coordinates; physical companion-app testing remains necessary.
+
+For 0.8.0b8, the 364 Python tests retain 97% statement coverage, and all 12
+JavaScript tests pass. The packaged browser scenario passes on HA 2025.12.0 and
+2026.10.0b0, including native fullscreen, simulated absence of the Fullscreen API,
+touch selection, persistent details after refreshed values, unchanged viewports,
+zero/null/unusual temperatures, disappearing segments and unavailable data.
+It saves the title, height, initial layer and legend preference through native
+editor controls and checks them after repeated reloads. English/Bokmål labels,
+automatic registration and the existing loading/unloading checks also pass.
+
+One minimum-frontend run reported an intermittent null-config error in HA's
+[`themes-mixin`](https://github.com/home-assistant/frontend/blob/20251203.0/src/state/themes-mixin.ts)
+during reload. A rerun passed without changing or suppressing that error check.
+The older frontend's already documented skipped-view-transition notices remain;
+the card does not patch HA's theme or transition behavior. Browser emulation is
+not a substitute for checking expansion in physical companion apps.

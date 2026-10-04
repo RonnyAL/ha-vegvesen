@@ -21,6 +21,15 @@ export const category = (feature, mode) =>
   feature.properties[mode === "slip" ? "SLIP_RISK" : "ROAD_CONDITION"] ?? null;
 export const highlighted = (feature, selection) =>
   !selection || category(feature, selection.mode) === selection.code;
+export const selectedSegment = (snapshot, id, selection) =>
+  id === undefined
+    ? undefined
+    : snapshot?.segments.find(
+        (feature) =>
+          feature.id === id &&
+          feature.geometry &&
+          highlighted(feature, selection),
+      );
 export const selectedBounds = (segments, selection) => {
   const selected = segments.filter(
     (feature) => feature.geometry && highlighted(feature, selection),
@@ -87,6 +96,18 @@ export function validateConfig(config) {
       !config.entity.startsWith?.("sensor."))
   )
     throw Error("Select a Statens vegvesen route");
+  if (config.title !== undefined && typeof config.title !== "string")
+    throw Error("Title must be text");
+  if (
+    config.default_mode !== undefined &&
+    !["condition", "slip"].includes(config.default_mode)
+  )
+    throw Error("Initial layer must be road condition or slipperiness");
+  if (
+    config.legend_expanded !== undefined &&
+    typeof config.legend_expanded !== "boolean"
+  )
+    throw Error("Expand legend must be true or false");
   if (
     config.height !== undefined &&
     (!Number.isFinite(config.height) ||

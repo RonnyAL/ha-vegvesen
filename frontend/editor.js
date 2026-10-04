@@ -1,4 +1,4 @@
-import { editorConfig, routeSchema } from "./config.js";
+import { changedConfig, editorConfig, routeSchema } from "./config.js";
 import { labels, language } from "./labels.js";
 
 // Extra modules can arrive before HA initializes its custom-element registry.
@@ -13,13 +13,11 @@ export class VegvesenRouteMapEditor extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._form = document.createElement("ha-form");
-    this._form.schema = routeSchema;
     this._form.addEventListener("value-changed", (event) => {
       event.stopPropagation();
       // Migrate legacy entity selections only through the normal editor event.
       // Clearing the device must not restore the old entity selection.
-      const config = { ...this._config, ...event.detail.value };
-      delete config.entity;
+      const config = changedConfig(this._config, event.detail.value);
       this.dispatchEvent(
         new CustomEvent("config-changed", {
           detail: { config },
@@ -44,8 +42,13 @@ export class VegvesenRouteMapEditor extends HTMLElement {
     if (!this._config || !this._hass) return;
     this._form.hass = this._hass;
     this._form.data = editorConfig(this._config, this._hass);
-    const label = labels[language(this._hass)].route;
-    this._form.computeLabel = () => label;
+    const lang = language(this._hass);
+    if (this._lang !== lang) {
+      this._lang = lang;
+      const l = labels[lang];
+      this._form.schema = routeSchema(l);
+      this._form.computeLabel = (schema) => l.editor[schema.name];
+    }
     // Native fields require hass during their first connected render. HA can
     // attach an editor before it has supplied both hass and configuration.
     if (!this._form.parentNode) this.shadowRoot.append(this._form);

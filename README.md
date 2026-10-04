@@ -4,7 +4,7 @@ Bring road weather readings, road-camera still images and route forecasts from S
 
 This is an independent community integration, not an official Statens vegvesen product.
 
-**Route-map beta:** the development branch (`main`) includes the maps published in **0.8.0b7**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
+**Route-map beta:** the development branch (`main`) includes the maps published in **0.8.0b8**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
 
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
@@ -140,12 +140,17 @@ leaves the route visible on a plain background and does not affect forecasts.
 
 The beta includes **Statens vegvesen route map**, an optional custom dashboard
 card with a vector background, touch panning, zoom controls and **Fit route /
-Vis hele ruten**. Tap a colored segment for its source condition, road temperature,
-slipperiness and forecast time. The card shows the highest source slipperiness
+Vis hele ruten**. Use **Expand map / Utvid kartet** for a larger view, including
+the legend and segment details. Tap a colored segment to highlight it and show
+its source condition, road temperature, slipperiness and forecast time in a
+panel below the map. The selection remains through successful forecast updates;
+it clears when the segment disappears, data becomes unavailable, or you reset
+the view. The card shows the highest source slipperiness
 grade and counts of the conditions present. Switch between **Road condition /
 Føreforhold** and **Slipperiness / Glatthet** for map colours. Tap a category count
 to highlight and fit its segments; tap it again or choose **Fit route** to reset.
-Missing and unrecognized source values are shown explicitly.
+Missing and unrecognized source values are shown explicitly; expand
+**Incomplete data / Ufullstendige data** for their counts when present.
 The forecast time uses Home Assistant's configured time zone.
 Route and condition lines become thinner at overview scales and widen as you
 zoom in. Their widths approximate the background roads; forecast geometry and
@@ -187,7 +192,13 @@ type: custom:vegvesen-route-map
 device_id: YOUR_ROUTE_DEVICE_ID
 ```
 
-Optional YAML settings are `title` and `height` (240–1,000 pixels; default 400).
+The visual editor also offers an optional title, map height (240–1,000 pixels;
+default 400), initial layer and whether to expand the legend. Leaving the title
+empty uses the route name. The initial layer applies when the card opens;
+switching layers on the card does not change the route's forecast settings.
+Equivalent optional YAML settings are `title`, `height`,
+`default_mode` (`condition` or `slip`; default `condition`) and
+`legend_expanded` (default `true`).
 Advanced users can set `map_style_url` to another public HTTP(S) MapLibre style
 URL, following that provider's terms and attribution requirements.
 
@@ -208,7 +219,7 @@ proxy. Map interaction and appearance are separate from the configuration previe
 
 1. In HACS, open **Statens vegvesen** → menu → **Update information**.
 2. Choose **Redownload** → **Need a different version?**, then select release
-   **0.8.0b7**. If your HACS version offers a beta filter, enable it.
+   **0.8.0b8**. If your HACS version offers a beta filter, enable it.
 3. Restart Home Assistant. Reconfigure an existing route if you want to select
    0 hours, and follow the card instructions above.
 

@@ -5,6 +5,7 @@ import {
   category,
   highlighted,
   selectedBounds,
+  selectedSegment,
   bounds,
   color,
   displayGeometry,
@@ -12,7 +13,12 @@ import {
   validateConfig,
 } from "./data.js";
 import { labels } from "./labels.js";
-import { editorConfig, stubConfig } from "./config.js";
+import {
+  changedConfig,
+  editorConfig,
+  routeSchema,
+  stubConfig,
+} from "./config.js";
 
 test("route defaults and legacy editor selections use stable devices, without choosing among several routes", () => {
   const hass = {
@@ -32,12 +38,23 @@ test("route defaults and legacy editor selections use stable devices, without ch
     device_id: "one",
     height: 500,
     title: "My route",
+    default_mode: "condition",
+    legend_expanded: true,
   });
   assert.equal(legacy.entity, "sensor.renamed");
-  assert.deepEqual(editorConfig(legacy, {}), legacy);
+  assert.deepEqual(editorConfig(legacy, {}), {
+    ...legacy,
+    default_mode: "condition",
+    legend_expanded: true,
+  });
   assert.deepEqual(
     editorConfig({ device_id: "chosen", entity: "sensor.renamed" }, hass),
-    { device_id: "chosen" },
+    {
+      device_id: "chosen",
+      height: 400,
+      default_mode: "condition",
+      legend_expanded: true,
+    },
   );
   hass.devices.two = { id: "two", model: "Route forecast" };
   hass.entities["sensor.other"] = { device_id: "two", platform: "vegvesen" };
@@ -46,6 +63,89 @@ test("route defaults and legacy editor selections use stable devices, without ch
     device_id: "one",
   });
   assert.throws(() => validateConfig({ device_id: 42 }));
+});
+
+test("editor clears optional settings, retains false and preserves advanced YAML", () => {
+  const config = {
+    entity: "sensor.old",
+    title: "Previous",
+    height: 600,
+    map_style_url: "https://example.org/style.json",
+  };
+  const saved = changedConfig(config, {
+    device_id: "route",
+    title: "",
+    height: null,
+    default_mode: "slip",
+    legend_expanded: false,
+  });
+  assert.deepEqual(saved, {
+    device_id: "route",
+    default_mode: "slip",
+    legend_expanded: false,
+    map_style_url: config.map_style_url,
+  });
+  assert.deepEqual(validateConfig(saved), saved);
+  assert.equal(editorConfig(saved, {}).height, 400);
+  assert.equal(config.title, "Previous");
+  for (const [key, value] of [
+    ["title", 0],
+    ["height", NaN],
+    ["default_mode", "high"],
+    ["legend_expanded", "false"],
+  ])
+    assert.throws(() => validateConfig({ device_id: "route", [key]: value }));
+});
+
+test("visual-editor fields and options have English and Bokmål labels", () => {
+  for (const language of ["en", "nb"]) {
+    const l = labels[language];
+    const schema = routeSchema(l);
+    for (const field of schema)
+      assert.equal(typeof l.editor[field.name], "string");
+    const options = schema.find((f) => f.name === "default_mode").selector
+      .select.options;
+    assert.deepEqual(
+      options.map((o) => o.label),
+      [l.condition, l.slip],
+    );
+    assert.deepEqual(
+      options.map((o) => o.value),
+      ["condition", "slip"],
+    );
+  }
+});
+
+test("segment selection follows source identity across refreshed values and disappears on missing or filtered data", () => {
+  const feature = {
+    id: 0,
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [10, 60],
+        [11, 60],
+      ],
+    },
+    properties: { ROAD_TEMPERATURE: 0, SLIP_RISK: "high" },
+  };
+  const snapshot = { segments: [feature] };
+  assert.equal(selectedSegment(snapshot, 0).properties.ROAD_TEMPERATURE, 0);
+  const update = structuredClone(snapshot);
+  update.segments[0].properties.ROAD_TEMPERATURE = -123.75;
+  assert.equal(selectedSegment(update, 0).properties.ROAD_TEMPERATURE, -123.75);
+  update.segments[0].properties.ROAD_TEMPERATURE = null;
+  assert.equal(selectedSegment(update, 0).properties.ROAD_TEMPERATURE, null);
+  assert.equal(
+    selectedSegment(snapshot, 0, { mode: "slip", code: "low" }),
+    undefined,
+  );
+  assert.equal(selectedSegment({ segments: [] }, 0), undefined);
+  assert.equal(selectedSegment(undefined, 0), undefined);
+  assert.equal(
+    selectedSegment({ segments: [{ ...feature, geometry: null }] }, 0),
+    undefined,
+  );
+  assert.equal(feature.properties.ROAD_TEMPERATURE, 0);
 });
 
 test("device selections resubscribe on route changes and reject late events from the old route", async () => {

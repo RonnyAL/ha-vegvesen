@@ -99,8 +99,8 @@ the same lint, formatting, JavaScript tests and byte-for-byte bundle check.
 contains distribution assets. npm's cache and node_modules are ignored.
 
 The optional live browser checks exercise automatic module loading, the native
-card picker/editor, OSM vector tiles, touch panning, zoom, segment popups and
-English/Bokmål:
+card picker/editor, saved presentation settings, OSM vector tiles, touch panning,
+zoom, fullscreen and CSS fallback, segment-detail updates and English/Bokmål:
 
 ```bash
 scripts/smoke-ui --route-card

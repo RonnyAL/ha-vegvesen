@@ -79,9 +79,9 @@ without inspecting a specific other integration, do not assume its mechanism.
 
 ## Route-map development and prereleases
 
-The route-map work has merged into `main`. The published beta **0.8.0b7** and
-latest stable release **0.7.4** retain their existing tags and commits; merging
-development work does not publish or promote a release.
+Route-map development is on `main`. The latest stable release remains **0.7.4**;
+merging development work does not publish or promote a release. Published
+versions retain their existing tags and commits.
 
 Until a stable release is prepared, publish route-map beta versions from an
 exact validated commit as a GitHub **prerelease**, with `make_latest=false`.

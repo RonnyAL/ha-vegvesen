@@ -7,6 +7,7 @@ import {
   category,
   highlighted,
   selectedBounds,
+  selectedSegment,
   color,
   lines,
   ROUTE_COLOR,
@@ -28,9 +29,18 @@ const node = (tag, text, className) => {
   const element = document.createElement(tag);
   if (text !== undefined) element.textContent = text;
   if (className) element.className = className;
+  if (tag === "button") element.type = "button";
+  return element;
+};
+const icon = (name) => {
+  const element = node("ha-icon");
+  element.setAttribute("icon", name);
+  element.setAttribute("aria-hidden", "true");
   return element;
 };
 const collection = (features) => ({ type: "FeatureCollection", features });
+// Keep endpoint markers outside the 40px controls and their 10px right margin.
+const fitPadding = { top: 40, bottom: 40, left: 40, right: 64 };
 
 // Follow the default basemap's main-road scale, retaining a visible overview.
 // Forecast and OSM features have no shared road ID/width, so this is a visual
@@ -55,12 +65,14 @@ export class VegvesenRouteMap extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     const css = node("style", mapCSS + cardCSS);
-    const card = node("ha-card");
+    const card = (this._card = node("ha-card"));
     const header = node("header");
     this._title = node("h2");
+    this._time = node("div", "", "time");
+    header.append(this._title, this._time);
     this._fit = node("button");
+    this._fit.append(icon("mdi:fit-to-screen-outline"));
     this._fit.onclick = () => this._fitRoute();
-    header.append(this._title, this._fit);
     this._mode = "condition";
     this._headline = node("button", "", "headline");
     this._headline.onclick = () => {
@@ -68,27 +80,50 @@ export class VegvesenRouteMap extends HTMLElement {
       if (code) this._select("slip", code);
     };
     this._quality = node("div", "", "quality");
+    this._qualityDetails = node("details", undefined, "data-quality");
+    this._qualitySummary = node("summary");
+    this._qualityDetails.append(this._qualitySummary, this._quality);
     this._modes = node("div", "", "modes");
     this._status = node("div", "", "status");
     this._status.setAttribute("role", "status");
     this._container = node("div", "", "map");
     this._basemap = node("div", "", "basemap");
-    this._time = node("div", "", "time");
+    this._inspector = node("section", undefined, "inspector");
+    this._inspector.hidden = true;
+    this._inspector.setAttribute("aria-live", "polite");
+    const inspectorHeading = node("div", undefined, "inspector-heading");
+    this._segmentTitle = node("strong");
+    this._closeSegment = node("button");
+    this._closeSegment.append(icon("mdi:close"));
+    this._closeSegment.onclick = () => {
+      this._segmentId = undefined;
+      this._draw();
+      this._renderInspector();
+      this._map?.getCanvas().focus({ preventScroll: true });
+    };
+    inspectorHeading.append(this._segmentTitle, this._closeSegment);
+    this._segmentValues = node("dl");
+    this._segmentSource = node("div", undefined, "segment-id");
+    this._inspector.append(
+      inspectorHeading,
+      this._segmentValues,
+      this._segmentSource,
+    );
     this._details = node("details");
     this._details.open = true;
     this._summary = node("summary");
     this._legend = node("div", "", "legend");
     this._details.append(this._summary, this._legend);
+    const information = node("div", undefined, "information");
+    information.append(this._headline, this._details, this._qualityDetails);
     card.append(
       header,
       this._status,
-      this._headline,
-      this._quality,
       this._modes,
       this._container,
+      this._inspector,
       this._basemap,
-      this._time,
-      this._details,
+      information,
     );
     this.shadowRoot.append(css, card);
     this._data = new RouteData(
@@ -101,6 +136,8 @@ export class VegvesenRouteMap extends HTMLElement {
         )
           this._selection = undefined;
         this._snapshot = data;
+        if (!selectedSegment(data, this._segmentId, this._selection))
+          this._segmentId = undefined;
         this._error = undefined;
         this._renderText();
         if (!this._map && !this._webglFailed) this._createMap();
@@ -112,7 +149,8 @@ export class VegvesenRouteMap extends HTMLElement {
       },
       () => {
         this._snapshot = undefined;
-        this._popup?.remove();
+        this._segmentId = undefined;
+        this._renderInspector();
         this._draw();
       },
     );
@@ -124,16 +162,24 @@ export class VegvesenRouteMap extends HTMLElement {
       this._config?.device_id !== next.device_id ||
       this._config?.entity !== next.entity ||
       this._config?.map_style_url !== next.map_style_url;
+    if (!this._config || this._config.default_mode !== next.default_mode) {
+      this._mode = next.default_mode ?? "condition";
+      this._selection = undefined;
+    }
+    if (!this._config || this._config.legend_expanded !== next.legend_expanded)
+      this._details.open = next.legend_expanded ?? true;
     this._config = next;
     this.style.setProperty("--map-height", `${next.height ?? 400}px`);
     if (changed) {
       this._data.stop();
       this._snapshot = undefined;
       this._selection = undefined;
+      this._segmentId = undefined;
       this._destroyMap();
     }
     this._renderText();
     this._update();
+    this._draw();
   }
 
   set hass(hass) {
@@ -179,7 +225,7 @@ export class VegvesenRouteMap extends HTMLElement {
           this._config.map_style_url ??
           structuredClone(styles[this._dark ? "muted-dark" : "muted"]),
         bounds: bounds(this._snapshot.geometry),
-        fitBoundsOptions: { padding: 40, maxZoom: 15 },
+        fitBoundsOptions: { padding: fitPadding, maxZoom: 15 },
         maxZoom: 20,
         attributionControl: false,
         // Send no HA credentials to map providers. Let the browser cache tiles.
@@ -196,11 +242,32 @@ export class VegvesenRouteMap extends HTMLElement {
             this._lang === "nb" ? "Zoom inn" : "Zoom in",
           "NavigationControl.ZoomOut":
             this._lang === "nb" ? "Zoom ut" : "Zoom out",
+          "FullscreenControl.Enter": this._labels.expand,
+          "FullscreenControl.Exit": this._labels.collapse,
         },
       }));
       map.touchZoomRotate.disableRotation();
       map.addControl(
         new maplibregl.NavigationControl({ showCompass: false }),
+        "top-right",
+      );
+      map.addControl(
+        {
+          onAdd: () => {
+            const group = node(
+              "div",
+              undefined,
+              "maplibregl-ctrl maplibregl-ctrl-group",
+            );
+            group.append(this._fit);
+            return group;
+          },
+          onRemove: () => this._fit.parentNode?.remove(),
+        },
+        "top-right",
+      );
+      map.addControl(
+        new maplibregl.FullscreenControl({ container: this._card }),
         "top-right",
       );
       map.addControl(
@@ -246,10 +313,15 @@ export class VegvesenRouteMap extends HTMLElement {
 
   _destroyMap() {
     this._observer?.disconnect();
-    this._popup?.remove();
     this._markers?.forEach((marker) => marker.remove());
     this._markers = [];
     this._map?.remove();
+    // Release expansion when this card detaches or rebuilds its map. MapLibre
+    // owns the controls; browser fullscreen and its CSS fallback belong to
+    // this card's container only.
+    if (this.shadowRoot.fullscreenElement === this._card)
+      document.exitFullscreen?.().catch(() => {});
+    this._card.classList.remove("maplibregl-pseudo-fullscreen");
     this._map = undefined;
     this._ready = false;
     this._fitted = false;
@@ -260,7 +332,6 @@ export class VegvesenRouteMap extends HTMLElement {
   _draw() {
     const map = this._map;
     if (!map || !this._ready) return;
-    this._popup?.remove();
     this._markers?.forEach((marker) => marker.remove());
     this._markers = [];
     if (!map.getSource("route")) {
@@ -284,6 +355,18 @@ export class VegvesenRouteMap extends HTMLElement {
         data: collection([]),
         promoteId: "_id",
       });
+      for (const [id, color, padding] of [
+        ["segment-outline", "#222222", 6],
+        ["segment-highlight", "#ffffff", 4],
+      ])
+        map.addLayer({
+          id,
+          type: "line",
+          source: "forecasts",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": color, "line-width": lineWidth(padding) },
+          filter: ["==", ["get", "_id"], null],
+        });
       map.addLayer({
         id: "forecasts",
         type: "line",
@@ -301,6 +384,8 @@ export class VegvesenRouteMap extends HTMLElement {
       });
     }
     const data = this._snapshot;
+    for (const id of ["segment-outline", "segment-highlight"])
+      map.setFilter(id, ["==", ["get", "_id"], this._segmentId ?? null]);
     map.setPaintProperty("route", "line-opacity", this._selection ? 0.35 : 1);
     map.getSource("route").setData(
       collection(
@@ -356,11 +441,16 @@ export class VegvesenRouteMap extends HTMLElement {
 
   _fitRoute() {
     this._selection = undefined;
+    this._segmentId = undefined;
     this._renderText();
     if (this._ready && this._fitted) this._draw();
     const extent = this._snapshot && bounds(this._snapshot.geometry);
     if (extent)
-      this._map?.fitBounds(extent, { padding: 40, maxZoom: 15, duration: 0 });
+      this._map?.fitBounds(extent, {
+        padding: fitPadding,
+        maxZoom: 15,
+        duration: 0,
+      });
   }
 
   _select(mode, code) {
@@ -368,13 +458,18 @@ export class VegvesenRouteMap extends HTMLElement {
       this._selection?.mode === mode && this._selection.code === code;
     this._mode = mode;
     this._selection = repeated ? undefined : { mode, code };
+    this._segmentId = undefined;
     this._renderText();
     this._draw();
     const extent =
       this._selection &&
       selectedBounds(this._snapshot.segments, this._selection);
     if (extent)
-      this._map?.fitBounds(extent, { padding: 40, maxZoom: 15, duration: 0 });
+      this._map?.fitBounds(extent, {
+        padding: fitPadding,
+        maxZoom: 15,
+        duration: 0,
+      });
     else if (repeated) this._fitRoute();
   }
 
@@ -398,39 +493,59 @@ export class VegvesenRouteMap extends HTMLElement {
       (segment) => segment.id === id,
     );
     if (!feature) return;
-    const props = feature.properties;
-    const content = node("div", "", "popup");
-    const l = this._labels;
-    content.append(
-      node("strong", `${l.segment} ${props.ROAD_SEGMENT_ID ?? feature.id}`),
+    this._segmentId = feature.id;
+    this._draw();
+    this._renderInspector();
+  }
+
+  _renderInspector() {
+    const feature = selectedSegment(
+      this._snapshot,
+      this._segmentId,
+      this._selection,
     );
+    this._inspector.hidden = !feature;
+    if (!feature) {
+      this._segmentValues.replaceChildren();
+      this._segmentTitle.textContent = "";
+      this._segmentSource.textContent = "";
+      return;
+    }
+    const props = feature.properties;
+    const l = this._labels ?? labels.en;
+    this._inspector.setAttribute("aria-label", l.segment);
+    this._segmentTitle.textContent = sourceLabel(l, props.ROAD_CONDITION);
+    this._closeSegment.title = l.close_segment;
+    this._closeSegment.setAttribute("aria-label", l.close_segment);
+    this._segmentValues.replaceChildren();
     for (const [label, value] of [
-      [l.condition, sourceLabel(l, props.ROAD_CONDITION)],
+      [l.slip, sourceLabel(l, props.SLIP_RISK, "slip")],
       [
         l.temperature,
         props.ROAD_TEMPERATURE == null
           ? l.missing
           : `${props.ROAD_TEMPERATURE} °C`,
       ],
-      [l.slip, sourceLabel(l, props.SLIP_RISK, "slip")],
       [l.forecast, this._formatTime(this._snapshot.forecast_time)],
-    ])
-      content.append(node("p", `${label}: ${value}`));
-    this._popup?.remove();
-    this._popup = new maplibregl.Popup({ maxWidth: "280px" })
-      .setLngLat(event.lngLat)
-      .setDOMContent(content)
-      .addTo(this._map);
+    ]) {
+      const field = node("div");
+      field.append(node("dt", label), node("dd", value));
+      this._segmentValues.append(field);
+    }
+    this._segmentSource.textContent = `${l.segment} ${props.ROAD_SEGMENT_ID ?? feature.id}`;
   }
 
   _renderText() {
     const focusedKey = this.shadowRoot.activeElement?.dataset?.focusKey;
     const l = this._labels ?? labels.en;
     this._title.textContent =
-      this._config?.title ?? this._snapshot?.name ?? l.title;
-    this._fit.textContent = l.fit;
+      this._config?.title || this._snapshot?.name || l.title;
+    this._fit.title = l.fit;
+    this._fit.setAttribute("aria-label", l.fit);
     this._fit.disabled = !this._snapshot || this._webglFailed;
     this._summary.textContent = l.legend;
+    this._qualitySummary.textContent = l.data_gaps;
+    this._qualityDetails.hidden = true;
     this._headline.hidden = !this._snapshot;
     this._quality.textContent = "";
     this._modes.replaceChildren();
@@ -452,10 +567,12 @@ export class VegvesenRouteMap extends HTMLElement {
       : "";
     this._legend.replaceChildren();
     this._details.hidden = !this._snapshot;
+    this._renderInspector();
     if (!this._snapshot) return;
     const summary = this._snapshot.summary;
     const grade = summary.highest_slip_risk;
-    this._headline.textContent = `${l.highest}: ${grade ? sourceLabel(l, grade, "slip") : l.missing}`;
+    this._headline.textContent = `${l.highest_short}: ${grade ? sourceLabel(l, grade, "slip") : l.missing}`;
+    this._headline.title = l.highest;
     this._headline.disabled = !grade || this._webglFailed;
     const warnings = [];
     for (const [key, label] of [
@@ -471,6 +588,7 @@ export class VegvesenRouteMap extends HTMLElement {
         );
     }
     this._quality.textContent = warnings.join(" · ");
+    this._qualityDetails.hidden = !warnings.length;
     for (const mode of ["condition", "slip"]) {
       const button = node("button", l[mode]);
       button.dataset.focusKey = mode;
@@ -495,7 +613,7 @@ export class VegvesenRouteMap extends HTMLElement {
       item.append(
         swatch,
         document.createTextNode(
-          `${sourceLabel(l, code, this._mode)}: ${count}`,
+          `${sourceLabel(l, code, this._mode)} · ${count}`,
         ),
       );
       item.setAttribute(
@@ -520,7 +638,10 @@ export class VegvesenRouteMap extends HTMLElement {
   }
 
   getCardSize() {
-    return 7;
+    return Math.ceil(
+      (this.getBoundingClientRect().height ||
+        (this._config?.height ?? 400) + 200) / 50,
+    );
   }
   getGridOptions() {
     return { columns: 12, min_columns: 6, rows: "auto" };
