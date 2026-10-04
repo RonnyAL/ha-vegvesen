@@ -1,10 +1,11 @@
 export const labels = {
   en: {
     title: "Route map",
+    route: "Route",
     highest: "Highest forecast slipperiness",
     unrecognized: "Unrecognized values",
     unauthorized: "Access denied",
-    invalid_route: "Select a Statens vegvesen route forecast sensor",
+    invalid_route: "Select a Statens vegvesen route",
     fit: "Fit route",
     legend: "Segments in route corridor",
     loading: "Loading route…",
@@ -36,10 +37,11 @@ export const labels = {
   },
   nb: {
     title: "Rutekart",
+    route: "Rute",
     highest: "Høyeste varslede glatthet",
     unrecognized: "Ukjente kildeverdier",
     unauthorized: "Ingen tilgang",
-    invalid_route: "Velg en ruteprognosesensor fra Statens vegvesen",
+    invalid_route: "Velg en rute fra Statens vegvesen",
     fit: "Vis hele ruten",
     legend: "Strekninger i rutekorridoren",
     loading: "Laster ruten…",

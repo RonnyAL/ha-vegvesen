@@ -79,8 +79,14 @@ export function bounds(geometry) {
 }
 
 export function validateConfig(config) {
-  if (!config?.entity?.startsWith("sensor."))
-    throw Error("Select a Statens vegvesen route forecast sensor");
+  if (
+    !config ||
+    (config.device_id !== undefined && typeof config.device_id !== "string") ||
+    (!config.device_id &&
+      config.entity &&
+      !config.entity.startsWith?.("sensor."))
+  )
+    throw Error("Select a Statens vegvesen route");
   if (
     config.height !== undefined &&
     (!Number.isFinite(config.height) ||
@@ -90,10 +96,19 @@ export function validateConfig(config) {
     throw Error("Height must be between 240 and 1000 pixels");
   if (config.map_style_url && !/^https?:\/\//.test(config.map_style_url))
     throw Error("map_style_url must be an HTTP(S) MapLibre style URL");
-  return { ...config };
+  const result = { ...config };
+  if (result.device_id) delete result.entity;
+  return result;
 }
 
-// Subscribe to cached snapshot changes, independently of the anchor sensor state.
+export const routeTarget = (config) =>
+  config.device_id
+    ? { device_id: config.device_id }
+    : config.entity
+      ? { entity_id: config.entity }
+      : undefined;
+
+// Subscribe to cached snapshot changes, independently of sensor states.
 export class RouteData {
   constructor(onData, onError, onReset) {
     Object.assign(this, { onData, onError, onReset });
@@ -102,14 +117,14 @@ export class RouteData {
   stop() {
     this.generation++;
     this.connection = undefined;
-    this.entity = undefined;
+    this.targetKey = undefined;
     if (this.unsubscribe) {
       // The socket may already have closed. Its server subscriptions are gone.
       Promise.resolve(this.unsubscribe()).catch(() => {});
       this.unsubscribe = undefined;
     }
   }
-  async update(hass, entity) {
+  async update(hass, config) {
     if (!hass.connected) {
       if (this.disconnected) return;
       this.stop();
@@ -119,12 +134,18 @@ export class RouteData {
       return;
     }
     this.disconnected = false;
-    if (this.connection === hass.connection && this.entity === entity) return;
+    const target = routeTarget(config);
+    const key = JSON.stringify(target ?? null);
+    if (this.connection === hass.connection && this.targetKey === key) return;
     this.stop();
     this.connection = hass.connection;
-    this.entity = entity;
+    this.targetKey = key;
     const generation = this.generation;
     this.onReset();
+    if (!target) {
+      this.onError("invalid_route");
+      return;
+    }
     try {
       const unsubscribe = await hass.connection.subscribeMessage(
         (event) => {
@@ -134,7 +155,7 @@ export class RouteData {
             this.onError(event.error);
           } else this.onData(event.data);
         },
-        { type: "vegvesen/subscribe_route_map", entity_id: entity },
+        { type: "vegvesen/subscribe_route_map", ...target },
       );
       if (generation !== this.generation) await unsubscribe();
       else this.unsubscribe = unsubscribe;

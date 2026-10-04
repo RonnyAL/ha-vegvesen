@@ -12,6 +12,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN
@@ -74,6 +75,107 @@ def _resolve_route(
 
 
 @callback
+def _resolve_device(
+    hass: HomeAssistant, device_id: str
+) -> tuple[VegvesenConfigEntry, str] | None:
+    """Identify the saved route from its device, never a translated name/model."""
+    if (device := dr.async_get(hass).async_get(device_id)) is None:
+        return None
+    for entry_id in device.config_entries:
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            continue
+        for subentry in entry.subentries.values():
+            if (
+                subentry.subentry_type == "route"
+                and (
+                    DOMAIN,
+                    f"route:{subentry.data['route_id']}",
+                )
+                in device.identifiers
+            ):
+                return cast("VegvesenConfigEntry", entry), subentry.subentry_id
+    return None
+
+
+@callback
+def _selection(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> tuple[VegvesenConfigEntry, str | None] | None:
+    """Accept a route device or a legacy sensor; retain legacy read restrictions."""
+    if entity_id := msg.get("entity_id"):
+        if not connection.user.permissions.check_entity(entity_id, POLICY_READ):
+            connection.send_error(msg["id"], "unauthorized", "Entity access denied")
+            return None
+        if resolved := _resolve_route(hass, entity_id):
+            return resolved[1], resolved[0].unique_id
+    elif resolved_device := _resolve_device(hass, msg["device_id"]):
+        return resolved_device[0], None
+    connection.send_error(msg["id"], "invalid_route", "Select a Statens vegvesen route")
+    return None
+
+
+@callback
+def _current_coordinator(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    entry: VegvesenConfigEntry,
+    unique_id: str | None,
+) -> tuple[RouteCoordinator | None, str | None, set[str]]:
+    """Check identity and access again on each event, including after reloads."""
+    registry = er.async_get(hass)
+    if unique_id is not None:
+        entity_id = registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+        resolved = _resolve_route(hass, entity_id) if entity_id else None
+        if resolved is None or resolved[1] is not entry:
+            return None, "unavailable", set()
+        entity = resolved[0]
+        entities = [entity]
+        subentry_id = entity.config_subentry_id
+        disabled = entity.disabled
+    else:
+        resolved_device = _resolve_device(hass, msg["device_id"])
+        if resolved_device is None or resolved_device[0] is not entry:
+            return None, "unavailable", set()
+        subentry_id = resolved_device[1]
+        device = dr.async_get(hass).async_get(msg["device_id"])
+        disabled = device.disabled
+        entities = [
+            entity
+            for entity in er.async_entries_for_device(
+                registry, device.id, include_disabled_entities=True
+            )
+            if entity.config_entry_id == entry.entry_id
+            and entity.config_subentry_id == subentry_id
+            and _resolve_route(hass, entity.entity_id) is not None
+        ]
+    entity_ids = {entity.entity_id for entity in entities}
+    # HA permissions are entity based. A route's registered sensors all expose
+    # the same underlying forecast; any readable one grants access. Disabling a
+    # sensor does not change its permissions or the device-based map selection.
+    if not any(
+        connection.user.permissions.check_entity(entity_id, POLICY_READ)
+        for entity_id in entity_ids
+    ):
+        return None, "unauthorized", entity_ids
+    coordinator = (
+        entry.runtime_data.routes.get(subentry_id)
+        if entry.state is ConfigEntryState.LOADED and not disabled
+        else None
+    )
+    return coordinator, None, entity_ids
+
+
+_TARGET_SCHEMA = {
+    vol.Exclusive("device_id", "route", msg="Select a device or a legacy entity"): str,
+    vol.Exclusive("entity_id", "route", msg="Select a device or a legacy entity"): (
+        cv.entity_id
+    ),
+}
+
+
+@callback
 def _payload(coordinator: RouteCoordinator | None) -> dict[str, Any]:
     if (
         coordinator is None
@@ -106,31 +208,22 @@ def _payload(coordinator: RouteCoordinator | None) -> dict[str, Any]:
 
 
 @websocket_api.websocket_command(
-    {
-        vol.Required("type"): "vegvesen/route_map",
-        vol.Required("entity_id"): cv.entity_id,
-    }
+    vol.All(
+        vol.Schema({**_TARGET_SCHEMA, vol.Required("type"): "vegvesen/route_map"}),
+        cv.has_at_least_one_key("device_id", "entity_id"),
+    )
 )
 @callback
 def websocket_route_map(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
     """Read the current snapshot without source I/O."""
-    if not connection.user.permissions.check_entity(msg["entity_id"], POLICY_READ):
-        connection.send_error(msg["id"], "unauthorized", "Entity access denied")
+    if (selection := _selection(hass, connection, msg)) is None:
         return
-    if (resolved := _resolve_route(hass, msg["entity_id"])) is None:
-        connection.send_error(
-            msg["id"], "invalid_route", "Select a route forecast sensor"
-        )
-        return
-    entity, entry = resolved
-    coordinator = (
-        entry.runtime_data.routes.get(entity.config_subentry_id)
-        if entry.state is ConfigEntryState.LOADED and not entity.disabled
-        else None
+    coordinator, error, _entity_ids = _current_coordinator(
+        hass, connection, msg, *selection
     )
-    payload = _payload(coordinator)
+    payload = {"error": error} if error else _payload(coordinator)
     if error := payload.get("error"):
         connection.send_error(msg["id"], error, "Route unavailable")
     else:
@@ -138,49 +231,36 @@ def websocket_route_map(
 
 
 @websocket_api.websocket_command(
-    {
-        vol.Required("type"): "vegvesen/subscribe_route_map",
-        vol.Required("entity_id"): cv.entity_id,
-    }
+    vol.All(
+        vol.Schema(
+            {**_TARGET_SCHEMA, vol.Required("type"): "vegvesen/subscribe_route_map"}
+        ),
+        cv.has_at_least_one_key("device_id", "entity_id"),
+    )
 )
 @callback
 def websocket_subscribe_route_map(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
     """Push changes even when sensor summaries stay equal; rebind after entry reload."""
-    if not connection.user.permissions.check_entity(msg["entity_id"], POLICY_READ):
-        connection.send_error(msg["id"], "unauthorized", "Entity access denied")
+    if (selection := _selection(hass, connection, msg)) is None:
         return
-    if (resolved := _resolve_route(hass, msg["entity_id"])) is None:
-        connection.send_error(
-            msg["id"], "invalid_route", "Select a route forecast sensor"
-        )
-        return
-    entity, entry = resolved
+    entry, unique_id = selection
     registry = er.async_get(hass)
-    unique_id = entity.unique_id
-    current_entity_id = entity.entity_id
+    _initial, error, entity_ids = _current_coordinator(
+        hass, connection, msg, *selection
+    )
+    if error:
+        connection.send_error(msg["id"], error, "Route access denied or unavailable")
+        return
     coordinator = None
     remove_coordinator = None
 
     @callback
     def publish() -> None:
-        nonlocal coordinator, remove_coordinator, current_entity_id
-        entity_id = registry.async_get_entity_id("sensor", DOMAIN, unique_id)
-        current_entity_id = entity_id or current_entity_id
-        current = _resolve_route(hass, entity_id) if entity_id else None
-        allowed = entity_id is not None and connection.user.permissions.check_entity(
-            entity_id, POLICY_READ
-        )
-        available = (
-            current
-            and not current[0].disabled
-            and entry.state is ConfigEntryState.LOADED
-        )
-        new_coordinator = (
-            entry.runtime_data.routes.get(current[0].config_subentry_id)
-            if allowed and available
-            else None
+        nonlocal coordinator, remove_coordinator, entity_ids
+        new_coordinator, error, entity_ids = _current_coordinator(
+            hass, connection, msg, entry, unique_id
         )
         if new_coordinator is not coordinator:
             if remove_coordinator:
@@ -189,24 +269,33 @@ def websocket_subscribe_route_map(
             remove_coordinator = (
                 coordinator.async_add_listener(publish) if coordinator else None
             )
-        payload = (
-            _payload(coordinator)
-            if allowed
-            else {"error": "unauthorized" if entity_id else "unavailable"}
-        )
+        payload = {"error": error} if error else _payload(coordinator)
         connection.send_message(websocket_api.event_message(msg["id"], payload))
 
     @callback
     def registry_changed(event: Event) -> None:
+        entity = registry.async_get(event.data["entity_id"])
         if (
-            event.data["entity_id"] == current_entity_id
-            or event.data.get("changes", {}).get("entity_id") == current_entity_id
+            event.data["entity_id"] in entity_ids
+            or event.data.get("changes", {}).get("entity_id") in entity_ids
+            or (unique_id and entity and entity.unique_id == unique_id)
+            or (
+                msg.get("device_id") and entity and entity.device_id == msg["device_id"]
+            )
         ):
+            publish()
+
+    @callback
+    def device_changed(event: Event) -> None:
+        if event.data["device_id"] == msg.get("device_id"):
             publish()
 
     remove_state = entry.async_on_state_change(publish)
     remove_registry = hass.bus.async_listen(
         er.EVENT_ENTITY_REGISTRY_UPDATED, registry_changed
+    )
+    remove_device = hass.bus.async_listen(
+        dr.EVENT_DEVICE_REGISTRY_UPDATED, device_changed
     )
 
     @callback
@@ -215,6 +304,7 @@ def websocket_subscribe_route_map(
             remove_coordinator()
         remove_state()
         remove_registry()
+        remove_device()
 
     connection.subscriptions[msg["id"]] = unsubscribe
     connection.send_result(msg["id"])

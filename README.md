@@ -4,7 +4,7 @@ Bring road weather readings, road-camera still images and route forecasts from S
 
 This is an independent community integration, not an official Statens vegvesen product.
 
-**Route-map beta:** this branch contains experimental maps in **0.8.0b5**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
+**Route-map beta:** this branch contains experimental maps in **0.8.0b6**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
 
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
@@ -155,31 +155,34 @@ After installing the beta and restarting HA:
 
 1. Open **Settings → Dashboards → menu → Resources**. Enable **Advanced mode**
    in your profile if Resources is hidden.
-2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b5` as a
+2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b6` as a
    **JavaScript module**. This is a one-time resource registration for all routes.
 3. Refresh the browser or fully close and reopen the companion app.
 4. Edit a dashboard, choose **Add card → Statens vegvesen route map**, and select
-   the route's **Highest forecast slipperiness / Høyeste varslede glatthet** sensor.
-   Save the card.
+   your saved route by name in **Route / Rute**. Save the card. If you have only
+   one route, it is selected automatically.
 
 The card files are included in this beta; no files need copying to `www`.
 Resource registration is still manual, once for the whole installation.
 
-The selected sensor identifies the saved route. The card receives cached
-geometry and forecast updates directly from the integration, even when the
-sensor's summary stays unchanged. Keep the selected sensor enabled. An unknown
-summary can still show the route and available segment data.
+The selection identifies the route's Home Assistant device. The card receives
+cached geometry and forecast updates directly from the integration, even when
+sensor summaries stay unchanged. Renaming or disabling individual sensors does
+not affect a device-based card. An unknown summary can still show the route and
+available segment data.
 
-When upgrading from 0.8.0b1–b4, edit existing map cards to select a route sensor.
+Existing sensor-based map cards keep working. Their route is preselected when
+you open the editor; choosing a route saves the device-based selection.
+When upgrading from 0.8.0b1–b4, edit existing map cards to select a route.
 The old experimental image entities are removed automatically; saved routes and
 existing sensor identities are retained. Native picture cards using those images
 should be removed or replaced with the interactive card.
 
-Equivalent card YAML (replace the example entity ID):
+The visual editor fills in the device ID automatically. Equivalent card YAML:
 
 ```yaml
 type: custom:vegvesen-route-map
-entity: sensor.hjem_jobb_hoyeste_varslede_glatthet
+device_id: YOUR_ROUTE_DEVICE_ID
 ```
 
 Optional YAML settings are `title` and `height` (240–1,000 pixels; default 400).
@@ -204,7 +207,7 @@ proxy. Map interaction and appearance are separate from the configuration previe
 
 1. In HACS, open **Statens vegvesen** → menu → **Update information**.
 2. Choose **Redownload** → **Need a different version?**, then select release
-   **0.8.0b5**. If your HACS version offers a beta filter, enable it.
+   **0.8.0b6**. If your HACS version offers a beta filter, enable it.
 3. Restart Home Assistant. Reconfigure an existing route if you want to select
    0 hours, and follow the card instructions above.
 

@@ -8,8 +8,19 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import Locator, expect, sync_playwright
 from smoke_instance import ROOT, SmokeInstance, handle_termination
+
+
+def choose_route(selector: Locator) -> None:
+    """Use the native picker on both supported frontend generations."""
+    selector.get_by_role("button").click()
+    if selector.locator("ha-picker-field").count():
+        selector.locator("ha-picker-field").click()
+        selector.get_by_role("textbox").fill("Trondheim")
+    else:
+        selector.get_by_role("combobox").fill("Trondheim")
+    selector.get_by_text("Trondheim - Orkanger", exact=True).click()
 
 
 def run(instance: SmokeInstance) -> None:
@@ -55,6 +66,12 @@ def run(instance: SmokeInstance) -> None:
         time.sleep(0.5)
     entity_id = sensors[0]["entity_id"]
     assert instance.ws("vegvesen/route_map", entity_id=entity_id)["geometry"]
+    device_id = next(
+        entity["device_id"]
+        for entity in instance.ws("config/entity_registry/list")
+        if entity["entity_id"] == entity_id
+    )
+    assert instance.ws("vegvesen/route_map", device_id=device_id)["geometry"]
     instance.ws(
         "lovelace/resources/create",
         url="/vegvesen/route-map/vegvesen-route-map.js",
@@ -280,7 +297,7 @@ def run(instance: SmokeInstance) -> None:
                     detail: 'en', bubbles: true, composed: true
                 }));
             }""")
-            # The real dashboard editor must supply an entity field.
+            # An existing sensor-based card opens with the route preselected.
             page.set_viewport_size({"width": 1280, "height": 900})
             page.wait_for_timeout(1000)
             page.reload()
@@ -297,10 +314,40 @@ def run(instance: SmokeInstance) -> None:
                 button_id = tooltip.evaluate("e => e.for")
                 page.locator(f"hui-root ha-icon-button[id='{button_id}']").click()
             page.get_by_role("button", name="Edit", exact=True).first.click()
-            expect(
-                page.locator("hui-dialog-edit-card ha-selector-entity")
-            ).to_be_visible()
+            dialog = page.locator("hui-dialog-edit-card")
+            selector = dialog.locator("ha-selector-device")
+            expect(selector).to_be_visible()
+            expect(selector).to_have_js_property("label", "Route")
+            expect(selector).to_have_js_property("value", device_id)
+            expect(selector).to_contain_text("Trondheim - Orkanger")
+            assert not dialog.locator("ha-selector-entity").count()
+            page.locator("home-assistant").evaluate("""element => {
+                element.dispatchEvent(new CustomEvent('hass-language-select', {
+                    detail: 'nb', bubbles: true, composed: true
+                }));
+            }""")
+            expect(selector).to_have_js_property("label", "Rute")
             page.screenshot(path=str(instance.results / "card-editor.png"))
+            page.locator("home-assistant").evaluate("""element => {
+                element.dispatchEvent(new CustomEvent('hass-language-select', {
+                    detail: 'en', bubbles: true, composed: true
+                }));
+            }""")
+            expect(selector).to_have_js_property("label", "Route")
+            choose_route(selector)
+            expect(selector).to_have_js_property("value", device_id)
+            dialog.get_by_role("button", name="Save", exact=True).click()
+            expect(dialog).not_to_be_visible()
+            # Normal editor saving writes the device; no dashboard storage hacks.
+            saved = card.evaluate("""c => c._hass.callWS({
+                type: 'lovelace/config', url_path: 'route-test'
+            })""")
+            saved_card = saved["views"][0]["cards"][0]
+            assert saved_card["device_id"] == device_id, saved_card
+            assert "entity" not in saved_card, saved_card
+            page.reload()
+            expect(card.locator("canvas")).to_be_visible(timeout=30000)
+            assert card.evaluate("c => c._config.device_id") == device_id
             # HA 2025.12 can reject a skipped native view transition on a
             # language change. It is unrelated to card rendering; keep all
             # other uncaught frontend failures fatal.
@@ -316,6 +363,9 @@ def run(instance: SmokeInstance) -> None:
                 json.dumps(
                     {
                         "entity": entity_id,
+                        "device_id": device_id,
+                        "legacy_editor_migration": True,
+                        "route_picker": True,
                         "version": session.get(base + "/api/config", timeout=10).json()[
                             "version"
                         ],

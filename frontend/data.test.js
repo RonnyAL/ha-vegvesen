@@ -12,6 +12,81 @@ import {
   validateConfig,
 } from "./data.js";
 import { labels } from "./labels.js";
+import { editorConfig, stubConfig } from "./config.js";
+
+test("route defaults and legacy editor selections use stable devices, without choosing among several routes", () => {
+  const hass = {
+    devices: {
+      one: { id: "one", model: "Route forecast", name: "Work commute" },
+      weather: { id: "weather", model: "Weather station" },
+    },
+    entities: {
+      "sensor.renamed": { device_id: "one", platform: "vegvesen" },
+      "sensor.weather": { device_id: "weather", platform: "vegvesen" },
+    },
+  };
+  assert.deepEqual(stubConfig({}), { device_id: "" });
+  assert.deepEqual(stubConfig(hass), { device_id: "one" });
+  const legacy = { entity: "sensor.renamed", height: 500, title: "My route" };
+  assert.deepEqual(editorConfig(legacy, hass), {
+    device_id: "one",
+    height: 500,
+    title: "My route",
+  });
+  assert.equal(legacy.entity, "sensor.renamed");
+  assert.deepEqual(editorConfig(legacy, {}), legacy);
+  assert.deepEqual(
+    editorConfig({ device_id: "chosen", entity: "sensor.renamed" }, hass),
+    { device_id: "chosen" },
+  );
+  hass.devices.two = { id: "two", model: "Route forecast" };
+  hass.entities["sensor.other"] = { device_id: "two", platform: "vegvesen" };
+  assert.deepEqual(stubConfig(hass), { device_id: "" });
+  assert.deepEqual(validateConfig({ entity: "sensor.old", device_id: "one" }), {
+    device_id: "one",
+  });
+  assert.throws(() => validateConfig({ device_id: 42 }));
+});
+
+test("device selections resubscribe on route changes and reject late events from the old route", async () => {
+  const requests = [],
+    snapshots = [],
+    listeners = [],
+    errors = [];
+  let removed = 0;
+  const data = new RouteData(
+    (value) => snapshots.push(value),
+    (error) => errors.push(error),
+    () => {},
+  );
+  const hass = {
+    connected: true,
+    connection: {
+      subscribeMessage: async (callback, request) => {
+        requests.push(request);
+        listeners.push(callback);
+        return async () => removed++;
+      },
+    },
+  };
+  await data.update(hass, { device_id: "one" });
+  await data.update(hass, { device_id: "one", title: "Renamed" });
+  assert.equal(requests.length, 1);
+  await data.update(hass, { device_id: "two", entity: "sensor.old" });
+  assert.equal(removed, 1);
+  assert.deepEqual(requests[1], {
+    type: "vegvesen/subscribe_route_map",
+    device_id: "two",
+  });
+  listeners[0]({ data: "stale" });
+  listeners[1]({ data: "current" });
+  assert.deepEqual(snapshots, ["current"]);
+  await data.update(hass, { device_id: "" });
+  await data.update(hass, { device_id: "" });
+  assert.equal(removed, 2);
+  assert.equal(requests.length, 2);
+  assert.deepEqual(errors, ["invalid_route"]);
+});
 
 test("subscriptions update unchanged summaries, handle failures and recover without polling", async () => {
   const snapshots = [],
@@ -37,11 +112,11 @@ test("subscriptions update unchanged summaries, handle failures and recover with
       },
     },
   };
-  await data.update(hass, "sensor.route");
+  await data.update(hass, { entity: "sensor.route" });
   listener({ data: { summary: "high", segments: [1] } });
   await data.update(
     { ...hass, states: { unrelated: { state: "on" } } },
-    "sensor.route",
+    { entity: "sensor.route" },
   );
   listener({ data: { summary: "high", segments: [2] } });
   assert.equal(calls, 1);
@@ -50,12 +125,12 @@ test("subscriptions update unchanged summaries, handle failures and recover with
   listener({ data: { summary: null, segments: [] } });
   assert.equal(errors.at(-1), "unavailable");
   assert.deepEqual(snapshots.at(-1).segments, []);
-  await data.update({ ...hass, connected: false }, "sensor.route");
+  await data.update({ ...hass, connected: false }, { entity: "sensor.route" });
   assert.equal(removed, 1);
   assert.equal(errors.at(-1), "disconnected");
   listener({ data: "stale" });
   assert.equal(snapshots.length, 3);
-  await data.update(hass, "sensor.route");
+  await data.update(hass, { entity: "sensor.route" });
   assert.equal(calls, 2);
   data.stop();
   assert.equal(removed, 2);
@@ -82,7 +157,7 @@ test("late subscription acknowledgements are cancelled after card removal", asyn
       },
     },
   };
-  const pending = data.update(hass, "sensor.route");
+  const pending = data.update(hass, { entity: "sensor.route" });
   data.stop();
   listener({ data: "stale" });
   resolve(async () => removed++);
@@ -113,7 +188,7 @@ test("subscription errors are handled and retry is explicit", async () => {
         },
       },
     };
-    await data.update(hass, "sensor.renamed");
+    await data.update(hass, { entity: "sensor.renamed" });
   }
   assert.deepEqual(errors, [
     "upgrade",

@@ -1,24 +1,38 @@
 # Interactive route-map card
 
-The **0.8.0b5** experiment stays on `feature/route-maps`, separate from stable
+The **0.8.0b6** experiment stays on `feature/route-maps`, separate from stable
 **0.7.4**. Installation and upgrade instructions are in the
 [README](../README.md#interactive-dashboard-card).
 
-## Entity and data model
+## Route selection and data model
 
-The card selects a real route forecast sensor, normally **Highest forecast
-slipperiness**. Any registered sensor belonging to that route can identify it;
-the native picker offers Vegvesen enum sensors. The old experimental image
+The graphical editor offers **Route / Rute**, a native device selector filtered
+by integration `vegvesen` and model `Route forecast`. It lists saved route names,
+excluding weather stations and cameras. The card stores `device_id`; the backend
+resolves it using registry identifiers and route subentries, never display names
+or model strings. A single route is preselected for a new card; several routes
+require a choice. No extra entity, route catalogue or source request is needed.
+
+The editor uses HA's documented `getConfigElement`, `setConfig`, `hass` and
+`config-changed` lifecycle with a native `ha-form` and device selector. Existing
+`entity:` cards remain supported. Their registered sensor's device is preselected
+in the editor; selecting a route emits a normal config change containing
+`device_id` and removes `entity`. Opening the editor does not rewrite storage.
+The old experimental image
 entities are retired through HA's entity registry on successful entry setup.
 Saved route/subentry identities and the existing six sensor identities remain
-unchanged. Existing cards selecting images require a one-time entity change.
+unchanged. Existing cards selecting images require a one-time route selection.
 
 `vegvesen/route_map` reads the current cached snapshot.
 `vegvesen/subscribe_route_map` sends an initial snapshot followed by coordinator
-updates, including failure/recovery and changes that leave the selected sensor's
-state/attributes unchanged. Neither command performs source I/O. Entity-read
-permissions and stable registry identity are checked before sending private data.
-Renames, disabled/removed sensors and unloaded entries are handled explicitly.
+updates, including failure/recovery and changes that leave sensor summaries
+unchanged. Both accept either `device_id` or legacy `entity_id`, and perform no
+source I/O. HA permissions are entity based: device selection requires read
+access to at least one registered sensor belonging to that exact route. Disabled
+sensors retain their permission identity, so disabling individual sensors does
+not break device-based cards. Legacy selection still requires access to its
+specific, enabled sensor. Access and registry identities are rechecked on each
+event. Disabled/removed route devices and unloaded entries clear the map data.
 An unknown summary still allows access to the route and available source data.
 
 Subscriptions rebind to replacement coordinators on entry reload, clear overlays
@@ -70,6 +84,7 @@ continues to use the existing simple static route image.
 ## Supported extension points
 
 - [HA custom cards and graphical editors](https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/)
+- [Native device selector filters](https://www.home-assistant.io/docs/blueprint/selectors/#device-selector)
 - [Dashboard resource registration](https://developers.home-assistant.io/docs/frontend/custom-ui/registering-resources/)
 - [Extending HA's WebSocket API](https://developers.home-assistant.io/docs/frontend/extending/websocket-api/)
 - [Asynchronous static paths](https://developers.home-assistant.io/blog/2024/06/18/async_register_static_paths/)
@@ -113,14 +128,14 @@ including panel views; that report is a reason to test our supported frontends,
 not a verified failure of this card. Do not patch HA's frontend to work around it.
 The intended first-time flow, once verified, would be: install the integration,
 restart HA, configure a route, refresh the frontend, then add the custom card and
-select a route forecast sensor. No manual resource entry would be needed.
-This helper-based loading is not implemented in 0.8.0b5.
+select a saved route. No manual resource entry would be needed.
+This helper-based loading is not implemented in 0.8.0b6.
 
 With the current bundled distribution, a new user installs the integration in
 HACS, restarts HA, adds Statens vegvesen and configures a route. Route sensors
 work immediately. To use the optional interactive card, they register the
 bundled module once in Dashboard Resources, refresh the frontend, then add a
-Statens vegvesen route map card and select that route's forecast sensor. Additional
+Statens vegvesen route map card and select a route by name. Additional
 routes only need additional cards; there is no repeated resource registration.
 
 If automatic HACS resource management is chosen later, the maintained source
@@ -137,20 +152,30 @@ Run `scripts/check`, `scripts/check-minimum`, `scripts/check-beta` and
 `npm run check`. Python tests cover source grades/counts, missing and unknown
 codes, current-hour settings, image registry cleanup, permissions, unchanged
 summaries with changed segment data, unload/reload, failure/recovery and socket
-cleanup. JavaScript tests cover subscription updates, late acknowledgements,
-disconnect/recovery, source categories and highlight bounds.
+cleanup, device selection, disabled sensors, registry removal and legacy sensor
+compatibility. JavaScript tests cover subscription updates, late acknowledgements,
+disconnect/recovery, route changes, editor migration, default selection, source
+categories and highlight bounds.
 
 `scripts/smoke-ui --beta --route-card` exercises the packaged card in a disposable
 HA, with mobile-width vector rendering, touch pan/zoom, source popups, category
-highlighting, English/Bokmål labels and the native card editor. Use `--minimum`
+highlighting, English/Bokmål labels, the native route picker and saving a legacy
+card with a device selection. Use `--minimum`
 instead of `--beta` for the minimum frontend. Logs/screenshots remain ignored
 under `.tools/card-results-*`; temporary HA, credentials and database are removed
 on exit. Companion apps and physical mobile devices remain beta test targets.
 
-For 0.8.0b5, all 357 Python tests pass on HA 2025.12.0, 2026.9.4 and
+For 0.8.0b5, all 357 Python tests passed on HA 2025.12.0, 2026.9.4 and
 2026.10.0b0 (97% statement coverage), alongside seven JavaScript tests. Packaged
 mobile card checks passed on the minimum and beta frontends; native preview,
 0-hour default and Bokmål unit-label checks also passed on those two targets.
 The isolated 0.7.4 rollback retained all 12 stable entities, four subentries and
 saved configuration, including the 0-hour route setting. Beta-only sensors are
 excluded from stable identity comparisons and may remain unavailable on rollback.
+
+For 0.8.0b6, all 362 Python tests pass on the same three locked HA targets
+(97% statement coverage), alongside nine JavaScript tests. Packaged card checks
+on the minimum and beta frontends verify the native Route/Rute device picker,
+preselection for legacy cards, normal editor saving to `device_id`, and a fresh
+page load of the saved device-based card. Touch interaction, category selection
+and failure handling retain their existing coverage.

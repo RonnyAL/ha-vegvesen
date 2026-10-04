@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -67,16 +68,35 @@ async def card_route(
     return entry, next(iter(entry.runtime_data.routes.values())), url
 
 
+@pytest.mark.parametrize("use_device", [False, True])
 async def test_route_card_snapshot_lifecycle(
-    hass: Any, hass_ws_client: Any, mock_http: Any, card_route: tuple, route_data: dict
+    hass: Any,
+    hass_ws_client: Any,
+    mock_http: Any,
+    card_route: tuple,
+    route_data: dict,
+    *,
+    use_device: bool,
 ) -> None:
     """A renamed sensor identifies the route; unknown summary still has map data."""
     entry, coordinator, url = card_route
     client = await hass_ws_client(hass)
+    device_id = er.async_get(hass).async_get("sensor.renamed_route").device_id
 
     async def request(entity_id: str = "sensor.renamed_route") -> dict:
         await client.send_json_auto_id(
-            {"type": "vegvesen/route_map", "entity_id": entity_id}
+            {
+                "type": "vegvesen/route_map",
+                **(
+                    {
+                        "device_id": device_id
+                        if entity_id == "sensor.renamed_route"
+                        else "missing"
+                    }
+                    if use_device
+                    else {"entity_id": entity_id}
+                ),
+            }
         )
         return await client.receive_json()
 
@@ -100,8 +120,15 @@ async def test_route_card_snapshot_lifecycle(
     assert (await request())["error"]["code"] == "unavailable"
 
 
+@pytest.mark.parametrize("use_device", [False, True])
 async def test_route_subscription_lifecycle(
-    hass: Any, hass_ws_client: Any, mock_http: Any, card_route: tuple, forecasts: list
+    hass: Any,
+    hass_ws_client: Any,
+    mock_http: Any,
+    card_route: tuple,
+    forecasts: list,
+    *,
+    use_device: bool,
 ) -> None:
     """Changed segments push even when summary/time/count stay equal; reload rebinds."""
     entry, coordinator, url = card_route
@@ -111,7 +138,15 @@ async def test_route_subscription_lifecycle(
         {
             "id": 1,
             "type": "vegvesen/subscribe_route_map",
-            "entity_id": "sensor.renamed_route",
+            **(
+                {
+                    "device_id": er.async_get(hass)
+                    .async_get("sensor.renamed_route")
+                    .device_id
+                }
+                if use_device
+                else {"entity_id": "sensor.renamed_route"}
+            ),
         }
     )
     assert (await client.receive_json())["success"]
@@ -153,8 +188,9 @@ async def test_route_subscription_lifecycle(
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
+@pytest.mark.parametrize("use_device", [False, True])
 async def test_route_subscription_permission_change_and_disconnect(
-    hass: Any, hass_ws_client: Any, card_route: tuple
+    hass: Any, hass_ws_client: Any, card_route: tuple, *, use_device: bool
 ) -> None:
     """Recheck entity permission on updates/rename and detach on socket close."""
     entry, coordinator, _url = card_route
@@ -164,7 +200,15 @@ async def test_route_subscription_permission_change_and_disconnect(
         {
             "id": 1,
             "type": "vegvesen/subscribe_route_map",
-            "entity_id": "sensor.renamed_route",
+            **(
+                {
+                    "device_id": er.async_get(hass)
+                    .async_get("sensor.renamed_route")
+                    .device_id
+                }
+                if use_device
+                else {"entity_id": "sensor.renamed_route"}
+            ),
         }
     )
     await client.receive_json()
@@ -213,3 +257,87 @@ async def test_route_card_access_and_resource(
         response = await http.get(f"/vegvesen/route-map/{filename}")
         assert response.status == 200
         assert "javascript" in response.content_type
+
+
+async def test_device_selection_survives_disabled_sensors_and_honors_access(
+    hass: Any, hass_ws_client: Any, card_route: tuple
+) -> None:
+    """No particular sensor must stay enabled; permissions still protect the route."""
+    entry, _coordinator, _url = card_route
+    registry = er.async_get(hass)
+    device_id = registry.async_get("sensor.renamed_route").device_id
+    client = await hass_ws_client(hass)
+
+    async def request(**target: Any) -> dict:
+        await client.send_json_auto_id({"type": "vegvesen/route_map", **target})
+        return await client.receive_json()
+
+    for entity in er.async_entries_for_device(registry, device_id):
+        registry.async_update_entity(
+            entity.entity_id, disabled_by=er.RegistryEntryDisabler.USER
+        )
+    await hass.async_block_till_done()
+    assert (await request(device_id=device_id))["result"]["segments"]
+    assert (await request(entity_id="sensor.renamed_route"))["error"][
+        "code"
+    ] == "unavailable"
+    with patch(
+        "homeassistant.auth.permissions.PolicyPermissions.check_entity",
+        return_value=False,
+    ):
+        for command in ("vegvesen/route_map", "vegvesen/subscribe_route_map"):
+            await client.send_json_auto_id({"type": command, "device_id": device_id})
+            assert (await client.receive_json())["error"]["code"] == "unauthorized"
+    # A single readable route sensor suffices, irrespective of its summary grade.
+    with patch(
+        "homeassistant.auth.permissions.PolicyPermissions.check_entity",
+        side_effect=lambda entity_id, _policy: entity_id == "sensor.renamed_route",
+    ):
+        assert (await request(device_id=device_id))["result"]["segments"]
+    for target in ({}, {"device_id": device_id, "entity_id": "sensor.renamed_route"}):
+        assert (await request(**target))["error"]["code"] == "invalid_format"
+    weather = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, "weather:example")},
+        name="A weather station",
+        model="Route forecast",  # Display metadata cannot grant access.
+    )
+    assert (await request(device_id=weather.id))["error"]["code"] == "invalid_route"
+    dr.async_get(hass).async_update_device(
+        device_id, disabled_by=dr.DeviceEntryDisabler.USER
+    )
+    await hass.async_block_till_done()
+    assert (await request(device_id=device_id))["error"]["code"] == "unavailable"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_device_subscription_removal_and_registry_cleanup(
+    hass: Any, hass_ws_client: Any, card_route: tuple
+) -> None:
+    """Rename the route device without reconfiguration; removal clears private data."""
+    entry, coordinator, _url = card_route
+    device_id = er.async_get(hass).async_get("sensor.renamed_route").device_id
+    client = await hass_ws_client(hass)
+    before = hass.bus.async_listeners()
+    await client.send_json(
+        {"id": 1, "type": "vegvesen/subscribe_route_map", "device_id": device_id}
+    )
+    assert (await client.receive_json())["success"]
+    assert (await client.receive_json())["event"]["data"]["segments"]
+    dr.async_get(hass).async_update_device(device_id, name_by_user="Renamed route")
+    await hass.async_block_till_done()
+    assert (await client.receive_json())["event"]["data"]["segments"]
+    dr.async_get(hass).async_remove_device(device_id)
+    await hass.async_block_till_done()
+    event = (await client.receive_json())["event"]
+    assert event == {"error": "unavailable"}
+    await client.close()
+    await hass.async_block_till_done()
+    after = hass.bus.async_listeners()
+    for event_type in (
+        dr.EVENT_DEVICE_REGISTRY_UPDATED,
+        er.EVENT_ENTITY_REGISTRY_UPDATED,
+    ):
+        assert after.get(event_type, 0) <= before.get(event_type, 0)
+    assert not coordinator._listeners
+    assert await hass.config_entries.async_unload(entry.entry_id)

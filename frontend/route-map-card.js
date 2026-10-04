@@ -16,6 +16,8 @@ import {
   validateConfig,
 } from "./data.js";
 import { labels, language } from "./labels.js";
+import { stubConfig } from "./config.js";
+import "./editor.js";
 
 maplibregl.setWorkerUrl(
   new URL("./maplibre-gl-worker.js", import.meta.url).href,
@@ -119,6 +121,7 @@ export class VegvesenRouteMap extends HTMLElement {
   setConfig(config) {
     const next = validateConfig(config);
     const changed =
+      this._config?.device_id !== next.device_id ||
       this._config?.entity !== next.entity ||
       this._config?.map_style_url !== next.map_style_url;
     this._config = next;
@@ -164,7 +167,7 @@ export class VegvesenRouteMap extends HTMLElement {
       this._renderText();
     this._timeZone = timeZone;
     if (!this._map && !this._webglFailed && this._snapshot) this._createMap();
-    this._data.update(this._hass, this._config.entity);
+    this._data.update(this._hass, this._config);
   }
 
   _createMap() {
@@ -435,12 +438,14 @@ export class VegvesenRouteMap extends HTMLElement {
     if (this._webglFailed) this._status.textContent = l.webgl;
     else if (this._error) {
       this._status.append(node("span", l[this._error]));
-      const retry = node("button", l.retry);
-      retry.onclick = () => {
-        this._data.stop();
-        this._update();
-      };
-      this._status.append(retry);
+      if (this._error !== "invalid_route") {
+        const retry = node("button", l.retry);
+        retry.onclick = () => {
+          this._data.stop();
+          this._update();
+        };
+        this._status.append(retry);
+      }
     } else if (!this._snapshot) this._status.textContent = l.loading;
     this._time.textContent = this._snapshot
       ? `${l.forecast}: ${this._formatTime(this._snapshot.forecast_time)}`
@@ -521,37 +526,10 @@ export class VegvesenRouteMap extends HTMLElement {
     return { columns: 12, min_columns: 6, rows: "auto" };
   }
   static getStubConfig(hass) {
-    return {
-      entity:
-        Object.keys(hass.states).find(
-          (id) =>
-            id.startsWith("sensor.") &&
-            hass.states[id]?.attributes.options?.length === 3 &&
-            hass.states[id]?.attributes.options?.includes("high") &&
-            hass.entities?.[id]?.platform === "vegvesen",
-        ) ?? "",
-    };
+    return stubConfig(hass);
   }
-  static getConfigForm() {
-    return {
-      schema: [
-        {
-          name: "entity",
-          required: true,
-          selector: {
-            entity: {
-              filter: [
-                {
-                  integration: "vegvesen",
-                  domain: "sensor",
-                  device_class: "enum",
-                },
-              ],
-            },
-          },
-        },
-      ],
-    };
+  static getConfigElement() {
+    return document.createElement("vegvesen-route-map-editor");
   }
 }
 
