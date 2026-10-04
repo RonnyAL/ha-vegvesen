@@ -1,5 +1,6 @@
 {
     "name": "Statens vegvesen",
+    "country": "NO",
     "homeassistant": "2025.12.0",
     "hacs": "2.0.5"
 }

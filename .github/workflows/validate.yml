@@ -46,5 +46,3 @@ jobs:
         with:
           category: integration
           comment: false
-          # Default-list metadata is outside the custom-repository milestone.
-          ignore: description topics

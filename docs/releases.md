@@ -26,6 +26,12 @@ HACS storage edits or release asset is needed. The local ZIP remains a developme
 artifact. Default HACS listing is separate and remains deferred. Publishing a
 release is an intentional maintainer action, not a side effect of every push.
 
+Before a default-list submission, ensure the released `hacs.json` includes the
+Norway country metadata and publish a release after validation passes without
+ignored checks, as required by [HACS's submission instructions](https://www.hacs.xyz/docs/publish/include/).
+The country field identifies the service's geographic relevance; it does not
+limit source selection or route geometry.
+
 A normal release can be published through GitHub's Releases UI: select the exact
 validated commit, create its matching version tag, enter release notes and publish.
 There is no custom release workflow to maintain. Before publishing, run the checks
