@@ -134,6 +134,20 @@ edits a separate draft and persists only on Save.
 The dropdown and map selectors exist in the minimum HA version; the newer
 choose-selector widget does not, so it is not required.
 
+From 0.7.1, the route name is optional. Two zones use `start → end`; one zone
+uses its name and the chosen road proposal's name in endpoint order; map-only
+routes use the road proposal name. A custom name takes precedence. The overview
+shows the derived name, which is stored when saving. Later zone renames do not
+silently rename a saved route. Clearing the name during reconfiguration generates
+a new name from the current choices; existing entity IDs remain unchanged.
+
+All entities use HA's [`has_entity_name` convention](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/has-entity-name/):
+device name plus translated sensor name. HA generates entity IDs and resolves
+collisions; source IDs and route UUIDs remain the stable unique IDs. No registry
+renaming, custom slug generation or name-derived unique IDs are introduced.
+Custom icons use [native icon translations](https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/icon-translations/)
+in `icons.json`; temperature/timestamp device-class icons remain inherited.
+
 From 0.6.2, a route fetches immediately on setup, then just after each UTC hour
 and half-hour. This is an integration choice, not a verified source publication
 cadence. Target time is current UTC hour plus the selected offset. For offset 1,

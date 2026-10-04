@@ -396,9 +396,7 @@ async def test_forecast_entities_and_recovery(  # noqa: PLR0915
     assert not hass.services.has_service(DOMAIN, "get_route_forecasts")
 
 
-@pytest.mark.parametrize(
-    "failure", ["http", "no_route", "invalid_name", "invalid_point"]
-)
+@pytest.mark.parametrize("failure", ["http", "no_route", "invalid_point"])
 async def test_route_settings_failure_and_retry(
     hass: HomeAssistant,
     mock_http: aioresponses,
@@ -422,8 +420,6 @@ async def test_route_settings_failure_and_retry(
         mock_http.get(routing_url(data), status=503)
     elif failure == "no_route":
         mock_http.get(routing_url(data), payload={"routes": []})
-    elif failure == "invalid_name":
-        bad["name"] = " "
     else:
         bad["start"]["latitude"] = 100
     result = await submit_manual_route(manager, result, bad)
@@ -442,10 +438,11 @@ async def test_route_settings_failure_and_retry(
     result = await menu_action(manager, result, "route_settings")
     bad = deepcopy(data)
     bad["end"]["longitude"] += 0.001
-    bad["name"] = " "
+    bad["start"]["latitude"] = 100
     result = await submit_manual_route(manager, result, bad)
     assert result["errors"]
     bad["name"] = "Changed destination"
+    bad["start"] = data["start"]
     mock_http.get(routing_url(bad), payload=routing)
     result = await submit_manual_route(manager, result, bad)
     assert result["type"] is FlowResultType.MENU

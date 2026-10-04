@@ -62,11 +62,19 @@ Each source creates a device in **Settings → Devices & services**. Add its ent
 
 Readings and statuses are exposed as provided by the source. Missing readings are **unknown**. Request failures make the affected entities **unavailable**, and they recover after a successful refresh. A failed camera image does not prevent weather readings or other camera images from updating.
 
+HA generates entity IDs from the device/route name and the sensor name in your
+configured language. For example, **Hjem → Jobb** creates
+`sensor.hjem_jobb_foreprognose` in Bokmål. Existing IDs stay unchanged when you
+update the integration or rename a route. You can change an ID in HA's entity
+settings; review automations and dashboards that reference it. Your custom names
+and icons are retained. Road conditions, slipperiness, segment counts and camera
+status have dedicated icons; temperatures and timestamps use HA's standard icons.
+
 ## Route forecasts (føreforhold)
 
 Choose **Add route / Legg til rute** on the integration, or **Route forecast / Ruteprognose** during first setup.
 
-1. Name the route and choose a **start** and **destination** from your existing Home Assistant zones. Each dropdown also offers **Choose on map / Velg på kart**; you can mix zones and map points.
+1. Choose a **start** and **destination** from your existing Home Assistant zones. Each dropdown also offers **Choose on map / Velg på kart**; you can mix zones and map points. The route name is optional: two zones give a name such as **Hjem → Jobb**. With one zone, its name is combined with the road proposal name; with map points only, the road proposal name is used. Enter a name to override the default.
 2. Set the **corridor** (distance on either side of the route, initially 100 metres) and **forecast hours ahead** (initially 1).
 3. Choose **Continue / Fortsett**. If you selected map points, set those points on the next screen and choose **Calculate route / Beregn rute**. Maps initially centre on your Home Assistant location. Review the proposed road names and distance. **Choose route / Velg ruteforslag** lets you select another proposal if the service offers one.
 4. Choose **Save route / Lagre rute**. You can edit the settings from the overview before saving, or use the route's reconfigure action later.

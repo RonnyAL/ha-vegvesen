@@ -92,8 +92,9 @@ class RouteFlow:
         """Select zones or manual endpoints without rendering unnecessary maps."""
         errors = {}
         if user_input is not None:
-            if not user_input["name"].strip():
-                errors["name"] = "invalid_route"
+            # Empty/omitted means an automatic name; never restore a cleared
+            # previous value through the schema's default.
+            user_input = {**user_input, "name": user_input.get("name", "").strip()}
             # A number selector's step only controls the widget's increments;
             # it does not enforce whole numbers or reject NaN in the backend.
             hours = user_input["forecast_hours"]
@@ -144,7 +145,13 @@ class RouteFlow:
         schema = vol.Schema(
             {
                 (
-                    vol.Required(key, default=defaults[key])
+                    vol.Optional(
+                        key,
+                        default="",
+                        description={"suggested_value": defaults.get(key, "")},
+                    )
+                    if key == "name"
+                    else vol.Required(key, default=defaults[key])
                     if key in defaults
                     else vol.Required(key)
                 ): selector
@@ -282,13 +289,30 @@ class RouteFlow:
                 "route_save",
             ],
             description_placeholders={
-                "name": self._route_data["name"],
+                "name": self._route_name(),
                 "route": route.name,
                 "distance": f"{route.length / 1000:.1f}",
                 "corridor": f"{self._route_data['corridor_m']:g}",
                 "hours": f"{self._route_data['forecast_hours']:g}",
             },
         )
+
+    def _route_name(self) -> str:
+        """Suggest a readable device name; HA generates and owns entity IDs."""
+        if name := self._route_data.get("name", "").strip():
+            return name
+        road_name = self._route_choices[self._route_choice].name
+        endpoints = [
+            self._route_data.get(f"{endpoint}_zone_name")
+            if self._route_data.get(f"{endpoint}_source", "map") != "map"
+            else None
+            for endpoint in ("start", "end")
+        ]
+        if all(endpoints):
+            return f"{endpoints[0]} → {endpoints[1]}"
+        if any(endpoints):
+            return " → ".join(name or road_name for name in endpoints)
+        return road_name
 
     async def async_step_route_recalculate(
         self,
@@ -335,6 +359,7 @@ class RouteFlow:
         route = self._route_choices[self._route_choice]
         self._route_data.update(
             {
+                "name": self._route_name(),
                 "geometry": route.geometry,
                 "road_name": route.name,
                 "length_m": route.length,

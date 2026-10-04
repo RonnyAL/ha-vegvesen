@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 import requests
-from playwright.sync_api import WebSocket, expect, sync_playwright
+from playwright.sync_api import Page, WebSocket, expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = "http://127.0.0.1:18123"
@@ -25,6 +25,28 @@ def verify_norwegian_names(options: list[dict]) -> None:
     names = [option["label"] for option in options]
     if "Røros" not in names or "Rosse" in names:
         raise AssertionError("Municipality labels must use Norwegian names")
+
+
+def verify_sensor_icons(page: Page, route_states: dict) -> None:
+    """Check rendered entity icons through HA's ordinary more-info dialog."""
+    for suffix, icon in (
+        ("road_condition_forecast", "mdi:road-variant"),
+        ("slipperiness_forecast", "mdi:car-traction-control"),
+        ("forecast_road_segments", "mdi:counter"),
+    ):
+        entity_id = next(key for key in route_states if key.endswith(suffix))
+        page.locator("home-assistant").evaluate(
+            "(element, id) => element.dispatchEvent("
+            "new CustomEvent('hass-more-info', "
+            "{detail: {entityId: id}, bubbles: true, composed: true}))",
+            entity_id,
+        )
+        expect(
+            page.locator("ha-more-info-dialog ha-state-icon ha-icon").first
+        ).to_have_js_property("icon", icon)
+        page.keyboard.press("Escape")
+        expect(page.locator("ha-more-info-dialog")).to_be_hidden()
+    print("Native route sensor icons rendered from icons.json")
 
 
 def run_browser(tokens: dict, session: requests.Session) -> None:
@@ -286,7 +308,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 expect(county_field).to_have_count(0)
             print("English and Norwegian checkbox forms and source labels verified")
             page.get_by_role("button", name="Legg til rute", exact=True).click()
-            page.locator("ha-selector-text input").fill("Sonebasert rute")
+            expect(page.locator("ha-selector-text input")).to_have_value("")
             endpoints = page.locator("ha-selector-select")
             expect(endpoints).to_have_count(2)
 
@@ -305,6 +327,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             expect(page.locator("ha-selector-location")).to_have_count(0)
             page.screenshot(path=str(RESULTS / "route-zones-bokmal.png"))
             page.get_by_role("button", name="Fortsett", exact=True).click()
+            expect(page.get_by_text("Trondheim → Orkanger", exact=True)).to_be_visible()
             for label in (
                 "Endre innstillinger",
                 "Velg ruteforslag",
@@ -340,6 +363,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 "value", "Velg på kart"
             )
             page.get_by_role("button", name=close_label, exact=True).click()
+            expect(page.locator("dialog-data-entry-flow")).to_be_hidden()
             print("Bokmål route labels, zones and reconfiguration verified")
             deadline = time.monotonic() + 60
             while time.monotonic() < deadline:
@@ -397,6 +421,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_text("3 enheter", exact=False).first.wait_for(state="visible")
             page.get_by_text("1 tjeneste", exact=False).first.wait_for(state="visible")
             page.screenshot(path=str(RESULTS / "integration.png"))
+            verify_sensor_icons(page, route_states)
             page.locator("home-assistant").evaluate(
                 "(element, id) => element.dispatchEvent("
                 "new CustomEvent('hass-more-info', "

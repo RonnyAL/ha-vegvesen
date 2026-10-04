@@ -6,14 +6,15 @@ Use Home Assistant **2025.12.0 or newer** and HACS **2.0.5 or newer**. The autom
 
 ## First test session
 
-Record your HA version and installed integration version (currently **0.7.0**). Public station/camera IDs help reproduce problems, but your selections and route coordinates can reveal locations of interest; omit them from public reports if needed.
+Record your HA version and installed integration version (currently **0.7.1**). Public station/camera IDs help reproduce problems, but your selections and route coordinates can reveal locations of interest; omit them from public reports if needed.
 
 | Check | Expected result |
 | --- | --- |
 | Source picker | County → municipality → source checkboxes; save several sources together; populated regions only; Norwegian municipality names and readable source IDs |
 | One station | One physical device, an air-temperature sensor and an observation-time sensor |
 | One camera | One direction-specific device, a still camera and a raw source-availability sensor |
-| One route | Choose existing HA zones or map endpoints; review a road proposal; save one route device with six forecast sensors |
+| One route | Choose existing HA zones or map endpoints; leave the name blank to derive it from zones/the road proposal; save one route device with six forecast sensors |
+| Entity presentation | Dedicated road/slipperiness/count/camera-status icons; zone-based IDs for new automatically named routes; existing IDs retained |
 | Additional selections | All sources/routes under one parent; an already selected physical source ID cannot be added twice |
 | Source null or missing observation | Unknown measurement; zero and unusual numeric values preserved |
 | Normal refreshes | Weather nominally every ten minutes; camera metadata/still every minute; routes just after the hour and half-hour |
@@ -40,7 +41,7 @@ Include version numbers, affected entity type, relevant timestamps and error tex
 
 ## Updates and removal
 
-Use HACS's update control or redownload a numbered release, restart Home Assistant (not the host), then refresh the frontend. For an existing `main` installation, use **Update information**, then **Redownload** and select **0.7.0** if the release is not offered automatically. The first transition may show a commit-to-version change; subsequent release updates show version numbers. Integration reload alone does not load upgraded Python code. Confirm the installed version and that selections/identities survive the restart. See [release and lifecycle details](releases.md).
+Use HACS's update control or redownload a numbered release, restart Home Assistant (not the host), then refresh the frontend. For an existing `main` installation, use **Update information**, then **Redownload** and select **0.7.1** if the release is not offered automatically. The first transition may show a commit-to-version change; subsequent release updates show version numbers. Integration reload alone does not load upgraded Python code. Confirm the installed version and that selections/identities survive the restart. See [release and lifecycle details](releases.md).
 
 To remove everything, remove the parent integration entry from **Devices & services**, remove the downloaded package through HACS, and restart HA. Removing an individual station, camera or route subentry keeps the parent and other selections.
 

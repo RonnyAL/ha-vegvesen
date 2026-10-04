@@ -1,0 +1,18 @@
+{
+  "entity": {
+    "sensor": {
+      "route_road_condition": {
+        "default": "mdi:road-variant"
+      },
+      "route_slip_risk": {
+        "default": "mdi:car-traction-control"
+      },
+      "route_forecast_segments": {
+        "default": "mdi:counter"
+      },
+      "source_availability": {
+        "default": "mdi:cctv"
+      }
+    }
+  }
+}

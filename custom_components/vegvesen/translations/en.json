@@ -55,7 +55,8 @@
         },
         "data_description": {
           "corridor_m": "Include roads within this distance on either side, including nearby side roads.",
-          "forecast_hours": "Whole hours after the start of the current hour. Missing forecasts for the selected time appear as unknown."
+          "forecast_hours": "Whole hours after the start of the current hour. Missing forecasts for the selected time appear as unknown.",
+          "name": "Leave blank to use zone names and the road proposal name."
         },
         "submit": "Continue"
       },
@@ -224,7 +225,8 @@
           },
           "data_description": {
             "corridor_m": "Include roads within this distance on either side, including nearby side roads.",
-            "forecast_hours": "Whole hours after the start of the current hour. Missing forecasts for the selected time appear as unknown."
+            "forecast_hours": "Whole hours after the start of the current hour. Missing forecasts for the selected time appear as unknown.",
+            "name": "Leave blank to use zone names and the road proposal name."
           },
           "submit": "Continue"
         },

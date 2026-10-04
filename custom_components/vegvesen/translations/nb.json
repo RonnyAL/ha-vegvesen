@@ -55,7 +55,8 @@
         },
         "data_description": {
           "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
-          "forecast_hours": "Hele timer etter starten av inneværende time. Manglende prognoser for valgt tidspunkt vises som ukjent."
+          "forecast_hours": "Hele timer etter starten av inneværende time. Manglende prognoser for valgt tidspunkt vises som ukjent.",
+          "name": "La stå tomt for å bruke sonenavn og navnet på veiforslaget."
         },
         "submit": "Fortsett"
       },
@@ -224,7 +225,8 @@
           },
           "data_description": {
             "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
-            "forecast_hours": "Hele timer etter starten av inneværende time. Manglende prognoser for valgt tidspunkt vises som ukjent."
+            "forecast_hours": "Hele timer etter starten av inneværende time. Manglende prognoser for valgt tidspunkt vises som ukjent.",
+            "name": "La stå tomt for å bruke sonenavn og navnet på veiforslaget."
           },
           "submit": "Fortsett"
         },
