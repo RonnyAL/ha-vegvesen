@@ -79,7 +79,7 @@ without inspecting a specific other integration, do not assume its mechanism.
 
 ## Experimental route-map release
 
-Publish **0.8.0b1** from the exact validated `feature/route-maps` commit as a
+Publish route-map beta versions from the exact validated `feature/route-maps` commit as a
 GitHub **prerelease**, with `make_latest=false`. Leave `main` and the latest stable
 release **0.7.4** unchanged. Never attach this tag to a different commit later.
 HACS uses its ordinary release-version selector; no separate custom repository,

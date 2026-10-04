@@ -27,6 +27,24 @@ const node = (tag, text, className) => {
 };
 const collection = (features) => ({ type: "FeatureCollection", features });
 
+// Follow the default basemap's main-road scale, retaining a visible overview.
+// Forecast and OSM features have no shared road ID/width, so this is a visual
+// approximation, not a physical road-width measurement.
+const lineWidth = (padding = 0, minimum = 0) => [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  ...[
+    [6, 1.25],
+    [10, 2.5],
+    [14, 5],
+    [16, 10],
+    [18, 34],
+    [19, 70],
+    [20, 140],
+  ].flatMap(([zoom, width]) => [zoom, Math.max(minimum, width + padding)]),
+];
+
 export class VegvesenRouteMap extends HTMLElement {
   constructor() {
     super();
@@ -180,11 +198,11 @@ export class VegvesenRouteMap extends HTMLElement {
           map.setStyle({ version: 8, sources: {}, layers: [] });
         }
       });
-      map.on("click", "forecasts", (event) => this._showSegment(event));
-      map.on("mouseenter", "forecasts", () => {
+      map.on("click", "forecasts-hit", (event) => this._showSegment(event));
+      map.on("mouseenter", "forecasts-hit", () => {
         map.getCanvas().style.cursor = "pointer";
       });
-      map.on("mouseleave", "forecasts", () => {
+      map.on("mouseleave", "forecasts-hit", () => {
         map.getCanvas().style.cursor = "";
       });
       this._observer = new ResizeObserver(() => map.resize());
@@ -221,13 +239,15 @@ export class VegvesenRouteMap extends HTMLElement {
         id: "route-border",
         type: "line",
         source: "route",
-        paint: { "line-color": "#ffffff", "line-width": 11 },
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#ffffff", "line-width": lineWidth(2) },
       });
       map.addLayer({
         id: "route",
         type: "line",
         source: "route",
-        paint: { "line-color": ROUTE_COLOR, "line-width": 8 },
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": ROUTE_COLOR, "line-width": lineWidth(1) },
       });
       map.addSource("forecasts", {
         type: "geojson",
@@ -238,7 +258,16 @@ export class VegvesenRouteMap extends HTMLElement {
         id: "forecasts",
         type: "line",
         source: "forecasts",
-        paint: { "line-color": ["get", "_color"], "line-width": 5 },
+        layout: { "line-join": "round" },
+        paint: { "line-color": ["get", "_color"], "line-width": lineWidth() },
+      });
+      // Keep narrow overview lines easy to tap without drawing them wider.
+      map.addLayer({
+        id: "forecasts-hit",
+        type: "line",
+        source: "forecasts",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-opacity": 0, "line-width": lineWidth(0, 20) },
       });
     }
     const data = this._snapshot;
@@ -309,7 +338,10 @@ export class VegvesenRouteMap extends HTMLElement {
   }
 
   _showSegment(event) {
-    const id = event.features?.[0]?.id;
+    // Prefer a visible stroke over another segment's overlapping tap target.
+    const id =
+      this._map.queryRenderedFeatures(event.point, { layers: ["forecasts"] })[0]
+        ?.id ?? event.features?.[0]?.id;
     const feature = this._snapshot?.segments.find(
       (segment) => segment.id === id,
     );

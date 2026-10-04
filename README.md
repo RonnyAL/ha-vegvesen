@@ -159,16 +159,23 @@ card with a vector background, touch panning, zoom controls and **Fit route /
 Vis hele ruten**. Tap a colored segment for its source condition, road temperature,
 slipperiness and forecast time. Expand **Conditions / Føreforhold** for the legend.
 The forecast time uses Home Assistant's configured time zone.
+Route and condition lines become thinner at overview scales and widen as you
+zoom in. Their widths approximate the background roads; forecast geometry and
+OpenStreetMap roads come from different datasets.
 
 After installing the beta and restarting HA:
 
 1. Open **Settings → Dashboards → menu → Resources**. Enable **Advanced mode**
    in your profile if Resources is hidden.
-2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b2` as a
+2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b3` as a
    **JavaScript module**. This is a one-time resource registration for all routes.
 3. Refresh the browser or fully close and reopen the companion app.
 4. Edit a dashboard, choose **Add card → Statens vegvesen route map**, and select
    the route's existing **Route map / Rutekart** image entity. Save the card.
+
+The card files are included in this beta; no files need copying to `www`.
+Resource registration is still manual. Separate HACS Dashboard distribution,
+which can manage resources automatically, is planned for the finished card.
 
 No second route configuration or additional entity is needed. The selected image
 entity identifies the saved route; the card draws the geometry and cached
@@ -205,7 +212,7 @@ proxy. Map interaction and appearance are separate from the configuration previe
 
 1. In HACS, open **Statens vegvesen** → menu → **Update information**.
 2. Choose **Redownload** → **Need a different version?**, then select release
-   **0.8.0b2**. If your HACS version offers a beta filter, enable it.
+   **0.8.0b3**. If your HACS version offers a beta filter, enable it.
 3. Restart Home Assistant, then reconfigure a route to see its preview and open
    the route device's new image entity.
 

@@ -203,6 +203,40 @@ def run(instance: SmokeInstance) -> None:
             expect(card.locator(".popup")).to_contain_text("Road temperature:")
             page.screenshot(path=str(instance.results / "segment-popup.png"))
             card.locator(".maplibregl-popup-close-button").click()
+            # A touch just outside a narrow painted line still opens its data.
+            near_line = card.evaluate("""c => {
+                const map = c._map;
+                for (let x = 60; x < map.getCanvas().clientWidth - 60; x += 4) {
+                    for (let y = 80; y < map.getCanvas().clientHeight - 80; y += 4) {
+                        const point = [x, y];
+                        if (!map.queryRenderedFeatures(point,
+                            {layers: ['forecasts']}).length &&
+                            map.queryRenderedFeatures(point,
+                            {layers: ['forecasts-hit']}).length) return {x, y};
+                    }
+                }
+            }""")
+            assert near_line, "Expected a touch target beyond the painted stroke"
+            canvas.tap(position=near_line)
+            expect(card.locator(".popup")).to_be_visible()
+            card.locator(".maplibregl-popup-close-button").click()
+            # Capture the same source line at street scales for visual review.
+            center = card.evaluate(
+                "(c, p) => c._map.unproject([p.x, p.y]).toArray()", point
+            )
+            for street_zoom in (16, 18):
+                card.evaluate(
+                    "(c, options) => c._map.jumpTo(options)",
+                    {"center": center, "zoom": street_zoom},
+                )
+                card.evaluate(
+                    "async c => { if (!c._map.loaded()) await new Promise("
+                    "resolve => c._map.once('idle', resolve)); }"
+                )
+                page.screenshot(
+                    path=str(instance.results / f"mobile-zoom-{street_zoom}.png")
+                )
+            card.get_by_role("button", name="Fit route", exact=True).click()
             page.locator("home-assistant").evaluate("""element => {
                 element.dispatchEvent(new CustomEvent('hass-language-select', {
                     detail: 'nb', bubbles: true, composed: true
@@ -258,6 +292,7 @@ def run(instance: SmokeInstance) -> None:
                         ],
                         "vector": True,
                         "touch_pan": True,
+                        "segment_touch_target": True,
                         "visual_editor": True,
                     },
                     indent=2,

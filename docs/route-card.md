@@ -1,6 +1,6 @@
 # Interactive route-map card
 
-The **0.8.0b2** experiment remains on `feature/route-maps`. It adds an optional
+The **0.8.0b3** experiment remains on `feature/route-maps`. It adds an optional
 dashboard card to the static previews/images introduced in 0.8.0b1. Existing
 route settings, subentry versions, sensor identities and image identities are
 unchanged. Installation instructions are in the [README](../README.md#interactive-dashboard-card).
@@ -46,7 +46,14 @@ areas. Users may choose another provider via the optional `map_style_url`; its
 own style supplies attribution. The default always displays OSM attribution.
 
 Source forecast lines use the same category colors as the static image. Unknown
-codes, source errors and missing conditions remain gray. Popups render source
+codes, source errors and missing conditions remain gray. Since 0.8.0b3, native
+MapLibre zoom expressions scale line widths roughly with the default style's
+main roads, instead of keeping a fixed pixel width. Forecasts do not provide
+a verified physical width or shared OSM road identifier, so neither exact
+alignment nor exact width matching is promised, including with custom styles.
+A transparent, at least 20-pixel line makes thin segments easier to tap; a direct
+hit on a painted segment takes priority over another segment's touch area.
+The A/B markers use centered letters inside 24-pixel circles. Popups render source
 values as text and preserve zero, null and unusual readings. String feature IDs
 are explicitly promoted through GeoJSON properties so vector-tile conversion
 does not discard them. Disconnected geometry stays disconnected; longitude
@@ -65,6 +72,14 @@ continues to use the existing simple static route image.
 
 The user registers one normal JavaScript module resource. The integration does
 not edit Lovelace storage, inject hidden modules or change HA's entity dialogs.
+For the finished card, the intended distribution is a separate HACS Dashboard
+package. HACS's own [plugin installation lifecycle](https://github.com/hacs/integration/blob/2.0.5/custom_components/hacs/repositories/plugin.py)
+adds and updates resources in storage mode and removes them on uninstall.
+YAML-managed resources remain manual. An Integration download does not perform
+that Dashboard lifecycle just because it contains JavaScript. This beta has
+not yet been split into a separate Dashboard package; its resource registration
+remains manual. This keeps resource management with HACS rather than duplicating
+its use of HA's internal resource collection in the integration.
 Source/tool versions are pinned in `package-lock.json`; generated assets and
 third-party licenses ship in the integration folder. Development and validation
 commands are in [development.md](development.md#interactive-card).
@@ -78,8 +93,10 @@ source categories, disconnected geometry and large/antimeridian route fitting.
 ESLint, Prettier and the deterministic bundle check use the same commands in CI.
 
 The packaged browser scenario checks actual mobile-width vector rendering,
-touch panning, zoom, route fitting, source segment popups, English/Bokmål labels
+touch panning, zoom, route fitting, source segment popups (including taps just
+outside a thin painted line), English/Bokmål labels
 and HA's native visual card editor; it passed on all three locked HA targets.
+Street-level screenshots at zoom 16 and 18 supplement the fitted overview.
 HA 2025.12's promoted edit button has a
 tooltip without an accessible label; the test locates that rendered button by
 its tooltip. Its native language-change view transition can report a skipped
