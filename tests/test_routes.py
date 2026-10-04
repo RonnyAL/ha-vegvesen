@@ -359,6 +359,7 @@ async def test_forecast_entities_and_recovery(  # noqa: PLR0915
     assert coordinator.last_exception.retry_after == 120
     assert hass.states.get(condition.entity_id).state == STATE_UNAVAILABLE
     # Failed snapshots must not be returned as the latest successful result.
+    freezer.tick(timedelta(seconds=121))
     mock_http.get(url, status=503)
     await coordinator.async_refresh()
     assert hass.states.get(condition.entity_id).state == STATE_UNAVAILABLE
@@ -393,7 +394,15 @@ async def test_forecast_entities_and_recovery(  # noqa: PLR0915
     )
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert coordinator._shutdown_requested
-    assert not hass.services.has_service(DOMAIN, "get_route_forecasts")
+    assert hass.services.has_service(DOMAIN, "get_route_forecasts")
+    with pytest.raises(ServiceValidationError, match="unavailable"):
+        await hass.services.async_call(
+            DOMAIN,
+            "get_route_forecasts",
+            {"device_id": device.id},
+            blocking=True,
+            return_response=True,
+        )
 
 
 @pytest.mark.parametrize("failure", ["http", "no_route", "invalid_point"])

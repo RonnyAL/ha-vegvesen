@@ -21,7 +21,13 @@ The coordinator polls selected IDs every ten minutes, matching the documented [w
 
 The official [data catalogue](https://dataut.vegvesen.no/nb/dataservice/vaerdata-malinger-api) identifies NLOD licensing for weather data. Sensors expose the attribution **Data provided by Statens vegvesen**. The registered DATEX XML service and this credential-free OGC endpoint are different representations; the catalogue's license reference covers the underlying dataset, without a separately verified OGC-specific terms page.
 
-No numerical request quota or atomic multi-page snapshot guarantee was verified. The client catches visible inconsistencies but cannot detect a same-count dataset replacement between pages. No staleness threshold is invented: observation time remains visible, even when old. Metadata renames take effect in device naming on setup/reload; source IDs remain stable. Malformed schema is an explicit failure, not an inferred correction.
+No numerical request quota or atomic multi-page snapshot guarantee was verified. The client catches visible inconsistencies but cannot detect a same-count dataset replacement between pages. No staleness threshold is invented: observation time remains visible, even when old. Metadata renames update the integration's device name after a complete refresh; user device names and existing entity IDs remain unchanged. Saved source names also keep new entity IDs consistent when a station is absent at startup. Malformed schema is an explicit failure, not an inferred correction.
+
+The shared client retains HTTP 429 cooldowns across setup retries, discovery,
+manual refreshes and entry reloads. An early attempt raises the remaining delay
+without HTTP; HA still owns all retry scheduling. Cooldowns are per collection
+endpoint or image URL and last only for the current HA process. See the
+[runtime review](runtime-review.md) for scope and lifecycle details.
 
 ## Current ownership and lifecycle
 

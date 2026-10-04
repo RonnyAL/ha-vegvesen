@@ -13,6 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import RoadCamera, VegvesenApiClient, WeatherStation
 from .const import DOMAIN, LOGGER
+from .route_api import RouteApiClient
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -93,14 +94,16 @@ class CatalogueCache[T: WeatherStation | RoadCamera]:
 
 
 class DiscoveryCache:
-    """HA-scoped discovery only; no timers, persistent tasks or entity state."""
+    """Shared clients, cooldowns and discovery; no timers or entity state."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Use the shared session; the cache never closes it."""
         self._hass = hass
-        client = VegvesenApiClient(async_get_clientsession(hass))
-        self.weather = CatalogueCache(client.async_get_weather)
-        self.cameras = CatalogueCache(client.async_get_cameras)
+        session = async_get_clientsession(hass)
+        self.client = VegvesenApiClient(session)
+        self.route_client = RouteApiClient(session, self.client)
+        self.weather = CatalogueCache(self.client.async_get_weather)
+        self.cameras = CatalogueCache(self.client.async_get_cameras)
         self._geography: dict[str, SourceLocation] | None = None
         self._geography_lock = asyncio.Lock()
 

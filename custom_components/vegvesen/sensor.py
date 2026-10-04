@@ -15,6 +15,7 @@ from homeassistant.const import UnitOfTemperature
 from .const import (
     CONF_CAMERA_ID,
     CONF_STATION_ID,
+    CONF_STATION_NAME,
     SUBENTRY_CAMERA,
     SUBENTRY_WEATHER_STATION,
 )
@@ -83,7 +84,12 @@ async def async_setup_entry(
                 WeatherSensor(
                     coordinator,
                     station_id,
-                    station.name if station else subentry.title,
+                    station.name
+                    if station
+                    else subentry.data.get(
+                        CONF_STATION_NAME,
+                        subentry.title.removesuffix(f" ({station_id})"),
+                    ),
                     description,
                 )
                 for description in SENSORS

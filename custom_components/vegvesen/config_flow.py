@@ -14,17 +14,18 @@ from homeassistant.config_entries import (
     SubentryFlowResult,
 )
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import RoadCamera, VegvesenApiClient, VegvesenApiError, WeatherStation
+from .api import RoadCamera, VegvesenApiError, WeatherStation
 from .const import (
     CONF_CAMERA_ID,
     CONF_STATION_ID,
+    CONF_STATION_NAME,
     DOMAIN,
     NAME,
     SUBENTRY_CAMERA,
     SUBENTRY_WEATHER_STATION,
 )
+from .discovery import async_get_discovery
 from .route_flow import RouteFlow, RouteSubentryFlow
 from .selection import (
     CONF_COUNTY,
@@ -161,6 +162,12 @@ class SourceFlow:
     def _has_duplicates(self) -> bool:
         return False
 
+    def _source_data(self, source: WeatherStation | RoadCamera) -> dict[str, str]:
+        """Store the display name separately from the ID-bearing selector label."""
+        if isinstance(source, WeatherStation):
+            return {CONF_STATION_ID: source.source_id, CONF_STATION_NAME: source.name}
+        return {CONF_CAMERA_ID: source.source_id}
+
     async def _async_save_sources(self) -> SelectionResult:
         """Validate every selected record before saving any source."""
         ids = set(self._picker.selected)
@@ -178,7 +185,7 @@ class SourceFlow:
     ) -> SelectionResult:
         """Validate in a cancellable task; do not save from the background task."""
         if self._validation_task is None:
-            client = VegvesenApiClient(async_get_clientsession(self.hass))
+            client = async_get_discovery(self.hass).client
             ids = set(self._picker.selected)
             self._validation_task = self.hass.async_create_task(
                 client.async_get_weather(ids)
@@ -256,11 +263,6 @@ class VegvesenConfigFlow(RouteFlow, SourceFlow, ConfigFlow, domain=DOMAIN):
         self, selected: list[WeatherStation | RoadCamera]
     ) -> ConfigFlowResult:
         self._abort_if_unique_id_configured()
-        field = (
-            CONF_STATION_ID
-            if self._family == SUBENTRY_WEATHER_STATION
-            else CONF_CAMERA_ID
-        )
         return self.async_create_entry(
             title=NAME,
             data={},
@@ -269,7 +271,7 @@ class VegvesenConfigFlow(RouteFlow, SourceFlow, ConfigFlow, domain=DOMAIN):
                     "subentry_type": self._family,
                     "unique_id": f"{self._family}:{source.source_id}",
                     "title": source.label,
-                    "data": {field: source.source_id},
+                    "data": self._source_data(source),
                 }
                 for source in selected
             ],
@@ -331,11 +333,6 @@ class SourceSubentryFlow(SourceFlow, ConfigSubentryFlow):
         self, selected: list[WeatherStation | RoadCamera]
     ) -> SubentryFlowResult:
         entry = self._get_entry()
-        field = (
-            CONF_STATION_ID
-            if self._family == SUBENTRY_WEATHER_STATION
-            else CONF_CAMERA_ID
-        )
         # HA's subentry flow result creates one subentry. Add the rest using its
         # public API, synchronously, after validating the entire selection.
         for source in selected[1:]:
@@ -345,13 +342,13 @@ class SourceSubentryFlow(SourceFlow, ConfigSubentryFlow):
                     subentry_type=self._family,
                     unique_id=f"{self._family}:{source.source_id}",
                     title=source.label,
-                    data={field: source.source_id},
+                    data=self._source_data(source),
                 ),
             )
         source = selected[0]
         return self.async_create_entry(
             title=source.label,
-            data={field: source.source_id},
+            data=self._source_data(source),
             unique_id=f"{self._family}:{source.source_id}",
         )
 

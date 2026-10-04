@@ -9,7 +9,6 @@ from uuid import uuid4
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     LocationSelector,
     NumberSelector,
@@ -22,7 +21,8 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import VegvesenApiError
-from .route_api import RoadRoute, RouteApiClient, RoutePointError
+from .discovery import async_get_discovery
+from .route_api import RoadRoute, RoutePointError
 
 if TYPE_CHECKING:
     import asyncio
@@ -248,9 +248,9 @@ class RouteFlow:
             return {"base": "invalid_route"}
         try:
             if not self._route_choices:
-                self._route_choices = await RouteApiClient(
-                    async_get_clientsession(self.hass)
-                ).async_routes(stops)
+                self._route_choices = await async_get_discovery(
+                    self.hass
+                ).route_client.async_routes(stops)
                 self._route_choice = 0
                 self._route_stops = deepcopy(stops)
         except RoutePointError as err:

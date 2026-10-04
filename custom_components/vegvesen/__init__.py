@@ -8,32 +8,41 @@ from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers import config_validation as cv
 
-from .api import VegvesenApiClient
 from .const import (
     CONF_CAMERA_ID,
     CONF_STATION_ID,
+    DOMAIN,
     SUBENTRY_CAMERA,
     SUBENTRY_WEATHER_STATION,
 )
 from .coordinator import CameraCoordinator, WeatherCoordinator
 from .data import VegvesenData
-from .route_api import RouteApiClient
+from .discovery import async_get_discovery
 from .route_coordinator import RouteCoordinator
 from .route_services import async_setup_route_service
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.typing import ConfigType
 
     from .data import VegvesenConfigEntry
 
 PLATFORMS = [Platform.SENSOR, Platform.CAMERA]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa: ARG001
+    """Register the route action independently of entry setup and reloads."""
+    async_setup_route_service(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> bool:
     """Create entry resources and set up selected station entities."""
-    client = VegvesenApiClient(async_get_clientsession(hass))
+    shared = async_get_discovery(hass)
+    client = shared.client
     station_ids = {
         subentry.data[CONF_STATION_ID]
         for subentry in entry.subentries.values()
@@ -46,7 +55,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> 
         if subentry.subentry_type == SUBENTRY_CAMERA
     }
     cameras = CameraCoordinator(hass, entry, client, camera_ids)
-    route_client = RouteApiClient(async_get_clientsession(hass))
+    route_client = shared.route_client
     routes = {
         s.subentry_id: RouteCoordinator(hass, entry, s, route_client)
         for s in entry.subentries.values()
@@ -79,7 +88,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> 
             partial(_async_reload_entry, runtime=entry.runtime_data)
         )
     )
-    async_setup_route_service(hass, entry)
     return True
 
 

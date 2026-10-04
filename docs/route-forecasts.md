@@ -178,7 +178,10 @@ separate [weather forecast dataset](https://dataut.vegvesen.no/nb/dataset/vaerda
 describes point forecasts via XML REST, not a verified push replacement for road
 segments. Clock-aligned polling is therefore used; it is not a source event feed.
 
-One route's failure does not stop weather, cameras or other routes. Removing a
+One route's request failure does not stop weather, cameras or other routes.
+HTTP 429 is the exception: routes sharing the forecast endpoint honor its
+server-requested cooldown together, including across entry reloads. Weather,
+camera metadata, image URLs and routing use separate cooldowns. Removing a
 route unloads its polling and entities. Entry reload detects both subentry
 membership and data/title changes.
 

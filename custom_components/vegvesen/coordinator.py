@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from time import monotonic
 from typing import TYPE_CHECKING
 
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
@@ -16,7 +16,7 @@ from .api import (
     VegvesenRateLimitError,
     WeatherStation,
 )
-from .const import CAMERA_UPDATE_INTERVAL, LOGGER, WEATHER_UPDATE_INTERVAL
+from .const import CAMERA_UPDATE_INTERVAL, DOMAIN, LOGGER, WEATHER_UPDATE_INTERVAL
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -52,11 +52,19 @@ class WeatherCoordinator(DataUpdateCoordinator[dict[str, WeatherStation]]):
     async def _async_update_data(self) -> dict[str, WeatherStation]:
         """Replace data only after every requested page succeeds."""
         try:
-            return await self.client.async_get_weather(self.station_ids)
+            stations = await self.client.async_get_weather(self.station_ids)
         except VegvesenRateLimitError as err:
             raise UpdateFailed(str(err), retry_after=err.retry_after) from err
         except VegvesenApiError as err:
             raise UpdateFailed(str(err)) from err
+        registry = dr.async_get(self.hass)
+        for station in stations.values():
+            device = registry.async_get_device(
+                identifiers={(DOMAIN, f"weather_station:{station.source_id}")}
+            )
+            if device is not None and device.name != station.name:
+                registry.async_update_device(device.id, name=station.name)
+        return stations
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +99,6 @@ class CameraCoordinator(DataUpdateCoordinator[dict[str, CameraSnapshot]]):
         self.camera_ids = frozenset(camera_ids)
         self.data = {}
         self._image_semaphore = asyncio.Semaphore(4)
-        self._image_retry_at: dict[str, float] = {}
 
     async def _async_update_data(self) -> dict[str, CameraSnapshot]:
         """Complete metadata pagination before issuing any image requests."""
@@ -110,15 +117,9 @@ class CameraCoordinator(DataUpdateCoordinator[dict[str, CameraSnapshot]]):
         """Respect source availability and image-specific retry headers."""
         if not camera.can_fetch_image or camera.image_url is None:
             return CameraSnapshot(camera, None)
-        if monotonic() < self._image_retry_at.get(camera.source_id, 0):
-            return CameraSnapshot(camera, None, "Camera image rate limited")
         try:
             async with self._image_semaphore:
                 image = await self.client.async_get_image(camera.image_url)
-        except VegvesenRateLimitError as err:
-            self._image_retry_at[camera.source_id] = monotonic() + err.retry_after
-            return CameraSnapshot(camera, None, str(err))
         except VegvesenApiError as err:
             return CameraSnapshot(camera, None, str(err))
-        self._image_retry_at.pop(camera.source_id, None)
         return CameraSnapshot(camera, image)

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from http import HTTPStatus
+from time import monotonic
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, unquote, urljoin, urlsplit
 
@@ -229,6 +230,21 @@ class VegvesenApiClient:
     def __init__(self, session: aiohttp.ClientSession) -> None:
         """Initialize without credentials or a geographic boundary."""
         self._session = session
+        self._retry_at: dict[str, float] = {}
+
+    def check_cooldown(self, endpoint: str) -> None:
+        """Reject early requests locally, including setup and manual refreshes."""
+        if (remaining := self._retry_at.get(endpoint, 0) - monotonic()) > 0:
+            raise VegvesenRateLimitError(remaining)
+        self._retry_at.pop(endpoint, None)
+
+    def rate_limit(self, endpoint: str, header: str | None) -> VegvesenRateLimitError:
+        """Retain a server cooldown without creating another polling timer."""
+        delay = _retry_after(header)
+        self._retry_at[endpoint] = max(
+            self._retry_at.get(endpoint, 0), monotonic() + delay
+        )
+        return VegvesenRateLimitError(delay)
 
     async def async_get_weather(
         self, source_ids: Collection[str] | None = None
@@ -256,15 +272,14 @@ class VegvesenApiClient:
             or target.fragment
         ):
             raise VegvesenApiError("Unsupported camera image endpoint")
+        self.check_cooldown(url)
         try:
             async with asyncio.timeout(IMAGE_REQUEST_TIMEOUT):
                 async with self._session.get(
                     url, headers={"Accept": "image/jpeg"}, allow_redirects=False
                 ) as response:
                     if response.status == HTTPStatus.TOO_MANY_REQUESTS:
-                        raise VegvesenRateLimitError(
-                            _retry_after(response.headers.get("Retry-After"))
-                        )
+                        raise self.rate_limit(url, response.headers.get("Retry-After"))
                     response.raise_for_status()
                     if (
                         response.status != HTTPStatus.OK
@@ -317,14 +332,15 @@ class VegvesenApiClient:
         try:
             async with asyncio.timeout(REQUEST_TIMEOUT):
                 while url is not None:
+                    self.check_cooldown(endpoint)
                     async with self._session.get(
                         url,
                         params=params if not visited else None,
                         headers={"Accept": "application/json"},
                     ) as response:
                         if response.status == HTTPStatus.TOO_MANY_REQUESTS:
-                            raise VegvesenRateLimitError(
-                                _retry_after(response.headers.get("Retry-After"))
+                            raise self.rate_limit(
+                                endpoint, response.headers.get("Retry-After")
                             )
                         response.raise_for_status()
                         page = await response.json()

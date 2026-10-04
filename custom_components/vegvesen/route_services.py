@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import voluptuous as vol
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr
@@ -20,13 +21,27 @@ if TYPE_CHECKING:
 SERVICE_FORECASTS = "get_route_forecasts"
 
 
-def async_setup_route_service(hass: HomeAssistant, entry: VegvesenConfigEntry) -> None:
-    """Register a response-only action and remove it when this parent unloads."""
+def async_setup_route_service(hass: HomeAssistant) -> None:
+    """Register once; resolve the current loaded runtime for each action call."""
 
     async def forecasts(call: ServiceCall) -> ServiceResponse:
         device = dr.async_get(hass).async_get(call.data["device_id"])
-        if device is None or entry.entry_id not in device.config_entries:
+        if device is None:
             raise ServiceValidationError("Select a Statens vegvesen route device")
+        entries = [
+            entry
+            for entry_id in device.config_entries
+            if (entry := hass.config_entries.async_get_entry(entry_id)) is not None
+            and entry.domain == DOMAIN
+        ]
+        if not entries or not any(
+            domain == DOMAIN and identifier.startswith("route:")
+            for domain, identifier in device.identifiers
+        ):
+            raise ServiceValidationError("Select a route forecast device")
+        entry = cast("VegvesenConfigEntry", entries[0])
+        if entry.state is not ConfigEntryState.LOADED:
+            raise ServiceValidationError("Route forecasts are unavailable")
         coordinator = next(
             (
                 r
@@ -67,4 +82,3 @@ def async_setup_route_service(hass: HomeAssistant, entry: VegvesenConfigEntry) -
         ),
         supports_response=SupportsResponse.ONLY,
     )
-    entry.async_on_unload(lambda: hass.services.async_remove(DOMAIN, SERVICE_FORECASTS))

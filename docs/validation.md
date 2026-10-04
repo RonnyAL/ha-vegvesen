@@ -7,7 +7,14 @@
 | Primary development | 2026.9.4 | 3.14.8 | 0.13.367 | `uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-Both run the same 299 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+Both run the same 308 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+
+The [0.7.2 runtime review](runtime-review.md) adds regressions for initial HTTP 429
+with and without a healthy source family, automatic retry, manual refresh,
+entry reload, discovery, later-page failures and image cooldowns. Action tests
+cover registration before entries, setup retry, unloaded routes and resolution
+of the new runtime after reload. Weather-name tests cover new and legacy
+subentries, missing startup data, recovery, existing IDs and user device names.
 
 The route scheduler tests advance HA’s actual timer with mocked HTTP responses. They cover hour/half-hour boundaries, midnight and the UTC hour of Oslo’s daylight-saving transition, manual refresh alignment, a request crossing an hour, unchanged states, failure/recovery, Retry-After spanning a boundary, disabled polling and unloading. No live half-hour wait or household HA is needed.
 

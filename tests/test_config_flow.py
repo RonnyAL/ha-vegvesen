@@ -11,6 +11,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.vegvesen.const import (
     CONF_STATION_ID,
+    CONF_STATION_NAME,
     DOMAIN,
     SUBENTRY_WEATHER_STATION,
 )
@@ -58,7 +59,10 @@ async def test_parent_flow(
     assert entry.data == {}
     subentry = next(iter(entry.subentries.values()))
     assert subentry.subentry_type == SUBENTRY_WEATHER_STATION
-    assert subentry.data == {CONF_STATION_ID: "1629006"}
+    assert subentry.data == {
+        CONF_STATION_ID: "1629006",
+        CONF_STATION_NAME: "Fv 714 Våvatnet",
+    }
     assert subentry.unique_id == "weather_station:1629006"
     duplicate = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}

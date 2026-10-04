@@ -8,6 +8,7 @@ NAME = "Statens vegvesen"
 ATTRIBUTION = "Data provided by Statens vegvesen"
 LOGGER = logging.getLogger(__package__)
 CONF_STATION_ID = "station_id"
+CONF_STATION_NAME = "station_name"
 CONF_CAMERA_ID = "camera_id"
 SUBENTRY_WEATHER_STATION = "weather_station"
 SUBENTRY_CAMERA = "camera"

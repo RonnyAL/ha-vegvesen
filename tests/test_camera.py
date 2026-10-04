@@ -175,6 +175,18 @@ async def test_image_backoff_and_polling(
     await hass.async_block_till_done(wait_background_tasks=True)
     assert camera_entry.runtime_data.cameras.last_update_success
     assert camera_entry.runtime_data.cameras.data["3000047_2"].image is None
+    requests = sum(map(len, mock_http.requests.values()))
+    mock_http.get(
+        camera_url(("3000047_2", "3000063_1")), payload=page(camera_features[:2])
+    )
+    mock_http.get(
+        camera_features[1]["properties"]["STILL_IMAGE_URL"],
+        body=jpeg,
+        content_type="image/jpeg",
+    )
+    assert await hass.config_entries.async_reload(camera_entry.entry_id)
+    assert sum(map(len, mock_http.requests.values())) == requests + 2
+    assert camera_entry.runtime_data.cameras.data["3000047_2"].image is None
     mock_camera_poll(mock_http, camera_features, jpeg)
     freezer.tick(timedelta(seconds=121))
     async_fire_time_changed(hass, datetime.now(UTC))

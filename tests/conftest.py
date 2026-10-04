@@ -17,6 +17,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.vegvesen.const import (
     CONF_CAMERA_ID,
     CONF_STATION_ID,
+    CONF_STATION_NAME,
     DOMAIN,
     NAME,
     SUBENTRY_CAMERA,
@@ -121,8 +122,14 @@ def config_entry(features: list[dict[str, Any]]) -> MockConfigEntry:
             {
                 "subentry_type": SUBENTRY_WEATHER_STATION,
                 "unique_id": f"weather_station:{feature['properties']['REFERENCE_ID']}",
-                "title": feature["properties"]["LOCATION_DESCRIPTION"],
-                "data": {CONF_STATION_ID: feature["properties"]["REFERENCE_ID"]},
+                "title": (
+                    f"{feature['properties']['LOCATION_DESCRIPTION']} "
+                    f"({feature['properties']['REFERENCE_ID']})"
+                ),
+                "data": {
+                    CONF_STATION_ID: feature["properties"]["REFERENCE_ID"],
+                    CONF_STATION_NAME: feature["properties"]["LOCATION_DESCRIPTION"],
+                },
             }
             for feature in features[:2]
         ],

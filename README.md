@@ -100,7 +100,7 @@ Routes have their own geography, independently of selected counties, stations, c
 
 This first version supports two endpoints, without intermediate stops, imported tracks or a route-line map preview. Matching is geographic: nearby side roads, crossing roads and opposite carriageways may be included in the corridor. Forecast coverage is not guaranteed along the entire route. Large routes can exceed the request deadline and become unavailable; partial results are never presented as complete. This version does not include traffic incidents or closures.
 
-For individual segment forecasts, use **Statens vegvesen: Get route forecasts** in **Developer tools → Actions**, selecting the route device. The response contains geometry and unchanged source properties from the latest successful refresh. It makes no extra network request; it fails while the route is unavailable. Full segment geometry is kept out of entity attributes and recorder history.
+For individual segment forecasts, use **Statens vegvesen: Get route forecasts** in **Developer tools → Actions**, selecting the route device. The response contains geometry and unchanged source properties from the latest successful refresh. It makes no extra network request; it reports an error while the route is unavailable or unloaded. The action remains listed during integration reloads. Full segment geometry is kept out of entity attributes and recorder history.
 
 ## Updates and removal
 
@@ -121,6 +121,8 @@ To remove one source or route, remove its subentry in **Devices & services**. To
 **A source is missing:** check the appropriate county/municipality, including **Unknown county → Unknown municipality** for unclassified sources. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
 
 **A reading or image is unavailable:** check **Settings → System → Logs**, then allow another refresh. Source faults and outages can affect individual stations or cameras. Camera metadata publication times do not establish when an image was captured.
+
+**A rate-limit message appears:** the integration waits until the server's requested retry delay has elapsed. Reloading the integration or refreshing manually does not bypass that delay.
 
 [Report a problem](https://github.com/RonnyAL/ha-vegvesen/issues) with your Home Assistant version, integration version, entity type, source ID if you are comfortable sharing it, and relevant error messages. Remove credentials and private details from logs or screenshots.
 

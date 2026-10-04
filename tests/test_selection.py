@@ -59,7 +59,7 @@ async def test_native_hierarchical_selection(
     family: str,
     kind: str,
 ) -> None:
-    """All four paths serialize native selectors and save only the final source ID."""
+    """All four paths serialize native selectors and save source identity metadata."""
     weather = family == "weather_station"
     records = features if weather else [camera_features[2]]
     endpoint = weather_url if weather else camera_url
@@ -95,12 +95,15 @@ async def test_native_hierarchical_selection(
         result = await save_sources(manager, result, source_id)
         await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    expected = {field: source_id}
+    if weather:
+        expected["station_name"] = records[0]["properties"]["LOCATION_DESCRIPTION"]
     if kind == "parent":
         assert result["result"].data == {}
         source = next(iter(result["result"].subentries.values()))
-        assert source.data == {field: source_id}
+        assert source.data == expected
     else:
-        assert result["data"] == {field: source_id}
+        assert result["data"] == expected
     assert len(mock_http.requests) == 2  # Catalogue and selected source; no geography.
 
 

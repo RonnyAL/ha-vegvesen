@@ -14,8 +14,6 @@ import aiohttp
 from .api import (
     VegvesenApiClient,
     VegvesenApiError,
-    VegvesenRateLimitError,
-    _retry_after,
 )
 from .const import REQUEST_TIMEOUT
 from .route_geometry import validate_lines
@@ -121,13 +119,18 @@ def parse_forecast(feature: Any) -> RoadForecast:
 class RouteApiClient:
     """Keep routing setup separate from periodic road forecasts."""
 
-    def __init__(self, session: aiohttp.ClientSession) -> None:
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        collections: VegvesenApiClient | None = None,
+    ) -> None:
         """Use HA's shared session without owning it."""
         self._session = session
-        self._collections = VegvesenApiClient(session)
+        self._collections = collections or VegvesenApiClient(session)
 
     async def async_routes(self, stops: Sequence[dict[str, float]]) -> list[RoadRoute]:
         """Calculate candidate road geometries only when users configure a route."""
+        self._collections.check_cooldown(ROUTING_URL)
         params = {
             "Stops": ";".join(f"{p['longitude']},{p['latitude']}" for p in stops),
             "InputSRS": "EPSG_4326",
@@ -141,8 +144,8 @@ class RouteApiClient:
                     ROUTING_URL, params=params, allow_redirects=False
                 ) as response:
                     if response.status == HTTPStatus.TOO_MANY_REQUESTS:
-                        raise VegvesenRateLimitError(
-                            _retry_after(response.headers.get("Retry-After"))
+                        raise self._collections.rate_limit(
+                            ROUTING_URL, response.headers.get("Retry-After")
                         )
                     if response.status == HTTPStatus.NOT_FOUND:
                         error = await response.json()
