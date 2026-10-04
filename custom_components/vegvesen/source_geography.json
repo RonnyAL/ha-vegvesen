@@ -2859,7 +2859,7 @@
       "longitude": 11.324527,
       "county": "Trøndelag",
       "county_number": "50",
-      "municipality": "Rosse",
+      "municipality": "Røros",
       "municipality_number": "5025"
     },
     "camera:1629012_1": {
@@ -2979,7 +2979,7 @@
       "longitude": 12.341113,
       "county": "Trøndelag",
       "county_number": "50",
-      "municipality": "Snåase",
+      "municipality": "Snåsa",
       "municipality_number": "5041"
     },
     "camera:1729005_1": {
@@ -3075,7 +3075,7 @@
       "longitude": 16.075552,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Hábmer",
+      "municipality": "Hamarøy",
       "municipality_number": "1875"
     },
     "camera:1800319_1": {
@@ -3387,7 +3387,7 @@
       "longitude": 17.905396,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Loabák",
+      "municipality": "Lavangen",
       "municipality_number": "5518"
     },
     "camera:1900163_2": {
@@ -3395,7 +3395,7 @@
       "longitude": 17.905396,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Loabák",
+      "municipality": "Lavangen",
       "municipality_number": "5518"
     },
     "camera:1900175_1": {
@@ -3435,7 +3435,7 @@
       "longitude": 20.377491,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Gáivuotna",
+      "municipality": "Kåfjord",
       "municipality_number": "5540"
     },
     "camera:1900178_1": {
@@ -3483,7 +3483,7 @@
       "longitude": 16.592138,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Dielddanuorri",
+      "municipality": "Tjeldsund",
       "municipality_number": "5512"
     },
     "camera:1900184_2": {
@@ -3491,7 +3491,7 @@
       "longitude": 16.592138,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Dielddanuorri",
+      "municipality": "Tjeldsund",
       "municipality_number": "5512"
     },
     "camera:1900185_1": {
@@ -3539,7 +3539,7 @@
       "longitude": 20.506004,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Gáivuotna",
+      "municipality": "Kåfjord",
       "municipality_number": "5540"
     },
     "camera:2000004_1": {
@@ -3579,7 +3579,7 @@
       "longitude": 24.202532,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Guovdageaidnu",
+      "municipality": "Kautokeino",
       "municipality_number": "5612"
     },
     "camera:2000051_1": {
@@ -3603,7 +3603,7 @@
       "longitude": 26.145752,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Kárášjohka",
+      "municipality": "Karasjok",
       "municipality_number": "5610"
     },
     "camera:2000062_1": {
@@ -3795,7 +3795,7 @@
       "longitude": 29.130257,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Unjárga",
+      "municipality": "Nesseby",
       "municipality_number": "5636"
     },
     "camera:3000020_1": {
@@ -4779,7 +4779,7 @@
       "longitude": 16.072924,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Hábmer",
+      "municipality": "Hamarøy",
       "municipality_number": "1875"
     },
     "camera:3000617_1": {
@@ -4803,7 +4803,7 @@
       "longitude": 16.080025,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Hábmer",
+      "municipality": "Hamarøy",
       "municipality_number": "1875"
     },
     "camera:3000620_1": {
@@ -4979,7 +4979,7 @@
       "longitude": 14.321102,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Aarborte",
+      "municipality": "Hattfjelldal",
       "municipality_number": "1826"
     },
     "camera:3000723_1": {
@@ -5155,7 +5155,7 @@
       "longitude": 15.887303,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Hábmer",
+      "municipality": "Hamarøy",
       "municipality_number": "1875"
     },
     "camera:3000789_2": {
@@ -5163,7 +5163,7 @@
       "longitude": 15.887303,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Hábmer",
+      "municipality": "Hamarøy",
       "municipality_number": "1875"
     },
     "camera:3000795_1": {
@@ -5619,7 +5619,7 @@
       "longitude": 23.306633,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Guovdageaidnu",
+      "municipality": "Kautokeino",
       "municipality_number": "5612"
     },
     "camera:3000938_1": {
@@ -5771,7 +5771,7 @@
       "longitude": 25.815376,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Kárášjohka",
+      "municipality": "Karasjok",
       "municipality_number": "5610"
     },
     "camera:3000963_1": {
@@ -5819,7 +5819,7 @@
       "longitude": 14.267556,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Aarborte",
+      "municipality": "Hattfjelldal",
       "municipality_number": "1826"
     },
     "camera:3000969_1": {
@@ -5875,7 +5875,7 @@
       "longitude": 28.836693,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Unjárga",
+      "municipality": "Nesseby",
       "municipality_number": "5636"
     },
     "camera:3000976_1": {
@@ -5883,7 +5883,7 @@
       "longitude": 27.971394,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Deatnu",
+      "municipality": "Tana",
       "municipality_number": "5628"
     },
     "camera:3000978_1": {
@@ -5907,7 +5907,7 @@
       "longitude": 16.778124,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Dielddanuorri",
+      "municipality": "Tjeldsund",
       "municipality_number": "5512"
     },
     "camera:3000981_1": {
@@ -5915,7 +5915,7 @@
       "longitude": 14.316186,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Aarborte",
+      "municipality": "Hattfjelldal",
       "municipality_number": "1826"
     },
     "camera:3000983_1": {
@@ -5963,7 +5963,7 @@
       "longitude": 28.204332,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Deatnu",
+      "municipality": "Tana",
       "municipality_number": "5628"
     },
     "camera:3000988_1": {
@@ -5995,7 +5995,7 @@
       "longitude": 15.867157,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Hábmer",
+      "municipality": "Hamarøy",
       "municipality_number": "1875"
     },
     "camera:3000992_1": {
@@ -6011,7 +6011,7 @@
       "longitude": 28.532703,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Unjárga",
+      "municipality": "Nesseby",
       "municipality_number": "5636"
     },
     "camera:3000994_1": {
@@ -6763,7 +6763,7 @@
       "longitude": 15.33597,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Hábmer",
+      "municipality": "Hamarøy",
       "municipality_number": "1875"
     },
     "camera:3001073_1": {
@@ -6971,7 +6971,7 @@
       "longitude": 27.039515,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Deatnu",
+      "municipality": "Tana",
       "municipality_number": "5628"
     },
     "camera:3001108_1": {
@@ -8411,7 +8411,7 @@
       "longitude": 11.324527,
       "county": "Trøndelag",
       "county_number": "50",
-      "municipality": "Rosse",
+      "municipality": "Røros",
       "municipality_number": "5025"
     },
     "weather_station:1629012": {
@@ -8539,7 +8539,7 @@
       "longitude": 12.341113,
       "county": "Trøndelag",
       "county_number": "50",
-      "municipality": "Snåase",
+      "municipality": "Snåsa",
       "municipality_number": "5041"
     },
     "weather_station:1729005": {
@@ -8843,7 +8843,7 @@
       "longitude": 17.905396,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Loabák",
+      "municipality": "Lavangen",
       "municipality_number": "5518"
     },
     "weather_station:1900175": {
@@ -8867,7 +8867,7 @@
       "longitude": 20.377491,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Gáivuotna",
+      "municipality": "Kåfjord",
       "municipality_number": "5540"
     },
     "weather_station:1900178": {
@@ -8915,7 +8915,7 @@
       "longitude": 16.592138,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Dielddanuorri",
+      "municipality": "Tjeldsund",
       "municipality_number": "5512"
     },
     "weather_station:1900185": {
@@ -8963,7 +8963,7 @@
       "longitude": 20.506004,
       "county": "Troms",
       "county_number": "55",
-      "municipality": "Gáivuotna",
+      "municipality": "Kåfjord",
       "municipality_number": "5540"
     },
     "weather_station:2000004": {
@@ -8995,7 +8995,7 @@
       "longitude": 24.202532,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Guovdageaidnu",
+      "municipality": "Kautokeino",
       "municipality_number": "5612"
     },
     "weather_station:2000051": {
@@ -9019,7 +9019,7 @@
       "longitude": 26.145748,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Kárášjohka",
+      "municipality": "Karasjok",
       "municipality_number": "5610"
     },
     "weather_station:2000062": {
@@ -9283,7 +9283,7 @@
       "longitude": 29.130236,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Unjárga",
+      "municipality": "Nesseby",
       "municipality_number": "5636"
     },
     "weather_station:3000021": {
@@ -9747,7 +9747,7 @@
       "longitude": 15.887303,
       "county": "Nordland",
       "county_number": "18",
-      "municipality": "Hábmer",
+      "municipality": "Hamarøy",
       "municipality_number": "1875"
     },
     "weather_station:3000799": {
@@ -10115,7 +10115,7 @@
       "longitude": 27.039383,
       "county": "Finnmark",
       "county_number": "56",
-      "municipality": "Deatnu",
+      "municipality": "Tana",
       "municipality_number": "5628"
     },
     "weather_station:3001108": {
@@ -10918,5 +10918,6 @@
       "municipality": "Åmli",
       "municipality_number": "4217"
     }
-  }
+  },
+  "names_updated_at": "2026-10-04T10:46:42.561443+00:00"
 }

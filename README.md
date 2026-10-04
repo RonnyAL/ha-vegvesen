@@ -32,22 +32,24 @@ For manual installation, copy the repository's `custom_components/vegvesen` fold
 
 ## Choose stations and cameras
 
-Choose **Weather station / Værstasjon** or **Road camera / Veikamera**. An overview shows your current choices and provides actions to:
+Choose **Weather station / Værstasjon** or **Road camera / Veikamera**.
 
-1. Choose a **county / fylke**.
-2. Choose a **municipality / kommune**.
-3. Select one or more stations or cameras.
-4. Choose **Add / Legg til** to save them.
+1. Choose a **county / fylke** and continue.
+2. Choose a **municipality / kommune** and continue.
+3. Tick one or more stations or cameras, then submit to save them together.
 
-Each editor returns to the overview with **Done / Ferdig**. Use **Change county / Endre fylke**, **Change municipality / Endre kommune**, or the source selection action to revise your draft before adding it. Changing county clears the municipality and source choices; changing municipality clears the source choices. Keeping the same region preserves them.
-
-Only counties and municipalities with sources of the selected type appear. Source labels show the name, camera direction where available, and source ID. You can select several sources from the current municipality before saving.
+Only counties and municipalities with sources of the selected type appear.
+Municipality names use Kartverket's Norwegian names, such as **Kåfjord** and
+**Karasjok**. Each checkbox shows the source name, camera direction where
+available, and source ID. One batch covers one municipality; start another flow
+for sources elsewhere. HA's native forms have no Back button: to change an
+earlier region, close and reopen the wizard. The discovery cache is reused.
 
 New or relocated sources without verified administrative membership appear under **Unknown county / Ukjent fylke → Unknown municipality / Ukjent kommune**. Their measurements and identities are unchanged.
 
 Use **Add weather stations / Legg til værstasjoner** or **Add road cameras / Legg til veikameraer** on the same integration to add more sources. Each selection can be anywhere in Norway; selecting one region does not restrict later selections. The same source cannot be added twice. Existing selections and device/entity identities are retained across updates and restarts.
 
-Discovery lists are reused for up to 15 minutes. The first list after startup or cache expiry needs a complete response from Statens vegvesen; later selections usually open faster. Loading and checking sources use HA’s progress screen; cancelling while a request is pending stops that flow without saving its selections. All selected sources are checked again when you choose **Add**. If a request fails or a selected source is missing or already configured, nothing from that batch is added; you can adjust the selection and retry.
+Discovery lists are reused for up to 15 minutes. The first list after startup or cache expiry needs a complete response from Statens vegvesen; later selections usually open faster. Loading and checking sources use HA’s progress screen; cancelling while a request is pending stops that flow without saving its selections. All selected sources are checked again when you submit the final selection. If a request fails or a selected source is missing or already configured, nothing from that batch is added; you can adjust the selection and retry.
 
 ## Using the entities
 

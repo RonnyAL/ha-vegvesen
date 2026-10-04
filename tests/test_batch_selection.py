@@ -15,7 +15,7 @@ from custom_components.vegvesen.const import DOMAIN
 from .helpers import (
     camera_url,
     choose_region,
-    menu_action,
+    finish_progress,
     page,
     save_sources,
     weather_url,
@@ -82,11 +82,7 @@ async def test_batch_validation(
         result = await manager.async_configure(
             result["flow_id"], {"sources": ids + ids[:1]}
         )
-        assert result["description_placeholders"]["count"] == "3"
-        assert len(entry.subentries) == (
-            1 if outcome == "duplicate" and kind == "subentry" else 0
-        )
-        result = await menu_action(manager, result, "add")
+        result = await finish_progress(manager, result)
         await hass.async_block_till_done()
     if outcome in {"missing", "pagination"} or (
         outcome == "duplicate" and kind == "subentry"

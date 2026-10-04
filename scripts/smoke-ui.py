@@ -20,6 +20,13 @@ EXPECTED_WEATHER_STATIONS = 2
 RESULTS = ROOT / ".tools/smoke-results"
 
 
+def verify_norwegian_names(options: list[dict]) -> None:
+    """Check a real multilingual municipality in the rendered selector options."""
+    names = [option["label"] for option in options]
+    if "Røros" not in names or "Rosse" in names:
+        raise AssertionError("Municipality labels must use Norwegian names")
+
+
 def run_browser(tokens: dict, session: requests.Session) -> None:
     """Create a parent and add a second source through frontend dialogs."""
     tokens.update(
@@ -97,13 +104,18 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 )
 
             def select_source(label: str) -> None:
-                picker.locator("ha-generic-picker ha-button").click()
-                page.locator("ha-picker-combo-box").get_by_text(
-                    label, exact=True
-                ).click()
-                expect(
-                    picker.locator("ha-input-chip").filter(has_text=label)
-                ).to_be_visible()
+                checkbox = picker.get_by_role("checkbox", name=label, exact=True)
+                picker.get_by_text(label, exact=True).click()
+                expect(checkbox).to_be_checked()
+
+            def submit(*, final: bool = False) -> None:
+                key = "submit" if final else "next"
+                label = page.locator("home-assistant").evaluate(
+                    "(element, key) => element.hass.localize("
+                    "'ui.panel.config.integrations.config_flow.' + key)",
+                    key,
+                )
+                page.get_by_role("button", name=label, exact=True).click()
 
             def done(label: str = "Done") -> None:
                 page.get_by_role("button", name=label, exact=True).click()
@@ -126,58 +138,44 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             def choose_region(
                 county: str, municipality: str, *, norwegian: bool = False
             ) -> None:
-                action("Velg fylke" if norwegian else "Choose county")
                 expect(picker.locator("ha-picker-field")).to_have_js_property(
                     "label", "Fylke" if norwegian else "County"
                 )
                 select_region(county)
-                done("Ferdig" if norwegian else "Done")
-                action("Velg kommune" if norwegian else "Choose municipality")
+                submit()
                 expect(picker.locator("ha-picker-field")).to_have_js_property(
                     "label", "Kommune" if norwegian else "Municipality"
                 )
+                if county == "Trøndelag":
+                    options = picker.evaluate(
+                        "element => element.selector.select.options"
+                    )
+                    verify_norwegian_names(options)
                 select_region(municipality)
-                done("Ferdig" if norwegian else "Done")
+                submit()
 
-            expect(page.get_by_text("Choose county", exact=True)).to_be_visible()
+            expect(picker.locator("ha-picker-field")).to_be_visible()
             weather_list_seconds = time.monotonic() - weather_started
-            expect(page.get_by_text("Choose municipality", exact=True)).to_have_count(0)
             choose_region("Trøndelag", "Orkland")
-            action("Select weather stations")
-            done()
-            expect(page.get_by_text("Add", exact=True)).to_have_count(0)
-            action("Select weather stations")
+            submit(final=True)
+            expect(
+                page.get_by_text("Select at least one option.", exact=True)
+            ).to_be_visible()
             select_source("Fv 714 Våvatnet (1629006)")
             select_source("Fv 65 Bye (1629004)")
             page.screenshot(path=str(RESULTS / "weather-selection.png"))
-            done()
-            expect(page.get_by_text("Change county", exact=True)).to_be_visible()
-            action("Change municipality")
-            expect(picker.locator("ha-picker-field")).to_have_js_property(
-                "value", "Orkland"
-            )
-            done()
-            action("Change county")
-            expect(picker.locator("ha-picker-field")).to_have_js_property(
-                "value", "Trøndelag"
-            )
-            done()
-            expect(page.get_by_text("Add", exact=True)).to_be_visible()
-            page.screenshot(path=str(RESULTS / "weather-overview.png"))
-            action("Add")
+            submit(final=True)
             page.get_by_role("button", name="Skip and finish", exact=True).click()
             print("Two weather stations created together through UI")
             page.goto(BASE + "/config/integrations/integration/vegvesen")
             camera_started = time.monotonic()
             page.get_by_role("button", name="Add road cameras", exact=True).click()
-            expect(page.get_by_text("Choose county", exact=True)).to_be_visible()
+            expect(picker.locator("ha-picker-field")).to_be_visible()
             camera_list_seconds = time.monotonic() - camera_started
             choose_region("Møre og Romsdal", "Herøy")
-            action("Select road cameras")
             select_source("Rundebrua — Runde (3000047_2)")
             page.screenshot(path=str(RESULTS / "camera-selection.png"))
-            done()
-            action("Add")
+            submit(final=True)
             page.get_by_role("button", name="Finish", exact=True).click()
             expect(page.get_by_role("button", name="Finish", exact=True)).to_be_hidden()
             print("Camera subentry added through UI")
@@ -231,14 +229,14 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             parent_choice = page.get_by_role("dialog").get_by_text(
                 "Statens vegvesen", exact=True
             )
-            overview = page.get_by_text("Choose county", exact=True)
-            overview.or_(parent_choice).wait_for(state="visible")
+            county_field = picker.locator("ha-picker-field")
+            county_field.or_(parent_choice).wait_for(state="visible")
             if parent_choice.is_visible():
                 parent_choice.click()
-            expect(overview).to_be_visible()
+            expect(county_field).to_be_visible()
             warm_list_seconds = time.monotonic() - warm_started
             page.keyboard.press("Escape")
-            expect(overview).to_have_count(0)
+            expect(county_field).to_have_count(0)
             # Use HA's normal language event and freshly loaded translation resources.
             page.locator("home-assistant").evaluate("""element =>
                 element.dispatchEvent(new CustomEvent('hass-language-select', {
@@ -270,41 +268,23 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                     else "Legg til veikameraer"
                 )
                 page.get_by_role("button", name=add_label, exact=True).click()
-                overview = page.get_by_text("Velg fylke", exact=True)
-                overview.or_(parent_choice).wait_for(state="visible")
+                county_field = picker.locator("ha-picker-field")
+                county_field.or_(parent_choice).wait_for(state="visible")
                 if parent_choice.is_visible():
                     parent_choice.click()
                 choose_region(county_label, municipality_label, norwegian=True)
-                action(
-                    "Velg værstasjoner"
-                    if family == "weather_station"
-                    else "Velg veikameraer"
-                )
                 expect(picker).to_have_js_property("label", field_label)
                 select_source(source_label)
-                done("Ferdig")
                 expect(page.get_by_text("MISSING_VALUE", exact=False)).to_have_count(0)
                 expect(page.get_by_role("link", name="© Kartverket")).to_have_count(0)
-                action("Endre kommune")
-                expect(picker.locator("ha-picker-field")).to_have_js_property(
-                    "value", municipality_label
-                )
-                done("Ferdig")
-                action("Endre fylke")
-                expect(picker.locator("ha-picker-field")).to_have_js_property(
-                    "value", county_label
-                )
-                done("Ferdig")
-                expect(page.get_by_text("Legg til", exact=True)).to_be_visible()
+                expect(page.get_by_text("Valgt:", exact=False)).to_have_count(0)
                 page.screenshot(path=str(RESULTS / f"{family}-bokmal.png"))
                 close_label = page.locator("home-assistant").evaluate(
                     "element => element.hass.localize('ui.common.close')"
                 )
                 page.get_by_role("button", name=close_label, exact=True).click()
-                expect(overview).to_have_count(0)
-            print(
-                "English and Norwegian visible edit actions and source labels verified"
-            )
+                expect(county_field).to_have_count(0)
+            print("English and Norwegian checkbox forms and source labels verified")
             page.get_by_role("button", name="Legg til rute", exact=True).click()
             page.locator("ha-selector-text input").fill("Sonebasert rute")
             endpoints = page.locator("ha-selector-select")

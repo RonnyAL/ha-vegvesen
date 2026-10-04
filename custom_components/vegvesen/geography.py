@@ -41,11 +41,14 @@ class County:
     municipalities: dict[str, Municipality]
 
 
-def _identity(record: Any, prefix: str, digits: int) -> tuple[str, str]:
+def _identity(
+    record: Any, prefix: str, digits: int, *, name_field: str | None = None
+) -> tuple[str, str]:
     """Validate official names and string codes, retaining leading zeroes."""
     if not isinstance(record, dict):
         raise GeographyError("Expected administrative metadata")
-    number, name = record.get(f"{prefix}nummer"), record.get(f"{prefix}navn")
+    number = record.get(f"{prefix}nummer")
+    name = record.get(name_field or f"{prefix}navn")
     if (
         not isinstance(number, str)
         or len(number) != digits
@@ -91,7 +94,7 @@ def parse_counties(payload: Any) -> dict[str, County]:
             raise GeographyError("Duplicate county or missing municipalities")
         municipalities: dict[str, Municipality] = {}
         for item in record["kommuner"]:
-            code, label = _identity(item, "kommune", 4)
+            code, label = _identity(item, "kommune", 4, name_field="kommunenavnNorsk")
             if code in municipalities or not code.startswith(number):
                 raise GeographyError("Duplicate municipality or incorrect county")
             municipalities[code] = Municipality(code, label, _bounds(item))

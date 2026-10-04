@@ -82,24 +82,23 @@ async def choose_region(
     county: str = "Trøndelag",
     municipality: str = "Orkland",
 ) -> dict[str, Any]:
-    """Use the overview's region actions and open the source selection form."""
-    result = await menu_action(manager, result, "county")
+    """Submit the county and municipality forms to reach source selection."""
+    result = await finish_progress(manager, result)
+    assert result["step_id"] == "county"
     assert list(result["data_schema"].schema) == ["county"]
     result = await manager.async_configure(result["flow_id"], {"county": county})
-    result = await menu_action(manager, result, "municipality")
+    assert result["step_id"] == "municipality"
     assert list(result["data_schema"].schema) == ["municipality"]
     result = await manager.async_configure(
         result["flow_id"], {"municipality": municipality}
     )
-    action = next(
-        action for action in result["menu_options"] if action.endswith("_sources")
-    )
-    return await menu_action(manager, result, action)
+    assert result["step_id"].endswith("_sources")
+    return result
 
 
 async def save_sources(
     manager: Any, result: dict[str, Any], *ids: str
 ) -> dict[str, Any]:
-    """Save a draft, then explicitly confirm Add from the overview."""
+    """Submit the final checkbox form, validating the entire batch before save."""
     result = await manager.async_configure(result["flow_id"], {"sources": list(ids)})
-    return await menu_action(manager, result, "add")
+    return await finish_progress(manager, result)

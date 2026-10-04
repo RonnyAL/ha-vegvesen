@@ -1,5 +1,9 @@
 # Config-flow review — 0.6.3
 
+This is the historical 0.6.3 review. The source overview UX was superseded in
+0.7.0 by the [three-step source wizard](geographic-selection.md); cancellation,
+atomic validation and route-flow findings still apply.
+
 Reviewed on 2026-10-04 against the project's native HA/HACS policy, official
 [config-flow and subentry guidance](https://developers.home-assistant.io/docs/core/integration/config_flow/),
 [data-entry flow documentation](https://developers.home-assistant.io/docs/data_entry_flow_index/),

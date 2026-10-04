@@ -39,7 +39,7 @@ async def test_parent_flow(
             result["flow_id"], {"next_step_id": SUBENTRY_WEATHER_STATION}
         )
         result = await finish_progress(hass.config_entries.flow, result)
-        assert result["type"] is FlowResultType.MENU
+        assert result["type"] is FlowResultType.FORM
         result = await choose_region(hass.config_entries.flow, result)
         selector = result["data_schema"].schema["sources"]
         options = selector.config["options"]
@@ -95,8 +95,8 @@ async def test_parent_discovery_failure_recovery(
     mock_http.get(weather_url(), payload=page(features))
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
     result = await finish_progress(hass.config_entries.flow, result)
-    assert result["type"] is FlowResultType.MENU
-    assert result["menu_options"] == ["county"]
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "county"
 
 
 @pytest.mark.parametrize("missing", [False, True])

@@ -1,4 +1,4 @@
-"""Native selection overviews for weather stations and road cameras."""
+"""Native county, municipality and source-selection forms."""
 
 from __future__ import annotations
 
@@ -30,7 +30,6 @@ from .selection import (
     CONF_COUNTY,
     CONF_MUNICIPALITY,
     CONF_SOURCES,
-    UNKNOWN,
     SourcePicker,
 )
 
@@ -42,7 +41,7 @@ type SelectionResult = ConfigFlowResult | SubentryFlowResult
 
 
 class SourceFlow:
-    """Share the same native overview and editing behavior in all four flows."""
+    """Share the same three native forms in all four source flows."""
 
     _family: str
     _picker: SourcePicker
@@ -81,7 +80,7 @@ class SourceFlow:
         self,
         user_input: dict[str, Any] | None = None,  # noqa: ARG002
     ) -> SelectionResult:
-        """Show editable discovery errors or the source overview."""
+        """Show retryable discovery errors or the first region form."""
         errors = {}
         try:
             self._discovery_task.result()
@@ -99,86 +98,40 @@ class SourceFlow:
             return self.async_show_form(
                 step_id=self._retry_step, data_schema=vol.Schema({}), errors=errors
             )
-        return self._overview()
-
-    def _overview(self) -> SelectionResult:
-        picker = self._picker
-        actions = ["county" if picker.county is None else "edit_county"]
-        if picker.county is not None:
-            actions.append(
-                "municipality" if picker.municipality is None else "edit_municipality"
-            )
-        if picker.municipality is not None:
-            actions.append(f"{self._family}_sources")
-        if picker.selected:
-            actions.append("add")
-        return self.async_show_menu(
-            step_id=f"{self._family}_overview",
-            menu_options=actions,
-            description_placeholders={
-                "county": picker.county
-                if picker.county not in {None, UNKNOWN}
-                else "—",
-                "municipality": picker.municipality
-                if picker.municipality not in {None, UNKNOWN}
-                else "—",
-                "count": str(len(picker.selected)),
-            },
-        )
-
-    async def async_step_weather_station_overview(
-        self,
-        user_input: dict[str, Any] | None = None,  # noqa: ARG002
-    ) -> SelectionResult:
-        """Show the editable weather-station draft."""
-        return self._overview()
-
-    async def async_step_camera_overview(
-        self,
-        user_input: dict[str, Any] | None = None,  # noqa: ARG002
-    ) -> SelectionResult:
-        """Show the editable camera draft."""
-        return self._overview()
+        return await self.async_step_county()
 
     async def async_step_county(
         self, user_input: dict[str, Any] | None = None
     ) -> SelectionResult:
-        """Edit the county and return to the overview."""
+        """Choose a populated county and continue to its municipalities."""
         if user_input is not None:
             self._picker.select_county(user_input[CONF_COUNTY])
-            return self._overview()
+            return await self.async_step_municipality()
         return self.async_show_form(
-            step_id="county", data_schema=self._picker.schema(CONF_COUNTY)
+            step_id="county",
+            data_schema=self._picker.schema(CONF_COUNTY),
+            last_step=False,
         )
-
-    async def async_step_edit_county(
-        self, user_input: dict[str, Any] | None = None
-    ) -> SelectionResult:
-        """Expose an explicit edit action after the first county choice."""
-        return await self.async_step_county(user_input)
 
     async def async_step_municipality(
         self, user_input: dict[str, Any] | None = None
     ) -> SelectionResult:
-        """Edit the municipality and return to the overview."""
+        """Choose a populated municipality and continue to its sources."""
         if user_input is not None:
             self._picker.select_municipality(user_input[CONF_MUNICIPALITY])
-            return self._overview()
+            return self._sources_form()
         return self.async_show_form(
-            step_id="municipality", data_schema=self._picker.schema(CONF_MUNICIPALITY)
+            step_id="municipality",
+            data_schema=self._picker.schema(CONF_MUNICIPALITY),
+            last_step=False,
         )
-
-    async def async_step_edit_municipality(
-        self, user_input: dict[str, Any] | None = None
-    ) -> SelectionResult:
-        """Expose an explicit edit action after the first municipality choice."""
-        return await self.async_step_municipality(user_input)
 
     def _sources_form(self, error: str | None = None) -> SelectionResult:
         return self.async_show_form(
             step_id=f"{self._family}_sources",
             data_schema=self._picker.schema(CONF_SOURCES),
             errors={"base": error} if error else {},
+            last_step=True,
         )
 
     async def _async_sources(
@@ -190,7 +143,7 @@ class SourceFlow:
             if any(source_id not in self._picker.sources for source_id in selected):
                 return self._sources_form("invalid_source")
             self._picker.selected = selected
-            return self._overview()
+            return await self._async_save_sources()
         return self._sources_form()
 
     async def async_step_weather_station_sources(
@@ -208,13 +161,12 @@ class SourceFlow:
     def _has_duplicates(self) -> bool:
         return False
 
-    async def async_step_add(
-        self,
-        user_input: dict[str, Any] | None = None,  # noqa: ARG002
-    ) -> SelectionResult:
+    async def _async_save_sources(self) -> SelectionResult:
         """Validate every selected record before saving any source."""
         ids = set(self._picker.selected)
-        if not ids or not ids.issubset(self._picker.sources):
+        if not ids:
+            return self._sources_form("no_sources_selected")
+        if not ids.issubset(self._picker.sources):
             return self._sources_form("invalid_source")
         if self._has_duplicates():
             return self._sources_form("already_configured")
@@ -359,7 +311,7 @@ class SourceSubentryFlow(SourceFlow, ConfigSubentryFlow):
         self,
         user_input: dict[str, Any] | None = None,  # noqa: ARG002
     ) -> SelectionResult:
-        """Open the selection overview or retry discovery."""
+        """Open county selection or retry discovery."""
         return await self._async_start(self._family, "user")
 
     def _has_duplicates(self) -> bool:

@@ -1,28 +1,31 @@
 # Native source selection
 
-Weather stations and cameras use a native Home Assistant menu as an editable
-selection overview. It shows the chosen county, municipality and source count.
-Choose/change actions open a native form; **Done** returns to the overview.
-The source form accepts multiple source IDs and renders readable selected labels.
-Previous selections are suggested values; clearing the field clears the draft,
-including when the frontend omits the empty optional field.
-**Add** appears only when sources are selected. There are no navigation sentinels
-inside the source or region dropdowns and no custom frontend module.
+From 0.7.0, weather stations and cameras use three ordinary HA forms:
+**county → municipality → source checkboxes**. County and municipality forms
+set `last_step=False`; the source form sets `last_step=True`. HA supplies its
+standard Next/Submit labels. Submitting the final form validates and saves all
+checked sources together. There is no source overview, selected/not-selected
+summary, separate Add confirmation, navigation sentinel, or custom frontend.
 
-Only populated regions are offered; there is no “Hele Norge” choice. Changing
-county clears municipality and sources. Changing municipality clears sources.
-Resubmitting an unchanged region preserves its dependants. Closing the flow
-before Add saves nothing. Each batch is from one municipality; subsequent batches
-can be anywhere in Norway. The parent has no geographic restriction.
+Only populated regions are offered; there is no “Hele Norge” choice. Source
+checkboxes use HA's native `SelectSelector`, `multiple=True`, `mode=LIST`, with
+readable names and source IDs. At least one source is required. An empty default
+and `suggested_value` retain choices after a failed request without restoring
+values that the user clears. No selections persist before complete validation.
+Each batch is from one municipality; subsequent batches can be anywhere in
+Norway. The parent has no geographic restriction.
 
 ## Verified HA conventions and lifecycle
 
-The [documented native menu](https://developers.home-assistant.io/docs/data_entry_flow_index/#show-menu)
-selects defined flow steps. Native forms send data on submission, not whenever
-a local field changes. They do not expose a configurable Back button. The overview
-therefore supplies explicit editing actions between forms, without claiming a
-Back button inside an editor. The [select selector](https://www.home-assistant.io/docs/blueprint/selectors/#select-selector)
-supports multiple selections with separate machine values and readable labels.
+The [documented native forms](https://developers.home-assistant.io/docs/data_entry_flow_index/#show-form)
+submit each step normally; `last_step` determines the standard navigation label.
+The [select selector](https://www.home-assistant.io/docs/blueprint/selectors/#select-selector)
+supports both multiple selection and list-mode checkboxes, with separate machine
+values and labels. These APIs exist in both locked HA targets. Native forms do
+not expose live dependent fields or a configurable Back button. The simpler
+wizard deliberately drops the earlier editing-menu round trips; changing an
+earlier region requires closing and restarting, which reuses cached discovery.
+The route overview is unaffected by this source-only redesign.
 
 All four parent/subentry paths share this behavior. Initial parent creation uses
 the public flow result's `subentries` list. An existing parent uses the public
@@ -40,13 +43,13 @@ polling remains independent and physical source identities are unchanged.
 No migration is needed. Future monitor ownership and deduplication remain
 architecture considerations; no monitor framework is introduced.
 
-English and Bokmål have matching titles, field labels and menu actions. Setup
-contains only the selection summary and necessary labels/errors. Attribution
+English and Bokmål have matching titles and field labels. Setup contains only
+the fields and necessary errors, using HA’s standard navigation buttons. Attribution
 remains in the README and installed `NOTICE.md`. An open frontend can keep older
 translations across a backend restart; refresh it after updating. This release
 cannot force the companion app to discard its cached frontend resources.
 
-Both supported HA versions test native serialization, filtering, draft editing,
+Both supported HA versions test native serialization, filtering, cancellation/restart,
 batch creation, failed/incomplete pagination, duplicate races and reload lifecycle.
 The primary frontend also has a real browser smoke test of an extracted runtime
 package. A minimum-version frontend test remains unperformed.
@@ -60,7 +63,13 @@ The API recommends `api.kartverket.no` rather than the older `ws.geonorge.no`
 proxy. Endpoints were verified directly on 2026-10-03:
 
 - `GET /fylkerkommuner?utkoordsys=4326` supplies county/municipality names,
-  string codes (including leading zeroes) and bounding boxes.
+  string codes (including leading zeroes) and bounding boxes. The generic
+  `kommunenavn` follows official name priority and may be Sámi. From 0.7.0,
+  generation explicitly requires `kommunenavnNorsk` for municipality labels.
+  All 357 municipality records in the 2026-10-04 response supplied this field;
+  county names were already Norwegian. These are official Norwegian place
+  names, not homemade translations or transliterations. The recorded source
+  station/camera names and IDs are unchanged.
 - `GET /punkt?nord=<latitude>&ost=<longitude>&koordsys=4326` gives the exact
   administrative membership of a public source coordinate. Rundebrua is
   Herøy (1515), Møre og Romsdal (15); Våvatnet is Orkland (5059), Trøndelag (50).
@@ -74,6 +83,11 @@ The 1,364 records required 907 distinct coordinate lookups; equal coordinates
 share a request, with at most four concurrent requests. Names and codes are
 supplied by Kartverket, not inferred from source IDs, names or bounding boxes.
 The generation script replaces the file only after all requests succeed.
+In 0.7.0, 40 source labels across 11 municipalities were updated by administrative
+ID using one fresh directory response. Coordinate membership and its original
+`generated_at` were retained; `names_updated_at` records the label refresh. Future
+full generation uses the Norwegian field too. Tests compare every bundled label
+against official IDs/names, including Kåfjord, Karasjok and Røros.
 See [regeneration instructions](development.md#updating-source-geography).
 
 Administrative geography: [© Kartverket](https://www.kartverket.no/),
@@ -99,7 +113,7 @@ own dictionary copy. Failed, cancelled, malformed or incomplete pagination
 cannot publish a partial catalogue or replace the previous successful cache.
 An expired cache is not served as a successful refresh after a request failure.
 The form reports the failure for retry. Empty responses are not reused.
-All chosen sources are checked again with a filtered live request at Add.
+All chosen sources are checked again with a filtered live request on final submission.
 Discovery and validation use HA's native progress tasks. Cancelling a pending
 flow cancels its request, and background tasks never save subentries. Complete
 validation is followed by a final duplicate check and synchronous save in the
@@ -109,7 +123,7 @@ to entity polling.
 
 ## Updating through HACS
 
-Update or redownload the custom repository's latest default branch, restart HA,
+Update to the latest numbered release in HACS, restart HA,
 refresh the frontend, and confirm the installed version matches the download. Existing
 selections keep working. Use **Add weather stations** or **Add road cameras**
-to try the editable overview.
+to try the three-step wizard.

@@ -14,53 +14,25 @@
         "title": "Fylke",
         "data": {
           "county": "Fylke"
-        },
-        "submit": "Ferdig"
+        }
       },
       "municipality": {
         "title": "Kommune",
         "data": {
           "municipality": "Kommune"
-        },
-        "submit": "Ferdig"
-      },
-      "weather_station_overview": {
-        "title": "Værstasjoner",
-        "description": "Fylke: **{county}**\n\nKommune: **{municipality}**\n\nValgt: **{count}**",
-        "menu_options": {
-          "county": "Velg fylke",
-          "edit_county": "Endre fylke",
-          "municipality": "Velg kommune",
-          "edit_municipality": "Endre kommune",
-          "weather_station_sources": "Velg værstasjoner",
-          "add": "Legg til"
         }
       },
       "weather_station_sources": {
         "title": "Værstasjoner",
         "data": {
           "sources": "Værstasjoner"
-        },
-        "submit": "Ferdig"
-      },
-      "camera_overview": {
-        "title": "Veikameraer",
-        "description": "Fylke: **{county}**\n\nKommune: **{municipality}**\n\nValgt: **{count}**",
-        "menu_options": {
-          "county": "Velg fylke",
-          "edit_county": "Endre fylke",
-          "municipality": "Velg kommune",
-          "edit_municipality": "Endre kommune",
-          "camera_sources": "Velg veikameraer",
-          "add": "Legg til"
         }
       },
       "camera_sources": {
         "title": "Veikameraer",
         "data": {
           "sources": "Veikameraer"
-        },
-        "submit": "Ferdig"
+        }
       },
       "weather_station": {
         "title": "Værstasjoner",
@@ -120,14 +92,15 @@
       "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
       "camera_missing": "En eller flere valgte datakilder mangler i svaret. Endre utvalget eller prøv igjen.",
       "select_source": "Velg en kilde fra listen.",
-      "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten.",
+      "invalid_source": "Velg en tilgjengelig datakilde fra listen.",
       "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget.",
       "invalid_route": "Velg gyldige punkter og et navn.",
       "no_route": "Ingen kjørbar rute funnet mellom punktene.",
       "zone_unavailable": "Sonen mangler gyldige koordinater. Velg en annen sone eller et punkt på kartet.",
       "invalid_forecast_hours": "Velg et helt antall timer fra 1 til 24.",
       "invalid_corridor": "Velg en gyldig avstand fra 10 til 2000 meter.",
-      "off_road_network": "Velg et punkt nærmere en vei som støttes av rutetjenesten."
+      "off_road_network": "Velg et punkt nærmere en vei som støttes av rutetjenesten.",
+      "no_sources_selected": "Velg minst ett alternativ."
     },
     "abort": {
       "already_configured": "Statens vegvesen er allerede konfigurert. Legg til datakilder eller ruter i den eksisterende integrasjonen."
@@ -150,34 +123,19 @@
           "title": "Fylke",
           "data": {
             "county": "Fylke"
-          },
-          "submit": "Ferdig"
+          }
         },
         "municipality": {
           "title": "Kommune",
           "data": {
             "municipality": "Kommune"
-          },
-          "submit": "Ferdig"
-        },
-        "weather_station_overview": {
-          "title": "Værstasjoner",
-          "description": "Fylke: **{county}**\n\nKommune: **{municipality}**\n\nValgt: **{count}**",
-          "menu_options": {
-            "county": "Velg fylke",
-            "edit_county": "Endre fylke",
-            "municipality": "Velg kommune",
-            "edit_municipality": "Endre kommune",
-            "weather_station_sources": "Velg værstasjoner",
-            "add": "Legg til"
           }
         },
         "weather_station_sources": {
           "title": "Værstasjoner",
           "data": {
             "sources": "Værstasjoner"
-          },
-          "submit": "Ferdig"
+          }
         }
       },
       "error": {
@@ -185,8 +143,9 @@
         "station_missing": "En eller flere valgte datakilder mangler i svaret. Endre utvalget eller prøv igjen.",
         "no_stations": "Datakilden returnerte ingen stasjoner. Prøv igjen senere.",
         "select_source": "Velg en kilde fra listen.",
-        "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten.",
-        "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget."
+        "invalid_source": "Velg en tilgjengelig datakilde fra listen.",
+        "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget.",
+        "no_sources_selected": "Velg minst ett alternativ."
       },
       "abort": {
         "already_configured": "Denne stasjonen er allerede konfigurert."
@@ -211,34 +170,19 @@
           "title": "Fylke",
           "data": {
             "county": "Fylke"
-          },
-          "submit": "Ferdig"
+          }
         },
         "municipality": {
           "title": "Kommune",
           "data": {
             "municipality": "Kommune"
-          },
-          "submit": "Ferdig"
-        },
-        "camera_overview": {
-          "title": "Veikameraer",
-          "description": "Fylke: **{county}**\n\nKommune: **{municipality}**\n\nValgt: **{count}**",
-          "menu_options": {
-            "county": "Velg fylke",
-            "edit_county": "Endre fylke",
-            "municipality": "Velg kommune",
-            "edit_municipality": "Endre kommune",
-            "camera_sources": "Velg veikameraer",
-            "add": "Legg til"
           }
         },
         "camera_sources": {
           "title": "Veikameraer",
           "data": {
             "sources": "Veikameraer"
-          },
-          "submit": "Ferdig"
+          }
         }
       },
       "error": {
@@ -246,8 +190,9 @@
         "no_cameras": "Datakilden returnerte ingen kameraer. Prøv igjen senere.",
         "camera_missing": "En eller flere valgte datakilder mangler i svaret. Endre utvalget eller prøv igjen.",
         "select_source": "Velg en kilde fra listen.",
-        "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten.",
-        "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget."
+        "invalid_source": "Velg en tilgjengelig datakilde fra listen.",
+        "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget.",
+        "no_sources_selected": "Velg minst ett alternativ."
       },
       "abort": {
         "already_configured": "Dette kameraet er allerede konfigurert."

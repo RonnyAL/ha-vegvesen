@@ -100,8 +100,8 @@ class SourcePicker:
                 )
             ]
             # Suggested values are editable. A default of the previous selection
-            # would restore it when HA omits a cleared optional field.
-            marker = vol.Optional(
+            # would restore it when HA omits a cleared field.
+            marker = vol.Required(
                 field, default=[], description={"suggested_value": self.selected}
             )
         else:
@@ -114,7 +114,11 @@ class SourcePicker:
                 marker: SelectSelector(
                     SelectSelectorConfig(
                         options=options,
-                        mode=SelectSelectorMode.DROPDOWN,
+                        mode=(
+                            SelectSelectorMode.LIST
+                            if field == CONF_SOURCES
+                            else SelectSelectorMode.DROPDOWN
+                        ),
                         multiple=field == CONF_SOURCES,
                         custom_value=False,
                         translation_key=field,

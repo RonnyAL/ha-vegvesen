@@ -53,6 +53,38 @@ def test_directory(counties_payload: list[dict[str, Any]]) -> None:
     assert counties["03"].name == "Oslo"
     assert counties["50"].municipalities["5059"].name == "Orkland"
     assert counties["15"].municipalities["1515"].name == "Herøy"
+    assert counties["55"].municipalities["5540"].name == "Kåfjord"
+    assert counties["56"].municipalities["5610"].name == "Karasjok"
+    assert counties["50"].municipalities["5025"].name == "Røros"
+
+
+@pytest.mark.parametrize("value", [None, "", 42])
+def test_norwegian_name_is_required(
+    counties_payload: list[dict[str, Any]], value: Any
+) -> None:
+    """Do not silently substitute the primary-language municipality name."""
+    payload = deepcopy(counties_payload)
+    payload[0]["kommuner"][0]["kommunenavnNorsk"] = value
+    with pytest.raises(GeographyError):
+        parse_counties(payload)
+
+
+def test_bundled_norwegian_names(counties_payload: list[dict[str, Any]]) -> None:
+    """Every bundled label agrees with the official Norwegian name for its ID."""
+    counties = parse_counties(counties_payload)
+    payload = json.loads(
+        (
+            Path(__file__).parents[1]
+            / "custom_components/vegvesen/source_geography.json"
+        ).read_text()
+    )
+    for source in payload["sources"].values():
+        county = counties[source["county_number"]]
+        assert source["county"] == county.name
+        assert (
+            source["municipality"]
+            == county.municipalities[source["municipality_number"]].name
+        )
 
 
 @pytest.mark.parametrize(

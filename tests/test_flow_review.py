@@ -21,7 +21,6 @@ from .helpers import (
     camera_url,
     choose_region,
     finish_progress,
-    menu_action,
     page,
     weather_url,
 )
@@ -33,14 +32,14 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize("family", ["weather_station", "camera"])
-async def test_cached_subentry_discovery_returns_overview(
+async def test_cached_subentry_discovery_returns_county(
     hass: HomeAssistant,
     mock_http: aioresponses,
     features: list[dict[str, Any]],
     camera_features: list[dict[str, Any]],
     family: str,
 ) -> None:
-    """A warm cache returns its overview without a progress event race."""
+    """A warm cache returns its county form without a progress event race."""
     weather = family == "weather_station"
     endpoint = weather_url if weather else camera_url
     mock_http.get(endpoint(), payload=page(features if weather else camera_features))
@@ -53,8 +52,8 @@ async def test_cached_subentry_discovery_returns_overview(
         result = await manager.async_init(
             (entry.entry_id, family), context={"source": SOURCE_USER}
         )
-    assert result["type"] is FlowResultType.MENU
-    assert result["step_id"] == f"{family}_overview"
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "county"
     assert sum(map(len, mock_http.requests.values())) == 1
     assert not entry.subentries
     manager.async_abort(result["flow_id"])
@@ -70,7 +69,7 @@ async def test_clear_source_draft(
     kind: str,
     family: str,
 ) -> None:
-    """Omitting a cleared optional selector must not restore its old selection."""
+    """Omitting a cleared selector must not restore its old selection."""
     weather = family == "weather_station"
     records = features if weather else camera_features
     endpoint = weather_url if weather else camera_url
@@ -82,15 +81,19 @@ async def test_clear_source_draft(
     ):
         manager, result = await start_flow(hass, family, kind, entry)
         result = await choose_region(manager, result, "unknown", "unknown")
+    mock_http.get(endpoint((source_id,)), status=503)
     result = await manager.async_configure(result["flow_id"], {"sources": [source_id]})
-    result = await menu_action(manager, result, f"{family}_sources")
+    result = await finish_progress(manager, result)
+    assert result["errors"] == {"base": "cannot_connect"}
     serialized = FlowManagerIndexView(manager)._prepare_result_json(result)
     assert serialized["data_schema"][0]["description"]["suggested_value"] == [source_id]
     result = await manager.async_configure(result["flow_id"], {})
-    assert result["description_placeholders"]["count"] == "0"
-    assert "add" not in result["menu_options"]
+    assert result["errors"] == {"base": "no_sources_selected"}
+    assert next(iter(result["data_schema"].schema)).description == {
+        "suggested_value": []
+    }
     assert not entry.subentries
-    assert sum(map(len, mock_http.requests.values())) == 1
+    assert sum(map(len, mock_http.requests.values())) == 2
     manager.async_abort(result["flow_id"])
 
 
@@ -190,9 +193,6 @@ async def test_source_progress_cancellation(
             result = await finish_progress(manager, result)
             result = await choose_region(manager, result, "unknown", "unknown")
             result = await manager.async_configure(result["flow_id"], {"sources": ids})
-            result = await manager.async_configure(
-                result["flow_id"], {"next_step_id": "add"}
-            )
         assert result["type"] is FlowResultType.SHOW_PROGRESS
         await asyncio.wait_for(entered.wait(), 1)
         # Reopening the progress screen must not start a second request.

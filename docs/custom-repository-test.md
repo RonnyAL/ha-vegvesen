@@ -6,11 +6,11 @@ Use Home Assistant **2025.12.0 or newer** and HACS **2.0.5 or newer**. The autom
 
 ## First test session
 
-Record your HA version and installed integration version (currently **0.6.4**). Public station/camera IDs help reproduce problems, but your selections and route coordinates can reveal locations of interest; omit them from public reports if needed.
+Record your HA version and installed integration version (currently **0.7.0**). Public station/camera IDs help reproduce problems, but your selections and route coordinates can reveal locations of interest; omit them from public reports if needed.
 
 | Check | Expected result |
 | --- | --- |
-| Source picker | Editable overview with county, municipality and multiple source selections; populated regions only; translated labels and readable source IDs |
+| Source picker | County → municipality → source checkboxes; save several sources together; populated regions only; Norwegian municipality names and readable source IDs |
 | One station | One physical device, an air-temperature sensor and an observation-time sensor |
 | One camera | One direction-specific device, a still camera and a raw source-availability sensor |
 | One route | Choose existing HA zones or map endpoints; review a road proposal; save one route device with six forecast sensors |
@@ -40,7 +40,7 @@ Include version numbers, affected entity type, relevant timestamps and error tex
 
 ## Updates and removal
 
-Use HACS's update control or redownload a numbered release, restart Home Assistant (not the host), then refresh the frontend. For an existing `main` installation, use **Update information**, then **Redownload** and select **0.6.4** if the release is not offered automatically. The first transition may show a commit-to-version change; subsequent release updates show version numbers. Integration reload alone does not load upgraded Python code. Confirm the installed version and that selections/identities survive the restart. See [release and lifecycle details](releases.md).
+Use HACS's update control or redownload a numbered release, restart Home Assistant (not the host), then refresh the frontend. For an existing `main` installation, use **Update information**, then **Redownload** and select **0.7.0** if the release is not offered automatically. The first transition may show a commit-to-version change; subsequent release updates show version numbers. Integration reload alone does not load upgraded Python code. Confirm the installed version and that selections/identities survive the restart. See [release and lifecycle details](releases.md).
 
 To remove everything, remove the parent integration entry from **Devices & services**, remove the downloaded package through HACS, and restart HA. Removing an individual station, camera or route subentry keeps the parent and other selections.
 
@@ -53,6 +53,6 @@ scripts/package
 scripts/smoke-ui
 ```
 
-The archive is `.tools/packages/vegvesen-0.6.4.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including translations, brand images, the original MIT license and data attribution. It excludes environments, developer tools, tests, fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds deterministic in the pinned environment.
+The archive is `.tools/packages/vegvesen-0.7.0.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including translations, brand images, the original MIT license and data attribution. It excludes environments, developer tools, tests, fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds deterministic in the pinned environment.
 
 The smoke runner extracts the package, configures public stations/cameras and a route through the real frontend, and verifies their states and a camera image. It checks installed files independently of a source-tree link; it is not an actual HACS download test. See [validation evidence and limitations](validation.md). HACS continues to use the ordinary repository layout, without ZIP-release mode.
