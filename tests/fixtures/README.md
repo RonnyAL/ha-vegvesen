@@ -6,7 +6,7 @@
 https://ogckart-sn1.atlas.vegvesen.no/ogc/features/v1/collections/datex_3_1:WeatherSimple_v2/items?f=application/json&limit=3
 ```
 
-Data provided by Statens vegvesen. The official [weather dataset catalogue](https://dataut.vegvesen.no/nb/dataservice/vaerdata-malinger-api) identifies Norsk lisens for offentlige data (NLOD). These are public road-station locations, not household coordinates or user selections.
+Data provided by Statens vegvesen. The official [weather dataset catalogue](https://dataut.vegvesen.no/nb/dataservice/vaerdata-malinger-api) identifies Norsk lisens for offentlige data (NLOD). These coordinates identify public road stations.
 
 The captured response is retained unchanged, including pagination metadata and the `-39.6` air-temperature reading at source `1629004`. Tests build synthetic page counts, continuation links, omissions, zero/null values, and failures around copies of these features. They never contact the live API; source observations are not corrected. Timestamps describe the captured observations, not permanently fresh data.
 
@@ -45,7 +45,7 @@ recovery and overlapping bounding boxes. No tests query live services.
 `route_sample.json` was captured on 2026-10-04 from the documented public
 `Route/best` endpoint, with `Stops=10.395,63.43;9.846,63.305`, both coordinate
 systems set to `EPSG_4326`, `ReturnFields=Geometry` and `Lang=Norwegian`.
-This is a public Trondheim–Orkanger example, unrelated to household locations.
+This example connects the public town centres of Trondheim and Orkanger.
 The JSON was parsed and reserialized; response fields are retained.
 Transient routing IDs must not be used as saved-route identity.
 

@@ -27,7 +27,9 @@ def async_setup_route_service(hass: HomeAssistant) -> None:
     async def forecasts(call: ServiceCall) -> ServiceResponse:
         device = dr.async_get(hass).async_get(call.data["device_id"])
         if device is None:
-            raise ServiceValidationError("Select a Statens vegvesen route device")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="invalid_route_device"
+            )
         entries = [
             entry
             for entry_id in device.config_entries
@@ -38,10 +40,14 @@ def async_setup_route_service(hass: HomeAssistant) -> None:
             domain == DOMAIN and identifier.startswith("route:")
             for domain, identifier in device.identifiers
         ):
-            raise ServiceValidationError("Select a route forecast device")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="invalid_route_device"
+            )
         entry = cast("VegvesenConfigEntry", entries[0])
         if entry.state is not ConfigEntryState.LOADED:
-            raise ServiceValidationError("Route forecasts are unavailable")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="route_unavailable"
+            )
         coordinator = next(
             (
                 r
@@ -52,9 +58,13 @@ def async_setup_route_service(hass: HomeAssistant) -> None:
             None,
         )
         if coordinator is None:
-            raise ServiceValidationError("Select a route forecast device")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="invalid_route_device"
+            )
         if not coordinator.last_update_success or coordinator.data is None:
-            raise ServiceValidationError("Route forecasts are unavailable")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="route_unavailable"
+            )
         snapshot = coordinator.data
         return {
             "route": coordinator.subentry.title,

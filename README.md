@@ -2,6 +2,8 @@
 
 Bring road weather readings, road-camera still images and route forecasts from Statens vegvesen into Home Assistant. Choose your sources and save routes anywhere in Norway.
 
+This is an independent community integration, not an official Statens vegvesen product.
+
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
 | Weather station | Air temperature and observation time | 10 minutes |
@@ -15,6 +17,8 @@ Setup is available in English and Norwegian Bokmål. No API key or Statens vegve
 - Home Assistant **2025.12.0 or newer**.
 - [HACS](https://www.hacs.xyz/docs/use/) **2.0.5 or newer** for HACS installation.
 - Internet access to Statens vegvesen's public services.
+
+Automated compatibility tests cover Home Assistant **2025.12.0** and **2026.9.4**.
 
 ## Install with HACS
 
@@ -39,8 +43,7 @@ Choose **Weather station / Værstasjon** or **Road camera / Veikamera**.
 3. Tick one or more stations or cameras, then submit to save them together.
 
 Only counties and municipalities with sources of the selected type appear.
-Municipality names use Kartverket's Norwegian names, such as **Kåfjord** and
-**Karasjok**. Each checkbox shows the source name, camera direction where
+Municipality names use Kartverket's Norwegian names. Each checkbox shows the source name, camera direction where
 available, and source ID. One batch covers one municipality; start another flow
 for sources elsewhere. HA's native forms have no Back button: to change an
 earlier region, close and reopen the wizard. The discovery cache is reused.
@@ -49,7 +52,7 @@ New or relocated sources without verified administrative membership appear under
 
 Use **Add weather stations / Legg til værstasjoner** or **Add road cameras / Legg til veikameraer** on the same integration to add more sources. Each selection can be anywhere in Norway; selecting one region does not restrict later selections. The same source cannot be added twice. Existing selections and device/entity identities are retained across updates and restarts.
 
-Discovery lists are reused for up to 15 minutes. The first list after startup or cache expiry needs a complete response from Statens vegvesen; later selections usually open faster. Loading and checking sources use HA’s progress screen; cancelling while a request is pending stops that flow without saving its selections. All selected sources are checked again when you submit the final selection. If a request fails or a selected source is missing or already configured, nothing from that batch is added; you can adjust the selection and retry.
+Discovery lists are cached for up to 15 minutes, so adding more sources usually opens faster. The first list after startup or cache expiry can take longer. All selected sources are checked before saving; a failed check leaves the selection open for correction or retry.
 
 ## Using the entities
 
@@ -96,9 +99,11 @@ which nearby roads are included; it is an integration setting, not an API radius
 limit. If the routing service cannot match an endpoint to its road network, the
 relevant map or zone field asks you to choose a point closer to a supported road.
 
-Routes have their own geography, independently of selected counties, stations, cameras or other routes. Overlapping routes do not add duplicate stations or cameras. Saved road geometry is reused during polling; **Recalculate route / Beregn ruten på nytt** explicitly requests a fresh road proposal. Zone centres are copied when calculating a route. If you move a zone, recalculate to use its new position. Deleting a zone does not alter an already saved route; select another endpoint before recalculating. Forecasts for one route can fail without stopping the others.
+Routes have their own geography, independently of selected counties, stations, cameras or other routes. They do not automatically add stations or cameras. Saved road geometry is reused during polling; **Recalculate route / Beregn ruten på nytt** requests a fresh road proposal. Zone centres are copied when calculating a route. If you move a zone, recalculate to use its new position. Deleting a zone does not alter an already saved route; select another endpoint before recalculating. Ordinary request failures affect only that route; a server rate limit can pause routes using the same forecast service.
 
-This first version supports two endpoints, without intermediate stops, imported tracks or a route-line map preview. Matching is geographic: nearby side roads, crossing roads and opposite carriageways may be included in the corridor. Forecast coverage is not guaranteed along the entire route. Large routes can exceed the request deadline and become unavailable; partial results are never presented as complete. This version does not include traffic incidents or closures.
+Routes support two endpoints, without intermediate stops, imported tracks or a route-line map preview. Matching is geographic: nearby side roads, crossing roads and opposite carriageways may be included in the corridor. Forecast coverage is not guaranteed along the entire route. Large routes can exceed the request deadline and become unavailable; partial results are never presented as complete. Traffic incidents and closures are not included.
+
+Route calculation sends the selected endpoint coordinates to Statens vegvesen. Forecast requests send the route's bounding rectangle and requested forecast time. Saved route settings and geometry are stored in Home Assistant.
 
 For individual segment forecasts, use **Statens vegvesen: Get route forecasts** in **Developer tools → Actions**, selecting the route device. The response contains geometry and unchanged source properties from the latest successful refresh. It makes no extra network request; it reports an error while the route is unavailable or unloaded. The action remains listed during integration reloads. Full segment geometry is kept out of entity attributes and recorder history.
 
@@ -106,15 +111,15 @@ For individual segment forecasts, use **Statens vegvesen: Get route forecasts** 
 
 Choose a numbered release in HACS, then restart **Home Assistant** to load the updated integration. A host reboot is unnecessary. Reloading the integration alone does not load upgraded Python code.
 
-If you previously installed `main`, the first transition may show a commit identifier → version number. If needed, open the repository menu in HACS, choose **Update information**, then **Redownload** and select the numbered release. Subsequent release updates show version numbers. Selecting `main` continues to use development commits. See the [release notes](https://github.com/RonnyAL/ha-vegvesen/releases).
+Numbered releases provide versioned updates. To switch from the development branch (`main`), open the repository menu in HACS, choose **Update information**, then **Redownload** and select a numbered release. See the [release notes](https://github.com/RonnyAL/ha-vegvesen/releases).
 
-To remove one source or route, remove its subentry in **Devices & services**. To remove everything, remove the integration entry, remove the download in HACS, and restart Home Assistant.
+To remove one source or route, remove its configuration under the integration in **Devices & services**. To remove everything, remove the integration entry, remove the download in HACS, and restart Home Assistant.
 
 ## Troubleshooting and support
 
 **The integration does not appear:** confirm HACS downloaded it, restart Home Assistant, then search again in **Add integration**.
 
-**Blank fields, old setup text or a `MISSING_VALUE` error after updating:** confirm HACS has downloaded the latest revision, restart HA, then refresh the browser. If the companion app shows a lone **+**, blank menu buttons, raw field names or old text while a fresh browser works, use **Reset frontend cache** in the app’s settings. Restarting HA alone does not clear the app’s cached frontend translations. See [HA’s cache troubleshooting](https://www.home-assistant.io/faq/).
+**Missing labels or old setup text after updating:** restart HA, then refresh the browser. If a fresh browser works but the companion app still shows old text, use **Reset frontend cache** in the app’s settings. See [HA’s cache troubleshooting](https://www.home-assistant.io/faq/).
 
 **A forecast time has passed:** with the default 1-hour offset, it normally advances just after the hour, once the request completes. Longer forecast offsets look further ahead. If the route becomes unavailable, check the logs and allow recovery. A successful refresh can leave condition and temperature values unchanged.
 

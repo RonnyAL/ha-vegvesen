@@ -390,10 +390,10 @@ class VegvesenApiClient:
         for feature in features:
             station = parser(feature)
             if station.source_id in stations:
-                raise VegvesenApiError("Duplicate source ID in weather snapshot")
+                raise VegvesenApiError("Duplicate source ID in collection snapshot")
             stations[station.source_id] = station
         if len(stations) > matched:
-            raise VegvesenApiError("Snapshot contains more stations than advertised")
+            raise VegvesenApiError("Snapshot contains more records than advertised")
 
         links = page.get("links", [])
         if not isinstance(links, list) or any(

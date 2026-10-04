@@ -1,12 +1,12 @@
 # Test through a HACS custom repository
 
-The public repository is available through HACS **Custom repositories**. Default-list submission is deferred. Follow the [README installation instructions](../README.md#install-with-hacs); Select a numbered GitHub release for versioned updates; `main` remains available for development testing. See the official [custom repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/).
+The public repository is available through HACS **Custom repositories**. It is not listed in HACS's default catalogue. Follow the [README installation instructions](../README.md#install-with-hacs); select a numbered GitHub release for versioned updates; `main` remains available for development testing. See the official [custom repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/).
 
 Use Home Assistant **2025.12.0 or newer** and HACS **2.0.5 or newer**. The automated HA targets are **2026.9.4** and **2025.12.0**. HA uses its own managed Python; repository development tools are not needed on the installation host.
 
 ## First test session
 
-Record your HA version and installed integration version (currently **0.7.1**). Public station/camera IDs help reproduce problems, but your selections and route coordinates can reveal locations of interest; omit them from public reports if needed.
+Record your HA version and installed integration version. Public station/camera IDs help reproduce problems, but your selections and route coordinates can reveal locations of interest; omit them from public reports if needed.
 
 | Check | Expected result |
 | --- | --- |
@@ -20,7 +20,7 @@ Record your HA version and installed integration version (currently **0.7.1**). 
 | Normal refreshes | Weather nominally every ten minutes; camera metadata/still every minute; routes just after the hour and half-hour |
 | Route hour rollover | With 1 hour ahead selected, a refresh just after 15:00 selects 16:00; condition/temperature values can remain unchanged |
 | Route zone changes | Saved geometry remains in use; edit settings or recalculate to resolve a moved zone and calculate a new road route |
-| Independent failures | One route's failure does not prevent other routes, station readings or camera stills from loading |
+| Independent failures | Ordinary route failures are isolated; server rate limits can pause routes sharing the forecast endpoint |
 | Camera detail dialog | A source still is displayed; metadata publication/update times are not claimed as image capture times |
 | Restart or reconfigure | Selections retained and device/entity identities stable; fresh data fetched on reload |
 | Remove one subentry | Its entities and unowned device removed; other selections remain configured |
@@ -54,6 +54,6 @@ scripts/package
 scripts/smoke-ui
 ```
 
-The archive is `.tools/packages/vegvesen-0.7.0.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including translations, brand images, the original MIT license and data attribution. It excludes environments, developer tools, tests, fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds deterministic in the pinned environment.
+The archive is `.tools/packages/vegvesen-<version>.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including translations, brand images, the original MIT license and data attribution. It excludes environments, developer tools, tests, fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds deterministic in the pinned environment.
 
 The smoke runner extracts the package, configures public stations/cameras and a route through the real frontend, and verifies their states and a camera image. It checks installed files independently of a source-tree link; it is not an actual HACS download test. See [validation evidence and limitations](validation.md). HACS continues to use the ordinary repository layout, without ZIP-release mode.

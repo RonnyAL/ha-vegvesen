@@ -36,14 +36,18 @@ User-facing name: Statens vegvesen.
   Keep releases tied to validated commits, with concise user-facing release notes.
 - Keep the README focused on installation and use; put contributor procedures
   and verification evidence in CONTRIBUTING.md and docs/.
+- Write public documentation and UI text for all users. Do not include private
+  conversations, maintainer-specific paths, personal deployment details or
+  individual support-session history. Use public fixtures and generic examples.
 
 See [release and lifecycle guidance](docs/releases.md) for verified behavior.
 
-## Initial scope
+## Current scope
 
 - WeatherSimple_v2 weather stations.
 - CctvSimple_v2 road cameras.
 - UI configuration with manual station/camera selection.
+- Saved road routes with source road-condition forecasts.
 - Stable source IDs for device and entity identity.
 - HACS-compatible packaging.
 
@@ -54,15 +58,16 @@ API responses before implementing mappings.
 
 - No integration-wide geographic restriction.
 - Future area monitors have their own point and radius.
-- Future route monitors have their own route geometry and corridor.
+- Each route has its own route geometry and corridor.
 - Routes are independent of configured areas.
 - Avoid duplicating physical stations/cameras when monitors overlap.
-- Future features are architecture considerations, not initial scope.
+- Area monitors and automatic source ownership remain future work.
 
 ## Environment
 
-Development runs on a Debian VM that also hosts existing Docker services.
-- Work inside this repository and its development environment.
-- Do not modify existing services, Docker configuration, or host settings.
-- Do not deploy to the household Home Assistant instance.
+- Work inside this repository and its isolated development environment.
+- Leave system Python, existing services, Docker configuration and host settings
+  unchanged.
+- Do not deploy to existing Home Assistant installations. Use disposable test
+  instances for development and validation.
 - Preserve the scaffold's license and required attribution.

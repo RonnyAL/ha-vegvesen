@@ -95,7 +95,7 @@
       "select_source": "Select a source from the list.",
       "invalid_source": "Choose an available source from the list.",
       "already_configured": "One or more selected sources are already configured. Remove them from the selection.",
-      "invalid_route": "Choose valid locations and a name.",
+      "invalid_route": "Choose valid start and destination locations.",
       "no_route": "No drivable route found between these locations.",
       "zone_unavailable": "This zone has no usable coordinates. Choose another zone or a point on the map.",
       "invalid_forecast_hours": "Choose a whole number of hours from 1 to 24.",
@@ -257,7 +257,7 @@
         }
       },
       "error": {
-        "invalid_route": "Choose valid locations and a name.",
+        "invalid_route": "Choose valid start and destination locations.",
         "no_route": "No drivable route found between these locations.",
         "cannot_connect": "Could not calculate the route. Try again.",
         "zone_unavailable": "This zone has no usable coordinates. Choose another zone or a point on the map.",
@@ -349,6 +349,14 @@
           "description": "Select a Statens vegvesen route device."
         }
       }
+    }
+  },
+  "exceptions": {
+    "invalid_route_device": {
+      "message": "Select a Statens vegvesen route device."
+    },
+    "route_unavailable": {
+      "message": "Route forecasts are unavailable. Try again when the route has loaded and refreshed."
     }
   }
 }

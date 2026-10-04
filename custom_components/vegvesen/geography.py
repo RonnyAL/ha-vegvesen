@@ -1,4 +1,4 @@
-"""Kartverket administrative lookups used only while selecting a source."""
+"""Kartverket lookups for generating the bundled source geography."""
 
 from __future__ import annotations
 
@@ -105,7 +105,7 @@ def parse_counties(payload: Any) -> dict[str, County]:
 
 
 class GeographyClient:
-    """Cache point results for one flow; never use geography during polling."""
+    """Cache point results for offline index generation, outside HA setup/polling."""
 
     def __init__(self, session: aiohttp.ClientSession) -> None:
         """Use HA's shared session without assuming ownership of it."""

@@ -7,7 +7,12 @@
 | Primary development | 2026.9.4 | 3.14.8 | 0.13.367 | `uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-Both run the same 308 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+Both run the same 314 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+
+The [0.7.3 public release review](release-readiness.md) records the final code,
+documentation and package assessment. Six additional action-error tests exercise
+native exception translation for missing/wrong devices and unloaded routes in
+English and Bokmål. All translation keys and placeholders match across languages.
 
 The [0.7.2 runtime review](runtime-review.md) adds regressions for initial HTTP 429
 with and without a healthy source family, automatic retry, manual refresh,
@@ -16,7 +21,7 @@ cover registration before entries, setup retry, unloaded routes and resolution
 of the new runtime after reload. Weather-name tests cover new and legacy
 subentries, missing startup data, recovery, existing IDs and user device names.
 
-The route scheduler tests advance HA’s actual timer with mocked HTTP responses. They cover hour/half-hour boundaries, midnight and the UTC hour of Oslo’s daylight-saving transition, manual refresh alignment, a request crossing an hour, unchanged states, failure/recovery, Retry-After spanning a boundary, disabled polling and unloading. No live half-hour wait or household HA is needed.
+The route scheduler tests advance HA’s actual timer with mocked HTTP responses. They cover hour/half-hour boundaries, midnight and the UTC hour of Oslo’s daylight-saving transition, manual refresh alignment, a request crossing an hour, unchanged states, failure/recovery, Retry-After spanning a boundary, disabled polling and unloading. These tests use virtual time and isolated HA fixtures.
 
 The [0.6.3 config-flow review](config-flow-review.md) records native API choices and fixes. New mocked tests cover pending-flow cancellation, progress revisits, cleared optional selectors, numeric validation and translated progress/errors on both supported targets.
 
@@ -41,11 +46,11 @@ The Bokmål test configures HA with language `nb`, checks translated temperature
 
 The minimum's aiodns 3.5.0 cannot import with pycares 5, so its environment explicitly pins pycares 4.11.0. The matching test package pins HA 2025.12.0. Its lru-dict 1.3.0 has no CPython 3.13 wheel; a Zig 0.15.2 compiler builds it locally. The wrapper omits CPython's `--exclude-libs,ALL` linker flag, which Zig cannot parse and which is unnecessary for this extension without linked static archives. Other arguments are preserved.
 
-Optional frontend dependencies require two further native builds on Python 3.14. Their isolated build environments use the same pinned Zig compiler. Setuptools, wheel and pybind11 build dependencies are constrained explicitly. All compilers, managed Python 3.13, environments, downloaded source archives, native libraries and caches remain inside ignored repository directories. Debian's Python and packages are unchanged.
+Optional frontend dependencies require two further native builds on Python 3.14. Their isolated build environments use the same pinned Zig compiler. Setuptools, wheel and pybind11 build dependencies are constrained explicitly. All compilers, managed Python 3.13, environments, downloaded source archives, native libraries and caches remain inside ignored repository directories. System Python and packages are unchanged.
 
 ## Reproduce the checks
 
-Use uv 0.12.22. Native source selection requires no integration JavaScript or Node toolchain. These scripts fall back to `/home/dev/.local/bin/uv` when necessary; `VEGVESEN_UV` can override it.
+Use uv 0.12.22. Native source selection requires no integration JavaScript or Node toolchain. These scripts fall back to `$HOME/.local/bin/uv` when necessary; `VEGVESEN_UV` can override it.
 
 ```bash
 scripts/setup
@@ -69,10 +74,10 @@ The separate remote HACS action runs for public repositories with `comment: fals
 
 ## UI smoke test
 
-The packaged 0.7.1 check passed on 2026-10-04, including native progress,
+The packaged 0.7.3 check passed on 2026-10-04, including native progress,
 cached discovery, English/Bokmål source and route forms, zone/map endpoints,
 reconfiguration and live entities. Initial weather/camera lists opened in about
-0.47/0.61 seconds respectively and cached weather discovery in 0.06 seconds in this run; these are
+0.63/0.60 seconds respectively and cached weather discovery in 0.07 seconds in this run; these are
 observations, not API or UI performance guarantees. The runner waits for HA's
 parent reload before opening the next subentry flow, since HA disables its parent
 chooser during that reload.
@@ -102,7 +107,7 @@ picker, entity or image checks. This targets the primary frontend and a refreshe
 browser, not an open app retaining translations across an upgrade. Minimum-version
 backend behavior is covered by the same mocked tests.
 
-The runner's `finally` block stops the temporary HA process on normal completion, exceptions and handled interrupts, escalating from graceful interrupt to kill only for that child if needed. Its temporary configuration, owner and authentication storage are removed. The port was confirmed closed after testing. Browser/HA log files and screenshots remain ignored. No household HA, existing Docker services or host configuration are used.
+The runner's `finally` block stops the temporary HA process on normal completion, exceptions and handled interrupts, escalating from graceful interrupt to kill only for that child if needed. Its temporary configuration, owner and authentication storage are removed. The port was confirmed closed after testing. Browser/HA log files and screenshots remain ignored. Existing Home Assistant installations, host services and host configuration are not used.
 
 This check needs public API and browser download access. Source changes, camera unavailability, catalogue changes or package URLs disappearing can cause a live smoke failure; the mocked tests remain the reproducible behavior checks. Debian browser libraries are version/checksum-pinned and extracted without package installation, but their public mirror retention is outside this repository's control.
 
@@ -117,8 +122,8 @@ translation resources. The earlier cache check did not establish upgrade behavio
 A separate disposable HA 2026.9.4 test downloaded the public GitHub archives for
 0.3.0 (`8bd50fb`) and 0.4.2 (`9384237`), created a weather entry with the old code,
 and opened a Bokmål subentry flow. It then stopped HA, installed the new archive,
-and restarted HA with the same configuration and browser tab. No household
-instance or host services were used.
+and restarted HA with the same configuration and browser tab. The test used an isolated
+configuration and left existing installations and host services unchanged.
 
 The unchanged browser tab reproduced lowercase `county` and `municipality`,
 English **Change county**, and the old attribution with a `kartverket_url`
@@ -131,8 +136,8 @@ The [frontend translation cache](https://github.com/home-assistant/frontend/blob
 tracks explicitly loaded integrations separately from categories loaded for all
 configured integrations. Reconnection only refreshes categories marked as loaded
 for all configured integrations. Opening another flow can therefore reuse the
-old integration-specific resources. This investigation reproduces a failure
-mechanism; the user's exact HA version and browser state still need confirmation.
+old integration-specific resources. This investigation reproduces a frontend cache failure
+mechanism; it does not establish upgrade behavior for every frontend version.
 
 To check this manually, keep a setup browser tab open across an integration
 update and HA restart, then compare the source forms before and after refreshing
@@ -140,10 +145,10 @@ the browser. A fresh private browser window is a useful independent check. The
 backend must first be restarted to load the installed Python code. This is not a
 reason to remove configured sources or reinstall the integration.
 
-## Remaining distribution work
+## Distribution and validation limits
 
-The immediate target is user testing through a HACS custom repository, described in the [installation guide](custom-repository-test.md). Default-list submission is deferred. Numbered GitHub releases now provide the normal user update path; `main` remains available for development testing. See [release and lifecycle guidance](releases.md). The repository is now public and the user reports the initial HACS installation working. The user reports 0.6.0 route operation working on HA 2026.10.0b0; that beta is not an automated test target. Actual HACS 0.7.1 upgrade/removal testing remains pending. The route schedule is covered by mocked timer tests on both targets. Longer-running live recovery observations and a minimum-version frontend smoke test remain future work. Saved route forecasts are implemented; area monitors and automatic physical-source ownership/deduplication remain future work. See [route details](route-forecasts.md).
+Numbered GitHub releases are distributed through a HACS custom repository; see the [installation guide](custom-repository-test.md) and [release guidance](releases.md). HACS default-list submission is separate. Automated checks cover the two targets above, not every intervening or beta HA version. End-to-end HACS upgrade/removal, long-running live recovery and a minimum-version frontend smoke test are not part of the automated suite. Route scheduling and entry unload/reload are covered by mocked tests on both targets. Area monitors and automatic physical-source ownership remain future work; see [route details](route-forecasts.md).
 
 The native picker tests cover all four parent/subentry source paths, actual HA form serialization, populated region filtering, invalid/out-of-region source IDs, missing/malformed index data, and new, moved or coordinate-free sources. Cache tests cover TTL expiry, shared flow reuse, copied snapshots, simultaneous flows, cancellation, independent families and failed/incomplete pagination without publishing partial data. Geography never runs during setup or entity polling. [Source and behavior details](geographic-selection.md).
 
-For 0.6.1, route field/menu/action translations are checked through HA’s translation loader in English and Bokmål, for both initial setup and subentries. Tests cover mixed endpoints, moved/deleted/unavailable zones and stable route identities. The user confirmed 0.6.0’s blank route labels occurred only in the companion app, with the browser rendering correctly; clearing the app frontend cache is the remedy, not an integration-specific frontend patch.
+For 0.6.1, route field/menu/action translations are checked through HA’s translation loader in English and Bokmål, for both initial setup and subentries. Tests cover mixed endpoints, moved/deleted/unavailable zones and stable route identities. If a fresh browser renders labels correctly while the companion app retains old text, refresh the app frontend cache using its supported settings.

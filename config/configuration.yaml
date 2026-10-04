@@ -1,5 +1,5 @@
-# Isolated development instance. Start manually only when authorized.
-# No discovery, cloud, hardware integrations or household configuration.
+# Isolated development instance. Start manually for local testing.
+# No discovery, cloud, hardware integrations or production configuration.
 frontend:
 http:
   server_host: 127.0.0.1
