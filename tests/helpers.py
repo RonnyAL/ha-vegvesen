@@ -2,9 +2,21 @@
 
 from typing import Any
 
+from homeassistant.data_entry_flow import FlowResultType
 from yarl import URL
 
 from custom_components.vegvesen.const import CAMERA_ITEMS_URL, WEATHER_ITEMS_URL
+
+
+async def finish_progress(manager: Any, result: dict[str, Any]) -> dict[str, Any]:
+    """Follow HA's native progress completion, as the frontend does."""
+    while result["type"] in {
+        FlowResultType.SHOW_PROGRESS,
+        FlowResultType.SHOW_PROGRESS_DONE,
+    }:
+        await manager.hass.async_block_till_done()
+        result = await manager.async_configure(result["flow_id"])
+    return result
 
 
 def weather_url(
@@ -55,9 +67,13 @@ async def menu_action(
     manager: Any, result: dict[str, Any], action: str
 ) -> dict[str, Any]:
     """Choose a visible native menu action through HA's manager."""
+    result = await finish_progress(manager, result)
     assert result["type"] == "menu"
     assert action in result["menu_options"]
-    return await manager.async_configure(result["flow_id"], {"next_step_id": action})
+    return await finish_progress(
+        manager,
+        await manager.async_configure(result["flow_id"], {"next_step_id": action}),
+    )
 
 
 async def choose_region(

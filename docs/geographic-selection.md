@@ -4,6 +4,8 @@ Weather stations and cameras use a native Home Assistant menu as an editable
 selection overview. It shows the chosen county, municipality and source count.
 Choose/change actions open a native form; **Done** returns to the overview.
 The source form accepts multiple source IDs and renders readable selected labels.
+Previous selections are suggested values; clearing the field clears the draft,
+including when the frontend omits the empty optional field.
 **Add** appears only when sources are selected. There are no navigation sentinels
 inside the source or region dropdowns and no custom frontend module.
 
@@ -98,6 +100,10 @@ cannot publish a partial catalogue or replace the previous successful cache.
 An expired cache is not served as a successful refresh after a request failure.
 The form reports the failure for retry. Empty responses are not reused.
 All chosen sources are checked again with a filtered live request at Add.
+Discovery and validation use HA's native progress tasks. Cancelling a pending
+flow cancels its request, and background tasks never save subentries. Complete
+validation is followed by a final duplicate check and synchronous save in the
+live flow. See the [config-flow review](config-flow-review.md).
 There are no discovery polling tasks, persistent runtime cache files or changes
 to entity polling.
 

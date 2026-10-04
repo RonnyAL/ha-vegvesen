@@ -2,7 +2,7 @@
 
 Read [AGENTS.md](AGENTS.md) and the [development instructions](docs/development.md). Work in the repository virtual environment; do not modify the host Python, existing services, or household Home Assistant.
 
-Use supported native HA/HACS mechanisms and verify official guidance before designing alternatives. If the platform does not support a requested interaction or lifecycle behavior, explain the limitation and choose a supported alternative; do not work around it with monkey patches, custom Python hot reloaders or frontend internals. A config-entry reload is not a code upgrade. Follow the [release and lifecycle guidance](docs/releases.md) for versioned GitHub releases and restart requirements.
+Use supported native HA/HACS mechanisms and verify official guidance before designing alternatives. If the platform does not support a requested interaction or lifecycle behavior, explain the limitation and choose a supported alternative; do not work around it with monkey patches, custom Python hot reloaders or frontend internals. A config-entry reload is not a code upgrade. Follow the [release and lifecycle guidance](docs/releases.md) for versioned GitHub releases and restart requirements. The [config-flow review](docs/config-flow-review.md) documents the native flow choices and their regression coverage.
 
 Run `scripts/setup` followed by `scripts/check`. These are also the CI commands. Ruff handles lint and formatting checks; tests use Home Assistant's custom-component test package and mocked network responses. When changing dependency pins, regenerate `uv.lock` using the pinned uv version and rerun the checks.
 

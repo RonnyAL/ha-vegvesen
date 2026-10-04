@@ -99,16 +99,19 @@ class SourcePicker:
                     self.sources.values(), key=lambda item: item.label.casefold()
                 )
             ]
-            default = self.selected
+            # Suggested values are editable. A default of the previous selection
+            # would restore it when HA omits a cleared optional field.
+            marker = vol.Optional(
+                field, default=[], description={"suggested_value": self.selected}
+            )
         else:
             values = self.counties if field == CONF_COUNTY else self.municipalities
             options = [SelectOptionDict(value=value, label=value) for value in values]
             default = (self.county if field == CONF_COUNTY else self.municipality) or ""
+            marker = vol.Required(field, default=default)
         return vol.Schema(
             {
-                (vol.Optional if field == CONF_SOURCES else vol.Required)(
-                    field, default=default
-                ): SelectSelector(
+                marker: SelectSelector(
                     SelectSelectorConfig(
                         options=options,
                         mode=SelectSelectorMode.DROPDOWN,

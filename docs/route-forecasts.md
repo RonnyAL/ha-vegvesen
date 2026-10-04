@@ -85,6 +85,10 @@ moved zone is resolved again when applying settings or explicitly recalculating;
 normal polling uses the saved geometry. Deleted/unavailable/malformed zones cause
 an editable field error, never a silent switch to home coordinates. Existing
 0.6.0 coordinate-only routes remain editable without migration or changed IDs.
+From 0.6.3, route calculation uses HA's cancellable progress screen. Forecast
+hours must be whole numbers; numeric settings must be finite. Invalid input
+produces translated field errors before requesting a route. Reconfiguration
+edits a separate draft and persists only on Save.
 The dropdown and map selectors exist in the minimum HA version; the newer
 choose-selector widget does not, so it is not required.
 

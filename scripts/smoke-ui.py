@@ -108,6 +108,21 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             def done(label: str = "Done") -> None:
                 page.get_by_role("button", name=label, exact=True).click()
 
+            def wait_for_parent_reload() -> None:
+                # HA disables its parent chooser while an entry is reloading.
+                # Observe the public API before opening the next subentry flow.
+                page.locator("home-assistant").evaluate("""async element => {
+                    for (let attempt = 0; attempt < 90; attempt++) {
+                        const entries = await element.hass.callWS({
+                            type: 'config_entries/get', domain: 'vegvesen'
+                        });
+                        if (entries.length === 1 && entries[0].state === 'loaded')
+                            return;
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                    throw new Error('Parent reload did not finish');
+                }""")
+
             def choose_region(
                 county: str, municipality: str, *, norwegian: bool = False
             ) -> None:
@@ -166,6 +181,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_role("button", name="Finish", exact=True).click()
             expect(page.get_by_role("button", name="Finish", exact=True)).to_be_hidden()
             print("Camera subentry added through UI")
+            wait_for_parent_reload()
             page.get_by_role("button", name="Add route", exact=True).click()
             name_input = page.locator("ha-selector-text input")
             expect(name_input).to_have_count(1)

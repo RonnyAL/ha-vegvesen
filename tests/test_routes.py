@@ -30,7 +30,7 @@ from custom_components.vegvesen.route_api import (
 )
 from custom_components.vegvesen.route_geometry import make_corridor
 
-from .helpers import menu_action, page
+from .helpers import finish_progress, menu_action, page
 
 if TYPE_CHECKING:
     from aioresponses import aioresponses
@@ -80,11 +80,15 @@ async def submit_manual_route(manager: Any, result: Any, data: dict[str, Any]) -
                 "end_source": "map",
             },
         )
+        result = await finish_progress(manager, result)
         if result.get("errors"):
             return result
     assert result["step_id"] == "route_locations"
-    return await manager.async_configure(
-        result["flow_id"], {k: data[k] for k in ("start", "end")}
+    return await finish_progress(
+        manager,
+        await manager.async_configure(
+            result["flow_id"], {k: data[k] for k in ("start", "end")}
+        ),
     )
 
 
@@ -633,6 +637,7 @@ async def test_zone_endpoints(  # noqa: PLR0915
             result = await manager.async_configure(
                 result["flow_id"], {"end": route_data["end"]}
             )
+        result = await finish_progress(manager, result)
         assert result["step_id"] == "route_overview"
         result = await menu_action(manager, result, "route_save")
         if kind == "parent":
@@ -708,6 +713,7 @@ async def test_zone_missing_during_selection(hass: HomeAssistant, damage: str) -
     result = await manager.async_configure(
         result["flow_id"], {"end": {"latitude": 63.305, "longitude": 9.846}}
     )
+    result = await finish_progress(manager, result)
     assert result["step_id"] == "route_settings"
     assert result["errors"] == {"start_source": "zone_unavailable"}
     assert not entry.subentries

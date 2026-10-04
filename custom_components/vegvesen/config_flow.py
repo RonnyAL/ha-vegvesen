@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.config_entries import (
@@ -34,6 +34,10 @@ from .selection import (
     SourcePicker,
 )
 
+if TYPE_CHECKING:
+    import asyncio
+
+
 type SelectionResult = ConfigFlowResult | SubentryFlowResult
 
 
@@ -42,25 +46,58 @@ class SourceFlow:
 
     _family: str
     _picker: SourcePicker
+    _discovery_task: asyncio.Task[None] | None = None
+    _validation_task: asyncio.Task[dict[str, WeatherStation | RoadCamera]] | None = None
 
     async def _async_start(self, family: str, retry_step: str) -> SelectionResult:
         self._family = family
         if not hasattr(self, "_picker"):
             self._picker = SourcePicker()
+        self._retry_step = retry_step
+        return await self.async_step_load_sources()
+
+    async def async_step_load_sources(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> SelectionResult:
+        """Let HA display progress and cancel discovery when the flow is closed."""
+        if self._discovery_task is None:
+            self._discovery_task = self.hass.async_create_task(
+                self._picker.async_load(self.hass, self._family)
+            )
+            # Cached discovery can finish synchronously. Return its real screen,
+            # not progress_done as the initial response or a needless spinner.
+            if self._discovery_task.done():
+                return await self.async_step_sources_loaded()
+        if not self._discovery_task.done():
+            return self.async_show_progress(
+                step_id="load_sources",
+                progress_action="load_sources",
+                progress_task=self._discovery_task,
+            )
+        return self.async_show_progress_done(next_step_id="sources_loaded")
+
+    async def async_step_sources_loaded(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> SelectionResult:
+        """Show editable discovery errors or the source overview."""
         errors = {}
         try:
-            await self._picker.async_load(self.hass, family)
+            self._discovery_task.result()
             if not self._picker.catalogue:
                 errors["base"] = (
                     "no_stations"
-                    if family == SUBENTRY_WEATHER_STATION
+                    if self._family == SUBENTRY_WEATHER_STATION
                     else "no_cameras"
                 )
         except VegvesenApiError:
             errors["base"] = "cannot_connect"
+        finally:
+            self._discovery_task = None
         if errors:
             return self.async_show_form(
-                step_id=retry_step, data_schema=vol.Schema({}), errors=errors
+                step_id=self._retry_step, data_schema=vol.Schema({}), errors=errors
             )
         return self._overview()
 
@@ -181,19 +218,47 @@ class SourceFlow:
             return self._sources_form("invalid_source")
         if self._has_duplicates():
             return self._sources_form("already_configured")
-        client = VegvesenApiClient(async_get_clientsession(self.hass))
-        weather = self._family == SUBENTRY_WEATHER_STATION
-        try:
-            selected = await (
+        return await self.async_step_validate_sources()
+
+    async def async_step_validate_sources(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> SelectionResult:
+        """Validate in a cancellable task; do not save from the background task."""
+        if self._validation_task is None:
+            client = VegvesenApiClient(async_get_clientsession(self.hass))
+            ids = set(self._picker.selected)
+            self._validation_task = self.hass.async_create_task(
                 client.async_get_weather(ids)
-                if weather
+                if self._family == SUBENTRY_WEATHER_STATION
                 else client.async_get_cameras(ids)
             )
+            if self._validation_task.done():
+                return await self.async_step_sources_validated()
+        if not self._validation_task.done():
+            return self.async_show_progress(
+                step_id="validate_sources",
+                progress_action="validate_sources",
+                progress_task=self._validation_task,
+            )
+        return self.async_show_progress_done(next_step_id="sources_validated")
+
+    async def async_step_sources_validated(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> SelectionResult:
+        """Recheck duplicates and commit only while HA is advancing a live flow."""
+        try:
+            selected = self._validation_task.result()
         except VegvesenApiError:
             return self._sources_form("cannot_connect")
-        if not ids.issubset(selected):
+        finally:
+            self._validation_task = None
+        if not set(self._picker.selected).issubset(selected):
             return self._sources_form(
-                "station_missing" if weather else "camera_missing"
+                "station_missing"
+                if self._family == SUBENTRY_WEATHER_STATION
+                else "camera_missing"
             )
         # Concurrent flows may finish during network I/O. No await occurs between
         # this final check and saving the full batch through HA's subentry APIs.

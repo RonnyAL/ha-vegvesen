@@ -15,7 +15,7 @@ from custom_components.vegvesen.const import (
     SUBENTRY_WEATHER_STATION,
 )
 
-from .helpers import choose_region, page, save_sources, weather_url
+from .helpers import choose_region, finish_progress, page, save_sources, weather_url
 
 if TYPE_CHECKING:
     from aioresponses import aioresponses
@@ -33,10 +33,12 @@ async def test_parent_flow(
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": SOURCE_USER}
         )
+        result = await finish_progress(hass.config_entries.flow, result)
         assert result["type"] is FlowResultType.MENU
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"next_step_id": SUBENTRY_WEATHER_STATION}
         )
+        result = await finish_progress(hass.config_entries.flow, result)
         assert result["type"] is FlowResultType.MENU
         result = await choose_region(hass.config_entries.flow, result)
         selector = result["data_schema"].schema["sources"]
@@ -49,6 +51,7 @@ async def test_parent_flow(
         )
         result = await save_sources(hass.config_entries.flow, result, "1629006")
         await hass.async_block_till_done()
+    result = await finish_progress(hass.config_entries.flow, result)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     entry = result["result"]
     assert entry.unique_id == "public_service"
@@ -84,12 +87,14 @@ async def test_parent_discovery_failure_recovery(
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"next_step_id": SUBENTRY_WEATHER_STATION}
     )
+    result = await finish_progress(hass.config_entries.flow, result)
     assert result["type"] is FlowResultType.FORM
     assert result["errors"]["base"] == (
         "no_stations" if failure == "empty" else "cannot_connect"
     )
     mock_http.get(weather_url(), payload=page(features))
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    result = await finish_progress(hass.config_entries.flow, result)
     assert result["type"] is FlowResultType.MENU
     assert result["menu_options"] == ["county"]
 
@@ -115,6 +120,7 @@ async def test_parent_selection_failure(
     )
     result = await choose_region(hass.config_entries.flow, result)
     result = await save_sources(hass.config_entries.flow, result, "1629006")
+    result = await finish_progress(hass.config_entries.flow, result)
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {
         "base": "station_missing" if missing else "cannot_connect"
@@ -138,6 +144,7 @@ async def test_add_station_and_duplicate(
     )
     result = await choose_region(hass.config_entries.subentries, result)
     result = await save_sources(hass.config_entries.subentries, result, "1629004")
+    result = await finish_progress(hass.config_entries.subentries, result)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert len(config_entry.subentries) == 3
     duplicate = await hass.config_entries.subentries.async_init(
@@ -179,6 +186,7 @@ async def test_subentry_failure(
             mock_http.get(weather_url(("1629004",)), payload=page([]))
         result = await choose_region(hass.config_entries.subentries, result)
         result = await save_sources(hass.config_entries.subentries, result, "1629004")
+    result = await finish_progress(hass.config_entries.subentries, result)
     assert result["type"] is FlowResultType.FORM
     assert (
         result["errors"]["base"]
@@ -225,6 +233,7 @@ async def test_concurrent_duplicate_selection(
             (config_entry.entry_id, SUBENTRY_WEATHER_STATION),
             context={"source": SOURCE_USER},
         )
+        result = await finish_progress(hass.config_entries.subentries, result)
     with patch(
         "custom_components.vegvesen.api.VegvesenApiClient.async_get_weather",
         new=AsyncMock(side_effect=selected),
@@ -233,6 +242,7 @@ async def test_concurrent_duplicate_selection(
         result = await save_sources(
             hass.config_entries.subentries, result, station.source_id
         )
+    result = await finish_progress(hass.config_entries.subentries, result)
     assert result["type"] is FlowResultType.FORM
     assert result["errors"]["base"] == "already_configured"
     assert len(config_entry.subentries) == 3

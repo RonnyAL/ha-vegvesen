@@ -12,7 +12,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.vegvesen.const import CONF_CAMERA_ID, DOMAIN, SUBENTRY_CAMERA
 
-from .helpers import camera_url, choose_region, page, save_sources
+from .helpers import camera_url, choose_region, finish_progress, page, save_sources
 
 if TYPE_CHECKING:
     from aioresponses import aioresponses
@@ -97,6 +97,7 @@ async def test_camera_flow_failure(
             mock_http.get(camera_url(("1429014_1",)), payload=page([]))
         result = await choose_region(manager, result, "Vestland", "Kinn")
         result = await save_sources(manager, result, "1429014_1")
+    result = await finish_progress(manager, result)
     assert result["type"] is FlowResultType.FORM
     assert result["errors"]["base"] == {
         "empty": "no_cameras",
@@ -156,6 +157,7 @@ async def test_camera_concurrent_duplicate(
     )
     result = await choose_region(manager, result, "Vestland", "Kinn")
     result = await save_sources(manager, result, "1429014_1")
+    result = await finish_progress(manager, result)
     assert result["type"] is FlowResultType.FORM
     assert result["errors"]["base"] == "already_configured"
     assert len(camera_entry.subentries) == 3

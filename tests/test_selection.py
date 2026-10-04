@@ -19,6 +19,7 @@ from custom_components.vegvesen.selection import CONF_SOURCES
 from .helpers import (
     camera_url,
     choose_region,
+    finish_progress,
     menu_action,
     page,
     save_sources,
@@ -45,7 +46,7 @@ async def start_flow(hass: HomeAssistant, family: str, kind: str, entry: Any) ->
         result = await manager.async_init(
             (entry.entry_id, family), context={"source": SOURCE_USER}
         )
-    return manager, result
+    return manager, await finish_progress(manager, result)
 
 
 @pytest.mark.parametrize("family", ["weather_station", "camera"])
@@ -280,7 +281,9 @@ async def test_change_previous_selections(
     result = await manager.async_configure(flow_id, {"county": county})
     assert result["description_placeholders"]["count"] == "1"
     result = await menu_action(manager, result, f"{family}_sources")
-    assert next(iter(result["data_schema"].schema)).default() == [source_id]
+    assert next(iter(result["data_schema"].schema)).description == {
+        "suggested_value": [source_id]
+    }
     result = await manager.async_configure(flow_id, {CONF_SOURCES: [source_id]})
     result = await menu_action(manager, result, "edit_municipality")
     assert next(iter(result["data_schema"].schema)).default() == municipality

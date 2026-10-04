@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from copy import deepcopy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import voluptuous as vol
@@ -24,6 +24,9 @@ from homeassistant.helpers.selector import (
 from .api import VegvesenApiError
 from .route_api import RoadRoute, RouteApiClient
 
+if TYPE_CHECKING:
+    import asyncio
+
 
 class RouteFlow:
     """Share route editing between initial setup and route subentries."""
@@ -32,6 +35,7 @@ class RouteFlow:
     _route_choices: list[RoadRoute]
     _route_choice: int = 0
     _route_stops: list[dict[str, float]] | None = None
+    _calculation_task: asyncio.Task[dict[str, str]] | None = None
 
     def _initialize_route(self) -> None:
         if not hasattr(self, "_route_data"):
@@ -88,15 +92,31 @@ class RouteFlow:
         """Select zones or manual endpoints without rendering unnecessary maps."""
         errors = {}
         if user_input is not None:
-            self._route_data.update(user_input)
             if not user_input["name"].strip():
                 errors["name"] = "invalid_route"
-            elif self._manual_endpoints():
+            # A number selector's step only controls the widget's increments;
+            # it does not enforce whole numbers or reject NaN in the backend.
+            hours = user_input["forecast_hours"]
+            if not math.isfinite(hours) or not float(hours).is_integer():
+                errors["forecast_hours"] = "invalid_forecast_hours"
+            if not math.isfinite(user_input["corridor_m"]):
+                errors["corridor_m"] = "invalid_corridor"
+            self._route_data.update(
+                {
+                    key: value
+                    for key, value in user_input.items()
+                    if key not in errors or key == "name"
+                }
+            )
+            if errors:
+                return self._route_settings_form(errors)
+            if self._manual_endpoints():
                 return await self.async_step_route_locations()
-            else:
-                errors = await self._async_calculate_route()
-                if not errors:
-                    return await self.async_step_route_overview()
+            return await self.async_step_route_calculate()
+        return self._route_settings_form(errors)
+
+    def _route_settings_form(self, errors: dict[str, str] | None = None) -> Any:
+        """Build settings with field errors through HA's public form helper."""
         fields = {
             "name": TextSelector(),
             "start_source": self._endpoint_selector(),
@@ -146,16 +166,13 @@ class RouteFlow:
         self, user_input: dict[str, Any] | None = None
     ) -> Any:
         """Show maps only for endpoints explicitly selected as manual points."""
-        errors = {}
         if user_input is not None:
             self._route_data.update(user_input)
-            errors = await self._async_calculate_route()
-            if not errors:
-                return await self.async_step_route_overview()
-            if "zone_unavailable" in errors.values():
-                result = await self.async_step_route_settings()
-                result["errors"] = errors
-                return result
+            return await self.async_step_route_calculate()
+        return self._route_locations_form()
+
+    def _route_locations_form(self, errors: dict[str, str] | None = None) -> Any:
+        """Render the manual endpoints with their retained draft values."""
         return self.async_show_form(
             step_id="route_locations",
             data_schema=vol.Schema(
@@ -166,6 +183,38 @@ class RouteFlow:
             ),
             errors=errors,
         )
+
+    async def async_step_route_calculate(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> Any:
+        """Use HA's progress lifecycle for potentially slow routing requests."""
+        if self._calculation_task is None:
+            self._calculation_task = self.hass.async_create_task(
+                self._async_calculate_route()
+            )
+            if self._calculation_task.done():
+                return await self.async_step_route_calculated()
+        if not self._calculation_task.done():
+            return self.async_show_progress(
+                step_id="route_calculate",
+                progress_action="calculate_route",
+                progress_task=self._calculation_task,
+            )
+        return self.async_show_progress_done(next_step_id="route_calculated")
+
+    async def async_step_route_calculated(
+        self,
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+    ) -> Any:
+        """Return to an editable form or the proposal overview after calculation."""
+        errors = self._calculation_task.result()
+        self._calculation_task = None
+        if not errors:
+            return await self.async_step_route_overview()
+        if "zone_unavailable" in errors.values() or not self._manual_endpoints():
+            return self._route_settings_form(errors)
+        return self._route_locations_form(errors)
 
     async def _async_calculate_route(self) -> dict[str, str]:
         """Resolve zones at explicit calculation time and reuse unchanged geometry."""
@@ -239,12 +288,7 @@ class RouteFlow:
     ) -> Any:
         """Explicitly request fresh proposals for the existing endpoints."""
         self._route_choices = []
-        errors = await self._async_calculate_route()
-        if not errors:
-            return await self.async_step_route_overview()
-        result = await self.async_step_route_settings()
-        result["errors"] = errors
-        return result
+        return await self.async_step_route_calculate()
 
     async def async_step_route_choice(
         self, user_input: dict[str, Any] | None = None
@@ -306,7 +350,7 @@ class RouteSubentryFlow(RouteFlow, ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """Reopen the saved route without a network call or changing its identity."""
         subentry = self._get_reconfigure_subentry()
-        self._route_data = dict(subentry.data)
+        self._route_data = deepcopy(dict(subentry.data))
         self._route_choices = [
             RoadRoute(
                 subentry.data["road_name"],

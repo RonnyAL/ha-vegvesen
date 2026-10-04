@@ -47,7 +47,7 @@ New or relocated sources without verified administrative membership appear under
 
 Use **Add weather stations / Legg til værstasjoner** or **Add road cameras / Legg til veikameraer** on the same integration to add more sources. Each selection can be anywhere in Norway; selecting one region does not restrict later selections. The same source cannot be added twice. Existing selections and device/entity identities are retained across updates and restarts.
 
-Discovery lists are reused for up to 15 minutes. The first list after startup or cache expiry needs a complete response from Statens vegvesen; later selections usually open faster. All selected sources are checked again when you choose **Add**. If a request fails or a selected source is missing or already configured, nothing from that batch is added; you can adjust the selection and retry.
+Discovery lists are reused for up to 15 minutes. The first list after startup or cache expiry needs a complete response from Statens vegvesen; later selections usually open faster. Loading and checking sources use HA’s progress screen; cancelling while a request is pending stops that flow without saving its selections. All selected sources are checked again when you choose **Add**. If a request fails or a selected source is missing or already configured, nothing from that batch is added; you can adjust the selection and retry.
 
 ## Using the entities
 
