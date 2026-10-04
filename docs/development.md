@@ -46,6 +46,10 @@ No standalone HA process is started by setup or checks; pytest exercises HA in i
 
 `node_modules`, `.venv`, caches, runtime files, `first_output.md`, `codex-session-*.md`, and `conversation_exports/` are excluded from Git. Keep all conversation exports in that ignored directory. Do not add credentials or personal locations to tracked files.
 
+## Releases and native platform behavior
+
+Follow the [release and lifecycle guidance](releases.md). Use ordinary GitHub releases from validated commits for numbered HACS updates. Runtime code upgrades require a Home Assistant restart; normal config-entry reload support does not replace imported Python code. Prefer official HA/HACS mechanisms and explain unsupported behavior instead of implementing bypasses.
+
 ## Updating source geography
 
 The runtime package includes public source IDs, coordinates and administrative names in `source_geography.json`. Setup uses a live source catalogue and does not query Kartverket. Regenerate the index before a release when public sources or administrative boundaries change:

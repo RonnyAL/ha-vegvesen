@@ -16,6 +16,26 @@ User-facing name: Statens vegvesen.
 - Add meaningful tests for parsing, config flow, and entity behavior.
 - Keep credentials and personal locations out of tracked files.
 
+## Home Assistant and HACS conventions
+
+- Prefer supported, native Home Assistant and HACS mechanisms for UI,
+  configuration, lifecycle, updates and distribution.
+- Verify behavior against current official documentation and, when needed,
+  upstream source for the supported versions before proposing an implementation.
+- Do not reinvent existing mechanisms or bypass platform limitations with
+  monkey patches, custom hot reloaders, cache manipulation or hidden frontend
+  hooks. Explain a limitation and choose a supported alternative instead.
+- Distinguish integration/config-entry reloads, frontend refreshes, Home Assistant
+  process restarts and host reboots. Do not promise that reloading a config entry
+  loads upgraded Python code or suppress HACS's restart requirement.
+- Publish user-facing versions through ordinary GitHub releases with matching
+  version tags and manifest versions. A tag alone is not a HACS release.
+  Keep releases tied to validated commits, with concise user-facing release notes.
+- Keep the README focused on installation and use; put contributor procedures
+  and verification evidence in CONTRIBUTING.md and docs/.
+
+See [release and lifecycle guidance](docs/releases.md) for verified behavior.
+
 ## Initial scope
 
 - WeatherSimple_v2 weather stations.

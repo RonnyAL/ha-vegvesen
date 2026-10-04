@@ -1,6 +1,6 @@
 # Test through a HACS custom repository
 
-The public repository is available through HACS **Custom repositories**. Default-list submission is deferred. Follow the [README installation instructions](../README.md#install-with-hacs); HACS downloads the default branch, so a GitHub release is optional. See the official [custom repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/).
+The public repository is available through HACS **Custom repositories**. Default-list submission is deferred. Follow the [README installation instructions](../README.md#install-with-hacs); Select a numbered GitHub release for versioned updates; `main` remains available for development testing. See the official [custom repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/).
 
 Use Home Assistant **2025.12.0 or newer** and HACS **2.0.5 or newer**. The automated HA targets are **2026.9.4** and **2025.12.0**. HA uses its own managed Python; repository development tools are not needed on the installation host.
 
@@ -40,7 +40,7 @@ Include version numbers, affected entity type, relevant timestamps and error tex
 
 ## Updates and removal
 
-Use HACS's download/redownload or update control, restart HA, then refresh the frontend. Record the source revision tested: without releases, HACS may show a commit identifier and a default-branch update may require redownload. Confirm the integration reports **0.6.2** and existing selections/identities survive the restart.
+Use HACS's update control or redownload a numbered release, restart Home Assistant (not the host), then refresh the frontend. For an existing `main` installation, use **Update information**, then **Redownload** and select **0.6.2** if the release is not offered automatically. The first transition may show a commit-to-version change; subsequent release updates show version numbers. Integration reload alone does not load upgraded Python code. Confirm the installed version and that selections/identities survive the restart. See [release and lifecycle details](releases.md).
 
 To remove everything, remove the parent integration entry from **Devices & services**, remove the downloaded package through HACS, and restart HA. Removing an individual station, camera or route subentry keeps the parent and other selections.
 

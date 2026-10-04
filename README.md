@@ -87,7 +87,9 @@ For individual segment forecasts, use **Statens vegvesen: Get route forecasts** 
 
 ## Updates and removal
 
-Update or redownload the integration in HACS, then restart Home Assistant. This repository currently distributes the default branch; HACS may show a commit identifier instead of the version displayed in the integration details.
+Choose a numbered release in HACS, then restart **Home Assistant** to load the updated integration. A host reboot is unnecessary. Reloading the integration alone does not load upgraded Python code.
+
+If you previously installed `main`, the first transition may show a commit identifier → version number. If needed, open the repository menu in HACS, choose **Update information**, then **Redownload** and select the numbered release. Subsequent release updates show version numbers. Selecting `main` continues to use development commits. See the [release notes](https://github.com/RonnyAL/ha-vegvesen/releases).
 
 To remove one source or route, remove its subentry in **Devices & services**. To remove everything, remove the integration entry, remove the download in HACS, and restart Home Assistant.
 
