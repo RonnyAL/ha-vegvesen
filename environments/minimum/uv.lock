@@ -4,6 +4,7 @@ requires-python = ">=3.13.11, <3.14"
 
 [manifest]
 build-constraints = [
+    { name = "pybind11", specifier = "==3.1.0" },
     { name = "setuptools", specifier = "==84.0.0" },
     { name = "wheel", specifier = "==0.48.0" },
 ]
@@ -929,6 +930,18 @@ wheels = [
 ]
 
 [[package]]
+name = "ha-ffmpeg"
+version = "3.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "async-timeout" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1e/3b/bd1284a9bc39cc119b0da551a81be6cf30dc3cfb369ce8c62fb648d7a2ea/ha_ffmpeg-3.2.2.tar.gz", hash = "sha256:80e4a77b3eda73df456ec9cc3295a898ed7cbb8cd2d59798f10e8c10a8e6c401", size = 7608, upload-time = "2024-11-08T13:32:14.181Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/45/66/7863e5a3713bb71c02f050f14a751b02e7a2d50eaf2109c96a1202e65d8b/ha_ffmpeg-3.2.2-py3-none-any.whl", hash = "sha256:4fd4a4f4cdaf3243d2737942f3f41f141e4437d2af1167655815dc03283b1652", size = 8749, upload-time = "2024-11-08T13:32:12.69Z" },
+]
+
+[[package]]
 name = "ha-vegvesen-minimum-tests"
 version = "0.7.3"
 source = { virtual = "." }
@@ -942,6 +955,17 @@ dependencies = [
     { name = "shapely" },
 ]
 
+[package.dev-dependencies]
+smoke = [
+    { name = "ha-ffmpeg" },
+    { name = "hassil" },
+    { name = "home-assistant-frontend" },
+    { name = "home-assistant-intents" },
+    { name = "mutagen" },
+    { name = "pymicro-vad" },
+    { name = "pyspeex-noise" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "aioresponses", specifier = "==0.7.9" },
@@ -951,6 +975,17 @@ requires-dist = [
     { name = "pytest-homeassistant-custom-component", specifier = "==0.13.298" },
     { name = "pyturbojpeg", specifier = "==1.8.0" },
     { name = "shapely", specifier = "==2.1.2" },
+]
+
+[package.metadata.requires-dev]
+smoke = [
+    { name = "ha-ffmpeg", specifier = "==3.2.2" },
+    { name = "hassil", specifier = "==3.5.0" },
+    { name = "home-assistant-frontend", specifier = "==20251203.0" },
+    { name = "home-assistant-intents", specifier = "==2025.12.2" },
+    { name = "mutagen", specifier = "==1.47.0" },
+    { name = "pymicro-vad", specifier = "==1.0.1" },
+    { name = "pyspeex-noise", specifier = "==1.0.2" },
 ]
 
 [[package]]
@@ -1009,6 +1044,19 @@ wheels = [
 ]
 
 [[package]]
+name = "hassil"
+version = "3.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+    { name = "unicode-rbnf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/87/bf/9630f99bcc3dca337e3905571d1e06f0317fcc1aec2d3b5a0933b810f9cf/hassil-3.5.0.tar.gz", hash = "sha256:bed39573626d76bfc0681a709a6b64e4de82a680371bd29238473f6711392597", size = 61144, upload-time = "2025-12-02T20:21:08.435Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7a/4e/94d688f7fb23b6e898922a077d7e32a6f412372ff285567d890a8791de7f/hassil-3.5.0-py3-none-any.whl", hash = "sha256:87b2a48164b2de1d693edbe4204b3a7c3b72dc7c5c3829774de8824ecc62ab96", size = 51788, upload-time = "2025-12-02T20:21:07.125Z" },
+]
+
+[[package]]
 name = "hf-xet"
 version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1034,6 +1082,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b4/0e/c05ee603cab1adb847a305bc8f1034cbdbc0a5d15169fcf68c0d6d21e33f/home_assistant_bluetooth-1.13.1.tar.gz", hash = "sha256:0ae0e2a8491cc762ee9e694b8bc7665f1e2b4618926f63969a23a2e3a48ce55e", size = 7607, upload-time = "2025-02-04T16:11:15.259Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/85/9b/9904cec885cc32c45e8c22cd7e19d9c342e30074fdb7c58f3d5b33ea1adb/home_assistant_bluetooth-1.13.1-py3-none-any.whl", hash = "sha256:cdf13b5b45f7744165677831e309ee78fbaf0c2866c6b5931e14d1e4e7dae5d7", size = 7915, upload-time = "2025-02-04T16:11:13.163Z" },
+]
+
+[[package]]
+name = "home-assistant-frontend"
+version = "20251203.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/89/e3762efa0de0186e5d64eedbdeee11ccea224bc12a9848ccb0a2c5a17d72/home_assistant_frontend-20251203.0-py3-none-any.whl", hash = "sha256:0c0d3b1044027855c064520c93f95ccaa3d64620c2de578bb19a47efe31c6340", size = 98145822, upload-time = "2025-12-03T15:06:36.861Z" },
+]
+
+[[package]]
+name = "home-assistant-intents"
+version = "2025.12.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/04/de267a4c7a9e013a197ea86fb3e48cf3b41d0826f7ad4bc6a11c545220ed/home_assistant_intents-2025.12.2.tar.gz", hash = "sha256:4086dcdf98bf7e5474e141dc969b7861962ac1552a48beaf66f8987c0d8010a0", size = 2803103, upload-time = "2025-12-02T15:25:38.043Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/80/08/df0d5c17ff540a65f941d8fbc4d7110e80f63ff921ade09787283ef74ebd/home_assistant_intents-2025.12.2-py3-none-any.whl", hash = "sha256:65c339dda36e5f8f49666142f8d53cc62c17909a2cfbaa71b33d162d321bbd2d", size = 2830165, upload-time = "2025-12-02T15:25:36.28Z" },
 ]
 
 [[package]]
@@ -1407,6 +1472,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mutagen"
+version = "1.47.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/81/e6/64bc71b74eef4b68e61eb921dcf72dabd9e4ec4af1e11891bbd312ccbb77/mutagen-1.47.0.tar.gz", hash = "sha256:719fadef0a978c31b4cf3c956261b3c58b6948b32023078a2117b1de09f0fc99", size = 1274186, upload-time = "2023-09-03T16:33:33.411Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/7a/620f945b96be1f6ee357d211d5bf74ab1b7fe72a9f1525aafbfe3aee6875/mutagen-1.47.0-py3-none-any.whl", hash = "sha256:edd96f50c5907a9539d8e5bba7245f62c9f520aef333d13392a79a4f70aca719", size = 194391, upload-time = "2023-09-03T16:33:29.955Z" },
+]
+
+[[package]]
 name = "numpy"
 version = "2.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1759,6 +1833,12 @@ wheels = [
 ]
 
 [[package]]
+name = "pymicro-vad"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/0f/a92acea368e2b37fbc706f6d049f04557497d981316a2f428b26f14666a9/pymicro_vad-1.0.1.tar.gz", hash = "sha256:60e0508b338b694c7ad71c633c0da6fcd2678a88abb8e948b80fa68934965111", size = 135575, upload-time = "2024-07-31T20:04:04.619Z" }
+
+[[package]]
 name = "pyobjc-core"
 version = "12.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1855,6 +1935,12 @@ name = "pyric"
 version = "0.1.6.3"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/08/64/a99f27d3b4347486c7bfc0aa516016c46dc4c0f380ffccbd742a61af1eda/PyRIC-0.1.6.3.tar.gz", hash = "sha256:b539b01cafebd2406c00097f94525ea0f8ecd1dd92f7731f43eac0ef16c2ccc9", size = 870401, upload-time = "2016-12-04T07:54:48.374Z" }
+
+[[package]]
+name = "pyspeex-noise"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/1d/7d2ebb8f73c2b2e929b4ba5370b35dbc91f37268ea53f4b6acd9afa532cb/pyspeex_noise-1.0.2.tar.gz", hash = "sha256:56a888ca2ef7fdea2316aa7fad3636d2fcf5f4450f3a0db58caa7c10a614b254", size = 49882, upload-time = "2024-08-27T17:00:34.859Z" }
 
 [[package]]
 name = "pytest"
@@ -2510,6 +2596,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/15/1d/568e1abf4089d4f7b8bcef09abe99fd4b2a56c9ca1ea81fc94e8d7a3cdff/ulid_transform-1.5.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:52f728769c822a52c05310598d949541d1e929dd1a481b2e73c971beea089a2a", size = 1080159, upload-time = "2025-10-04T21:04:10.321Z" },
     { url = "https://files.pythonhosted.org/packages/c4/d1/ecbd9ab6a1b4c9c6fc57a974ad0ccd960d9adaed4c04794dc18063a80c57/ulid_transform-1.5.2-cp313-cp313-win32.whl", hash = "sha256:0b90b0b7ed937f8cf245f8c71adbd73cf93fcc4915cac9150255595a016b53d0", size = 38989, upload-time = "2025-10-04T21:04:11.562Z" },
     { url = "https://files.pythonhosted.org/packages/a9/3f/180a40f60252cd195d00f1a5328684a0c14cce2201014db1a72ce4a92c0c/ulid_transform-1.5.2-cp313-cp313-win_amd64.whl", hash = "sha256:3c1354706ac87ecf3b941c836c04b96f83e5d50ba7b2c3e2f746da838405bc09", size = 41200, upload-time = "2025-10-04T21:04:12.48Z" },
+]
+
+[[package]]
+name = "unicode-rbnf"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/1f/d952ba97832647e608700c36b22d1c4476016076c9ed1ce74ae814bea55a/unicode_rbnf-2.4.0.tar.gz", hash = "sha256:6d2f12a7581c69ea6218ee61fafcd2da46e1f9986bdcd0964c5151f7c2a938ac", size = 89069, upload-time = "2025-10-07T20:59:41.3Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4b/21/82f5d435808cba330668a8b69efb180e3ef9739d4998e8cd0381e8c9cb23/unicode_rbnf-2.4.0-py3-none-any.whl", hash = "sha256:0176b30ac9b7b84008d7dc0f23078055dc10d2671fdadfab5747943243e20e2d", size = 141691, upload-time = "2025-10-07T20:59:40.139Z" },
 ]
 
 [[package]]

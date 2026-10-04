@@ -42,6 +42,9 @@ Corrections made:
 | Pinned Hassfest | Zero invalid integrations, no warnings |
 | Local HACS schemas and package validation | Passed |
 | Packaged HA 2026.9.4 browser smoke | Passed with live weather, camera and route APIs; English/Bokmål forms, icons and reconfiguration |
+| Packaged HA 2025.12.0 browser smoke | Same frontend scenario passed against the separately locked minimum target |
+| Public archive upgrade 0.7.2 → 0.7.3 | Passed on HA 2026.9.4: 12 entity identities, four devices and four subentries retained; reconfiguration and removal passed |
+| Real HACS 2.0.5 install/upgrade/removal | Passed on HA 2026.9.4: numbered 0.7.2 → 0.7.3 upgrade, restarts, identity preservation, reconfiguration, source/parent removal and uninstall |
 | Text and package inspection | No personal environment references or common credential markers found; private exports and runtime directories excluded |
 | Translation resources | All 170 English/Bokmål string keys and placeholders match |
 | Local Markdown links and issue-form YAML | Passed |
@@ -60,9 +63,14 @@ in GitHub Actions, following [release guidance](releases.md).
 
 ## Remaining limits
 
-- The backend suite covers both declared targets. The browser smoke covers only
-  HA 2026.9.4 on Linux x86_64. End-to-end HACS upgrade/removal, minimum-version
-  frontend behavior and long-running live recovery are not automated checks.
+- The backend and packaged browser scenarios cover both declared targets on
+  Linux x86_64. The real HACS lifecycle scenario passed on HA 2026.9.4.
+  Long-running live recovery and ARM64 installation remain unverified.
+- The live HACS-installed 0.7.2 run exposed a deprecation warning in the weather
+  device-name refresh, also present in 0.7.3. HA 2026.9.4 still supports
+  `DeviceRegistry.async_get_device`, but its warning schedules removal for
+  HA 2027.8. Replace that lookup with an entry-scoped public API while retaining
+  minimum-version compatibility before claiming support for that future target.
 - HA's custom restrictive entity policies are not checked by the route response
   action. Ordinary built-in groups can read entities; the existing permission
   behavior is unchanged. See the [qualified finding](runtime-review.md#permissions-finding-clarified-behavior-unchanged).

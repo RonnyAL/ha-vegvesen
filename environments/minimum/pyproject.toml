@@ -12,9 +12,22 @@ dependencies = [
     "PyTurboJPEG==1.8.0",
 ]
 
+[dependency-groups]
+smoke = [
+    "ha-ffmpeg==3.2.2",
+    "hassil==3.5.0",
+    "home-assistant-frontend==20251203.0", # HA 2025.12.0 frontend requirement
+    "home-assistant-intents==2025.12.2",
+    "mutagen==1.47.0",
+    "pymicro-vad==1.0.1",
+    "pyspeex-noise==1.0.2",
+]
+
 [tool.uv]
 package = false
-build-constraint-dependencies = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-constraint-dependencies = ["pybind11==3.1.0", "setuptools==84.0.0", "wheel==0.48.0"]
 
 [tool.uv.extra-build-dependencies]
 lru-dict = ["ziglang==0.15.2"]
+pymicro-vad = ["ziglang==0.15.2"]
+pyspeex-noise = ["ziglang==0.15.2"]

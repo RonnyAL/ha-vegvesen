@@ -38,9 +38,22 @@ The explicit live UI smoke test is available for Debian 12 amd64:
 
 ```bash
 scripts/smoke-ui
+scripts/smoke-ui --minimum
+# Interactive GitHub authorization is required for this separate HACS check.
+scripts/smoke-ui --hacs
 ```
 
 This installs locked optional frontend/browser dependencies, extracts checksum-pinned Debian packages into `.tools`, builds and extracts the runtime package, and starts a disposable HA instance bound to `127.0.0.1:18123`. It creates an ephemeral test owner, selects public fixture stations/cameras and a Trondheim–Orkanger route through the real frontend, verifies entity states and a cached JPEG, then stops HA and removes its temporary configuration even on test failure. Screenshots and logs stay in ignored `.tools/smoke-results`. It uses live public APIs, so source changes and outages can fail this optional check. Existing port occupancy fails before starting anything. The normal mocked checks do not start an HTTP server. See [validation details](validation.md).
+
+`--minimum` installs the minimum environment's locked optional frontend group and
+runs the same browser scenario on port 18124, with results in
+`.tools/smoke-results-minimum`. `--hacs` uses official HACS 2.0.5 on port 18125;
+complete its printed GitHub device authorization to exercise the real custom
+repository install/upgrade/removal scenario. Its results stay in
+`.tools/smoke-results-hacs`. Run these optional checks sequentially: dependency
+syncs can remove groups needed by another running check. Both backend targets
+and frontend targets have passed, as has the interactive HACS 2.0.5 scenario on
+the primary target. Consult validation evidence for its scope and limitations.
 
 No standalone HA process is started by setup or checks; pytest exercises HA in its temporary test environment. `scripts/develop` is an explicit foreground-only launcher for the repository's ignored runtime configuration, bound to `127.0.0.1:18123`; run it only for an intentional development session. The optional devcontainer configuration does not auto-start HA. Keep development separate from existing Home Assistant installations and host services.
 

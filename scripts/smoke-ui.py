@@ -1,10 +1,7 @@
 """Exercise actual HA source-selection UI in a disposable loopback instance."""
 
+import argparse
 import json
-import secrets
-import signal
-import socket
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -13,11 +10,23 @@ from zipfile import ZipFile
 
 import requests
 from playwright.sync_api import Page, WebSocket, expect, sync_playwright
+from smoke_instance import SmokeInstance, handle_termination
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = "http://127.0.0.1:18123"
 EXPECTED_WEATHER_STATIONS = 2
 RESULTS = ROOT / ".tools/smoke-results"
+
+
+def wait_for_source_picker(page: Page) -> None:
+    """Allow one normal Retry after an upstream discovery failure."""
+    picker = page.locator("ha-selector-select ha-select")
+    retry = page.get_by_role("button", name="Retry", exact=True)
+    picker.or_(retry).wait_for(state="visible")
+    if retry.is_visible():
+        print("Live discovery failed; exercising the native Retry action once")
+        retry.click()
+    expect(picker).to_be_visible(timeout=45000)
 
 
 def verify_norwegian_names(options: list[dict]) -> None:
@@ -105,11 +114,12 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
         )
         try:
             page.goto(BASE + "/config/integrations")
-            # HA asks to confirm the isolated HTTP binding on first startup.
-            page.get_by_role("button", name="Confirm", exact=True).click()
-            print("Isolated frontend loaded; HTTP binding confirmed")
+            page.get_by_role("button", name="Add integration", exact=True).wait_for()
+            print("Isolated frontend loaded")
             page.get_by_role("button", name="Add integration", exact=True).click()
-            page.get_by_placeholder("Search for a brand name").fill("Statens vegvesen")
+            page.get_by_role("textbox", name="Search for a brand name").or_(
+                page.get_by_placeholder("Search for a brand name")
+            ).fill("Statens vegvesen")
             page.get_by_text("Statens vegvesen", exact=True).click()
             weather_started = time.monotonic()
             page.get_by_text("Weather station", exact=True).click()
@@ -119,11 +129,16 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 page.get_by_text(label, exact=True).click()
 
             def select_region(label: str) -> None:
-                picker.locator("ha-picker-field").click()
-                page.locator("ha-dropdown-item").get_by_text(label, exact=True).click()
-                expect(picker.locator("ha-picker-field")).to_have_js_property(
-                    "value", label
+                picker.locator("ha-select").click()
+                page.locator("ha-dropdown-item, ha-list-item").get_by_text(
+                    label, exact=True
+                ).click()
+                value = picker.evaluate(
+                    "(element, label) => element.selector.select.options.find("
+                    "option => option.label === label).value",
+                    label,
                 )
+                expect(picker).to_have_js_property("value", value)
 
             def select_source(label: str) -> None:
                 checkbox = picker.get_by_role("checkbox", name=label, exact=True)
@@ -160,12 +175,12 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             def choose_region(
                 county: str, municipality: str, *, norwegian: bool = False
             ) -> None:
-                expect(picker.locator("ha-picker-field")).to_have_js_property(
+                expect(picker).to_have_js_property(
                     "label", "Fylke" if norwegian else "County"
                 )
                 select_region(county)
                 submit()
-                expect(picker.locator("ha-picker-field")).to_have_js_property(
+                expect(picker).to_have_js_property(
                     "label", "Kommune" if norwegian else "Municipality"
                 )
                 if county == "Trøndelag":
@@ -176,7 +191,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 select_region(municipality)
                 submit()
 
-            expect(picker.locator("ha-picker-field")).to_be_visible()
+            wait_for_source_picker(page)
             weather_list_seconds = time.monotonic() - weather_started
             choose_region("Trøndelag", "Orkland")
             submit(final=True)
@@ -192,7 +207,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.goto(BASE + "/config/integrations/integration/vegvesen")
             camera_started = time.monotonic()
             page.get_by_role("button", name="Add road cameras", exact=True).click()
-            expect(picker.locator("ha-picker-field")).to_be_visible()
+            wait_for_source_picker(page)
             camera_list_seconds = time.monotonic() - camera_started
             choose_region("Møre og Romsdal", "Herøy")
             select_source("Rundebrua — Runde (3000047_2)")
@@ -221,9 +236,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_role("button", name="Calculate route", exact=True).click()
             expect(page.get_by_text("Change settings", exact=True)).to_be_visible()
             action("Choose route")
-            expect(picker.locator("ha-picker-field")).to_have_js_property(
-                "label", "Route"
-            )
+            expect(picker).to_have_js_property("label", "Route")
             done()
             expect(page.get_by_text("Save route", exact=True)).to_be_visible()
             page.screenshot(path=str(RESULTS / "route-overview.png"))
@@ -233,31 +246,19 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             print("Saved road route configured through native frontend")
             # Saving a subentry reloads its parent. Opening HA's parent chooser
             # during that reload can leave it showing a disabled entry.
-            page.locator("ha-config-integration-page").evaluate("""async element => {
-                for (let attempt = 0; attempt < 90; attempt++) {
-                    const entries = (
-                        element._extraConfigEntries || element.configEntries)
-                        ?.filter(entry => entry.domain === 'vegvesen');
-                    const routes = Object.keys(element.hass.states).filter(
-                        id => id.startsWith('sensor.trondheim_orkanger_'));
-                    if (entries?.length === 1 && entries[0].state === 'loaded'
-                        && routes.length === 6) return;
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                }
-                throw new Error('Frontend did not finish the parent reload');
-            }""")
+            wait_for_parent_reload()
             warm_started = time.monotonic()
             page.get_by_role("button", name="Add weather stations", exact=True).click()
             parent_choice = page.get_by_role("dialog").get_by_text(
                 "Statens vegvesen", exact=True
             )
-            county_field = picker.locator("ha-picker-field")
+            county_field = picker.locator("ha-select")
             county_field.or_(parent_choice).wait_for(state="visible")
             if parent_choice.is_visible():
                 parent_choice.click()
             expect(county_field).to_be_visible()
             warm_list_seconds = time.monotonic() - warm_started
-            page.keyboard.press("Escape")
+            page.get_by_role("button", name="Close", exact=True).click()
             expect(county_field).to_have_count(0)
             # Use HA's normal language event and freshly loaded translation resources.
             page.locator("home-assistant").evaluate("""element =>
@@ -290,7 +291,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                     else "Legg til veikameraer"
                 )
                 page.get_by_role("button", name=add_label, exact=True).click()
-                county_field = picker.locator("ha-picker-field")
+                county_field = picker.locator("ha-select")
                 county_field.or_(parent_choice).wait_for(state="visible")
                 if parent_choice.is_visible():
                     parent_choice.click()
@@ -313,12 +314,17 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             expect(endpoints).to_have_count(2)
 
             def choose_endpoint(index: int, label: str) -> None:
-                field = endpoints.nth(index).locator("ha-picker-field")
+                field = endpoints.nth(index).locator("ha-select")
                 field.click()
-                endpoints.nth(index).locator("ha-dropdown-item").get_by_text(
-                    label, exact=True
-                ).click()
-                expect(field).to_have_js_property("value", label)
+                endpoints.nth(index).locator(
+                    "ha-dropdown-item, ha-list-item"
+                ).get_by_text(label, exact=True).click()
+                value = endpoints.nth(index).evaluate(
+                    "(element, label) => element.selector.select.options.find("
+                    "option => option.label === label).value",
+                    label,
+                )
+                expect(endpoints.nth(index)).to_have_js_property("value", value)
 
             expect(endpoints.nth(0)).to_have_js_property("label", "Start")
             expect(endpoints.nth(1)).to_have_js_property("label", "Mål")
@@ -340,9 +346,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             expect(picker).to_have_js_property("label", "Rute")
             done("Ferdig")
             action("Endre innstillinger")
-            expect(endpoints.nth(0).locator("ha-picker-field")).to_have_js_property(
-                "value", "Trondheim (zone.trondheim)"
-            )
+            expect(endpoints.nth(0)).to_have_js_property("value", "zone.trondheim")
             choose_endpoint(1, "Velg på kart")
             page.get_by_role("button", name="Fortsett", exact=True).click()
             expect(page.locator("ha-selector-location")).to_have_count(1)
@@ -359,9 +363,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_role("button", name="Endre rute", exact=True).click()
             expect(page.get_by_text("Lagre rute", exact=True)).to_be_visible()
             action("Endre innstillinger")
-            expect(endpoints.nth(0).locator("ha-picker-field")).to_have_js_property(
-                "value", "Velg på kart"
-            )
+            expect(endpoints.nth(0)).to_have_js_property("value", "map")
             page.get_by_role("button", name=close_label, exact=True).click()
             expect(page.locator("dialog-data-entry-flow")).to_be_hidden()
             print("Bokmål route labels, zones and reconfiguration verified")
@@ -433,7 +435,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             expect(picture).not_to_have_js_property("naturalWidth", 0)
             page.screenshot(path=str(RESULTS / "camera.png"), animations="disabled")
             summary = {
-                "ha": "2026.9.4",
+                "ha": session.get(BASE + "/api/config", timeout=10).json()["version"],
                 "weather": temperatures[0]["entity_id"],
                 "observation": observations[0]["entity_id"],
                 "camera": camera["entity_id"],
@@ -463,11 +465,19 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
 
 
 def main() -> None:
-    """Create temporary config, onboard a test owner and guarantee shutdown."""
-    with socket.socket() as probe:
-        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        probe.bind(("127.0.0.1", 18123))
-    RESULTS.mkdir(parents=True, exist_ok=True)
+    """Run the packaged UI against either locked HA target."""
+    global BASE, RESULTS  # noqa: PLW0603
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--minimum", action="store_true")
+    args = parser.parse_args()
+    port = 18124 if args.minimum else 18123
+    python = (
+        ROOT / "environments/minimum/.venv/bin/python"
+        if args.minimum
+        else Path(sys.executable)
+    )
+    if args.minimum:
+        RESULTS = ROOT / ".tools/smoke-results-minimum"
     with TemporaryDirectory(prefix="vegvesen-smoke-", dir=ROOT / ".tools") as temporary:
         config = Path(temporary)
         version = json.loads(
@@ -476,102 +486,17 @@ def main() -> None:
         with ZipFile(ROOT / ".tools/packages" / f"vegvesen-{version}.zip") as archive:
             archive.extractall(config)
         print("Testing an extracted runtime package, without a source-tree link")
-        (config / ".storage").mkdir()
-        # Skip optional onboarding integrations and analytics, leaving owner creation.
-        (config / ".storage/onboarding").write_text(
-            json.dumps(
-                {
-                    "version": 4,
-                    "minor_version": 1,
-                    "key": "onboarding",
-                    "data": {"done": ["core_config", "analytics", "integration"]},
-                }
-            )
-        )
-        (config / "configuration.yaml").write_text(
-            "homeassistant:\n  name: Vegvesen isolated smoke test\n"
-            "  latitude: 0\n  longitude: 0\n  elevation: 0\n"
-            "  time_zone: Europe/Oslo\n  unit_system: metric\n"
-            "frontend:\nhttp:\n  server_host: 127.0.0.1\n  server_port: 18123\n"
-            "logger:\n  default: warning\n"
-            "zone:\n  - name: Trondheim\n    latitude: 63.43\n    longitude: 10.395\n"
-            "  - name: Orkanger\n    latitude: 63.305\n    longitude: 9.846\n"
-            f"ffmpeg:\n  ffmpeg_bin: {ROOT}/.tools/browsers/ffmpeg-1011/ffmpeg-linux\n"
-        )
-        with (RESULTS / "home-assistant.log").open("w") as log:
-            process = subprocess.Popen(
-                [
-                    sys.executable,
-                    "-E",  # Ignore an inherited development PYTHONPATH.
-                    "-m",
-                    "homeassistant",
-                    "--config",
-                    str(config),
-                    "--skip-pip",
-                ],
-                # The repository's namespace package can otherwise shadow the
-                # extracted custom_components package, even with --config set.
-                cwd=config,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-            )
-            try:
-                session = requests.Session()
-                session.trust_env = False
-                deadline = time.monotonic() + 60
-                while time.monotonic() < deadline:
-                    if process.poll() is not None:
-                        raise RuntimeError(
-                            "Temporary HA exited; inspect smoke-results log"
-                        )
-                    try:
-                        if session.get(BASE + "/api/onboarding", timeout=1).ok:
-                            break
-                    except requests.RequestException:
-                        pass
-                    time.sleep(0.5)
-                else:
-                    raise RuntimeError("Temporary HA startup timed out")
-                owner = session.post(
-                    BASE + "/api/onboarding/users",
-                    json={
-                        "name": "Smoke test",
-                        "username": "smoke",
-                        "password": secrets.token_urlsafe(32),
-                        "client_id": BASE + "/",
-                        "language": "en",
-                    },
-                    timeout=30,
-                )
-                owner.raise_for_status()
-                response = session.post(
-                    BASE + "/auth/token",
-                    data={
-                        "grant_type": "authorization_code",
-                        "code": owner.json()["auth_code"],
-                        "client_id": BASE + "/",
-                    },
-                    timeout=10,
-                )
-                response.raise_for_status()
-                tokens = response.json()
-                session.headers["Authorization"] = "Bearer " + tokens["access_token"]
-                run_browser(tokens, session)
-            finally:
-                process.send_signal(signal.SIGINT)
-                try:
-                    process.wait(timeout=20)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=5)
-                print("Temporary HA stopped; disposable configuration removed on exit")
+        instance = SmokeInstance(config, RESULTS, python, port)
+        BASE = instance.base
+        try:
+            instance.start()
+            instance.onboard()
+            run_browser(instance.tokens, instance.session)
+        finally:
+            instance.stop()
+    print("Disposable configuration and authentication storage removed")
 
 
 if __name__ == "__main__":
-
-    def stop_requested(signum: int, _frame: object) -> None:
-        """Let finally clean up the child when the runner receives SIGTERM."""
-        raise SystemExit(128 + signum)
-
-    signal.signal(signal.SIGTERM, stop_requested)
+    handle_termination()
     main()

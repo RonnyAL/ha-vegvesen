@@ -59,6 +59,9 @@ scripts/check-minimum
 scripts/validate-hassfest
 scripts/validate-hacs
 scripts/smoke-ui
+scripts/smoke-ui --minimum
+# Interactive: requires GitHub's normal HACS device authorization.
+scripts/smoke-ui --hacs
 git diff --check
 ```
 
@@ -74,15 +77,28 @@ The separate remote HACS action runs for public repositories with `comment: fals
 
 ## UI smoke test
 
-The packaged 0.7.3 check passed on 2026-10-04, including native progress,
+The packaged 0.7.3 check passed on both HA 2026.9.4 and HA 2025.12.0 on
+2026-10-04, including native progress,
 cached discovery, English/Bokmål source and route forms, zone/map endpoints,
-reconfiguration and live entities. Initial weather/camera lists opened in about
-0.63/0.60 seconds respectively and cached weather discovery in 0.07 seconds in this run; these are
+reconfiguration and live entities. Initial weather/camera lists opened in
+0.59/0.72 seconds on the primary target and 0.50/0.76 seconds on the minimum;
+cached weather discovery took 0.06/0.05 seconds respectively. These are single-run
 observations, not API or UI performance guarantees. The runner waits for HA's
 parent reload before opening the next subentry flow, since HA disables its parent
 chooser during that reload.
 
-The runner checks port 18123 is free, starts a disposable HA 2026.9.4 instance on `127.0.0.1`, creates an ephemeral owner, and confirms the loopback HTTP settings. Default onboarding integrations and analytics are skipped. Its coordinates are deliberately zero and are unrelated to source selection. It builds a runtime-only ZIP and extracts the custom component into the temporary configuration. The HA child runs with that directory as its working directory and Python's `-E` option, so the repository and an inherited development `PYTHONPATH` cannot shadow the installed package. The package includes English/Bokmål translations, the original license and data attribution.
+The runner checks port 18123 is free and starts a disposable HA 2026.9.4 instance
+on `127.0.0.1`. With `--minimum`, it uses port 18124 and HA 2025.12.0 from the
+separately locked Python 3.13 environment. Each target pins its own frontend and
+optional HA dependencies; the primary environment runs Playwright for both.
+The runner creates an ephemeral owner and confirms the primary target's loopback
+HTTP settings using the same native API as HA's Confirm button. Default onboarding
+integrations and analytics are skipped. Its coordinates are deliberately zero and
+are unrelated to source selection. It builds a runtime-only ZIP and extracts the
+custom component into the temporary configuration. The HA child runs with that
+directory as its working directory and Python's `-E` option, so the repository and
+an inherited development `PYTHONPATH` cannot shadow the installed package. The
+package includes English/Bokmål translations, the original license and attribution.
 
 The first-use test opens the county form and selects **Trøndelag → Orkland**,
 then checks **Fv 714 Våvatnet (1629006)** and **Fv 65 Bye (1629004)** together.
@@ -95,7 +111,7 @@ The Bokmål route form is also checked with a blank name, producing
 **Trondheim → Orkanger**. The native more-info dialogs render the road-condition,
 slipperiness and segment-count icons from the packaged `icons.json`.
 No translation resources are manually injected. Screenshots and timing results
-remain ignored in `.tools/smoke-results`.
+remain ignored in `.tools/smoke-results` and `.tools/smoke-results-minimum`.
 
 The runner also saves the public Trondheim–Orkanger route through native map/coordinate inputs, checks its editable overview and proposal selector, then exercises the full Bokmål route flow: named zones, a mixed zone/map pair, all four overview labels, the route proposal label, retained choices when editing, and an existing route's reconfigure action. The result has three physical devices, one route service device and twelve entities. Six route forecast states must become available against the live API. The test checks weather
 and camera states, retrieves a JPEG through HA's camera proxy, opens the camera
@@ -103,13 +119,75 @@ details dialog, and checks the rendered image. It also reopens a weather flow
 to exercise cached discovery. The minimal test instance has no recorder or
 integration diagnostics handler; frontend requests for `recorder/info` and
 `diagnostics/get` report unsupported-command/domain errors. They do not prevent
-picker, entity or image checks. This targets the primary frontend and a refreshed
-browser, not an open app retaining translations across an upgrade. Minimum-version
-backend behavior is covered by the same mocked tests.
+picker, entity or image checks. The minimum frontend also reports a skipped view
+transition when navigation starts another transition. These checks use fresh
+browsers on both targets; they do not cover an open companion app retaining
+translations across an upgrade. The runner uses each frontend's native controls
+and the public config-entry API to observe reload completion.
+
+A live camera discovery attempt returned the integration's complete-snapshot
+failure form during validation. A later run passed. The runner permits one native
+Retry if initial discovery fails, then fails the check if the source remains
+unavailable. This does not turn failed responses into successful snapshots.
 
 The runner's `finally` block stops the temporary HA process on normal completion, exceptions and handled interrupts, escalating from graceful interrupt to kill only for that child if needed. Its temporary configuration, owner and authentication storage are removed. The port was confirmed closed after testing. Browser/HA log files and screenshots remain ignored. Existing Home Assistant installations, host services and host configuration are not used.
 
 This check needs public API and browser download access. Source changes, camera unavailability, catalogue changes or package URLs disappearing can cause a live smoke failure; the mocked tests remain the reproducible behavior checks. Debian browser libraries are version/checksum-pinned and extracted without package installation, but their public mirror retention is outside this repository's control.
+
+## Interactive HACS lifecycle check
+
+`scripts/smoke-ui --hacs` prepares a separate disposable HA 2026.9.4 instance on
+`127.0.0.1:18125` with the official HACS 2.0.5 release ZIP, verified against its
+pinned SHA256. It starts HACS's ordinary config flow and prints a GitHub device
+authorization URL and code. Complete the [official HACS authorization procedure](https://www.hacs.xyz/docs/use/configuration/basic/)
+within fourteen minutes. The runner does not accept a personal access token,
+reuse another installation's credentials or edit HACS's stored state.
+
+After authorization, the scenario uses HACS's native frontend websocket commands
+to add this custom repository, download 0.7.2, upgrade to 0.7.3 and uninstall.
+It waits for `hacs/info` to report completed startup and an idle queue before
+repository operations, and checks the installed version again after restarts.
+HA's config-entry `loaded` state alone does not establish that HACS is ready.
+It creates weather, camera and route subentries through the real HA frontend,
+restarts the temporary process after code changes, compares registry identities,
+checks recovery and route reconfiguration, removes a weather station and route,
+then removes the parent. Logs, screenshots and a successful `lifecycle.json`
+remain under ignored `.tools/smoke-results-hacs`; temporary configuration and local
+authentication storage are removed when the runner exits, including on failure.
+
+The complete scenario passed on 2026-10-04 with HACS 2.0.5 and HA 2026.9.4.
+HACS reported numbered releases before and after the upgrade, and retained the
+installed version across process restarts. All 12 entity IDs/unique IDs, four
+device identities and four subentry identities survived. Entities recovered,
+the existing route could be saved again, and source/route removal left the
+remaining sources available. Parent removal cleared its registry entries;
+HACS uninstall removed the component files. After another restart, neither HA
+nor HACS reported the integration installed. The temporary instance stopped and
+its configuration and local authentication storage were removed.
+
+An uninstalled custom repository may disappear from HACS's repository listing
+after restart. The check accepts either absence or an explicitly uninstalled
+listing; it also independently checks that component files and the HA entry are
+gone. This live, interactive scenario is separate from CI and the local HACS
+schema validator. It uses HACS's real download/uninstall code, with its frontend
+websocket API driving those operations; the HA configuration forms use a browser.
+
+The installed 0.7.2 and 0.7.3 runs logged a weather device-name refresh deprecation
+from HA 2026.9.4. `DeviceRegistry.async_get_device` still works on the tested
+targets but is scheduled for removal in HA 2027.8. An entry-scoped replacement
+compatible with the minimum target remains a follow-up; no runtime code was
+changed during these lifecycle checks.
+
+A separate one-off check using the public 0.7.2 and 0.7.3 GitHub release archives
+passed on HA 2026.9.4 on 2026-10-04. It installed 0.7.2 into a disposable instance,
+created two weather stations, a camera and a route through the frontend, stopped
+HA, replaced the component with 0.7.3, and restarted the same configuration. All
+12 entity IDs/unique IDs, four devices and four subentry identities were retained
+and entities became available again. Saving the existing route preserved those
+identities. Removing one station and the route left the other sources available;
+removing the parent cleared its entity/device registry entries. This verifies
+the integration's live upgrade/removal behavior, but not HACS's download or
+uninstall handling.
 
 ## Upgrade investigation (2026-10-03)
 
@@ -147,7 +225,7 @@ reason to remove configured sources or reinstall the integration.
 
 ## Distribution and validation limits
 
-Numbered GitHub releases are distributed through a HACS custom repository; see the [installation guide](custom-repository-test.md) and [release guidance](releases.md). HACS default-list submission is separate. Automated checks cover the two targets above, not every intervening or beta HA version. End-to-end HACS upgrade/removal, long-running live recovery and a minimum-version frontend smoke test are not part of the automated suite. Route scheduling and entry unload/reload are covered by mocked tests on both targets. Area monitors and automatic physical-source ownership remain future work; see [route details](route-forecasts.md).
+Numbered GitHub releases are distributed through a HACS custom repository; see the [installation guide](custom-repository-test.md) and [release guidance](releases.md). HACS default-list submission is separate. Automated checks cover the two targets above, not every intervening or beta HA version. Both frontend targets have passed the live smoke scenario. The interactive HACS lifecycle scenario and long-running live recovery remain outside the deterministic CI suite. Route scheduling and entry unload/reload are covered by mocked tests on both targets. Area monitors and automatic physical-source ownership remain future work; see [route details](route-forecasts.md).
 
 The native picker tests cover all four parent/subentry source paths, actual HA form serialization, populated region filtering, invalid/out-of-region source IDs, missing/malformed index data, and new, moved or coordinate-free sources. Cache tests cover TTL expiry, shared flow reuse, copied snapshots, simultaneous flows, cancellation, independent families and failed/incomplete pagination without publishing partial data. Geography never runs during setup or entity polling. [Source and behavior details](geographic-selection.md).
 

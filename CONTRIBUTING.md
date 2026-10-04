@@ -14,6 +14,11 @@ Expose source data faithfully. Add meaningful tests for changed parser, flow, id
 
 Describe behavior changes and validation in pull requests. Report bugs through this repository's issues with reproduction steps and relevant logs, removing private details first.
 
-The [public release review](docs/release-readiness.md) records the current readiness assessment, completed checks and remaining validation limits.
+Use `scripts/smoke-ui --minimum` to repeat the live frontend scenario against the
+minimum supported HA version. The separate `scripts/smoke-ui --hacs` scenario
+requires HACS's normal GitHub device authorization and tests installation,
+upgrade and removal in a disposable instance. These interactive/live checks are
+not part of CI. The [public release review](docs/release-readiness.md) records
+completed checks and remaining validation limits.
 
 The integration is based on [ludeeus/integration_blueprint](https://github.com/ludeeus/integration_blueprint). Contributions use the existing [MIT license](LICENSE); preserve its copyright and license notice. Statens vegvesen source data has separate licensing and attribution requirements documented in the README.
