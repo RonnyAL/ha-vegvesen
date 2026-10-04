@@ -11,6 +11,7 @@ from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -18,13 +19,14 @@ from pytest_homeassistant_custom_component.common import (
 )
 from yarl import URL
 
-from custom_components.vegvesen.api import VegvesenRateLimitError
+from custom_components.vegvesen.api import VegvesenApiClient, VegvesenRateLimitError
 from custom_components.vegvesen.const import (
     CONF_STATION_ID,
     CONF_STATION_NAME,
     DOMAIN,
     SUBENTRY_WEATHER_STATION,
 )
+from custom_components.vegvesen.coordinator import WeatherCoordinator
 from custom_components.vegvesen.discovery import async_get_discovery
 from custom_components.vegvesen.route_geometry import make_corridor
 
@@ -224,6 +226,7 @@ async def test_weather_names_during_missing_startup_and_recovery(
     hass: HomeAssistant,
     mock_http: aioresponses,
     features: list[dict[str, Any]],
+    caplog: pytest.LogCaptureFixture,
     *,
     saved_name: bool,
     existing_entity: bool,
@@ -276,3 +279,40 @@ async def test_weather_names_during_missing_startup_and_recovery(
     assert device.name_by_user == "My station"
     assert entity_id(hass, "1629006", "air_temperature") == expected_id
     assert hass.states.get(expected_id).state != STATE_UNAVAILABLE
+    assert "calls `device_registry.async_get_device`" not in caplog.text
+
+
+async def test_weather_name_refresh_respects_config_entry(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    mock_http: aioresponses,
+    features: list[dict[str, Any]],
+) -> None:
+    """Only rename this entry's devices, even when another entry matches a source."""
+    config_entry.add_to_hass(hass)
+    other_entry = MockConfigEntry(domain=DOMAIN, unique_id="other_service")
+    other_entry.add_to_hass(hass)
+    registry = dr.async_get(hass)
+    owned_device = registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, "weather_station:1629006")},
+        name="Previous source name",
+    )
+    foreign_device = registry.async_get_or_create(
+        config_entry_id=other_entry.entry_id,
+        identifiers={(DOMAIN, "weather_station:1629013")},
+        name="Another entry's source name",
+    )
+    client = VegvesenApiClient(async_get_clientsession(hass))
+    coordinator = WeatherCoordinator(hass, config_entry, client, ("1629006", "1629013"))
+    mock_http.get(weather_url(("1629006", "1629013")), payload=page(features[:2]))
+
+    await coordinator.async_refresh()
+
+    assert coordinator.last_update_success
+    assert set(coordinator.data) == {"1629006", "1629013"}
+    assert (
+        registry.async_get(owned_device.id).name
+        == features[0]["properties"]["LOCATION_DESCRIPTION"]
+    )
+    assert registry.async_get(foreign_device.id).name == "Another entry's source name"

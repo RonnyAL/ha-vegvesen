@@ -1,10 +1,14 @@
-# Public release review — 0.7.3
+# Public release review — 0.7.3 and 0.7.4
 
 Reviewed on 2026-10-04. The code and package are technically ready for public
 distribution through a HACS custom repository. No blocking runtime defect was
 identified in this review. This verdict covers the tested targets and documented
 feature scope; it is not a HACS default-list approval or a guarantee for every
 HA version, installation architecture or upstream outage.
+
+The full review and evidence below concern 0.7.3. The
+[0.7.4 follow-up](#074-device-registry-follow-up) records the subsequent lookup fix
+and its validation separately.
 
 ## Scope and corrections
 
@@ -61,16 +65,30 @@ Reproduce the checks using [validation.md](validation.md). Publish the matching
 GitHub release only after the exact commit passes both **Checks** and **Validate**
 in GitHub Actions, following [release guidance](releases.md).
 
+## 0.7.4 device-registry follow-up
+
+Replaced the deprecated weather device lookup with the public
+`async_entries_for_config_entry` helper, indexing only devices owned by the
+coordinator's config entry. This follows HA's
+[entry-scoped device identity model](https://developers.home-assistant.io/blog/2026/07/21/device-registry-single-config-entry/)
+and works on both tested targets without raising the minimum HA version.
+Source-name changes still update the device's default name; user-assigned names,
+device IDs and entity IDs are preserved.
+
+On 2026-10-04, all 315 mocked tests passed on HA 2026.9.4 and HA 2025.12.0,
+with 96% statement coverage. Regression checks reproduce the old warning and
+cross-entry rename before the fix and pass after it. Existing missing-data,
+recovery and identity checks also pass. Ruff, formatting, pinned Hassfest and
+local HACS validation passed. Dependency versions are unchanged.
+
+The browser and interactive HACS lifecycle evidence above remains specific to
+0.7.3; those scenarios were not repeated for this isolated registry change.
+
 ## Remaining limits
 
 - The backend and packaged browser scenarios cover both declared targets on
   Linux x86_64. The real HACS lifecycle scenario passed on HA 2026.9.4.
   Long-running live recovery and ARM64 installation remain unverified.
-- The live HACS-installed 0.7.2 run exposed a deprecation warning in the weather
-  device-name refresh, also present in 0.7.3. HA 2026.9.4 still supports
-  `DeviceRegistry.async_get_device`, but its warning schedules removal for
-  HA 2027.8. Replace that lookup with an entry-scoped public API while retaining
-  minimum-version compatibility before claiming support for that future target.
 - HA's custom restrictive entity policies are not checked by the route response
   action. Ordinary built-in groups can read entities; the existing permission
   behavior is unchanged. See the [qualified finding](runtime-review.md#permissions-finding-clarified-behavior-unchanged).

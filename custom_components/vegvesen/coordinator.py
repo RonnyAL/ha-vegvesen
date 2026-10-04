@@ -46,6 +46,7 @@ class WeatherCoordinator(DataUpdateCoordinator[dict[str, WeatherStation]]):
             always_update=False,
         )
         self.client = client
+        self._config_entry_id = entry.entry_id
         self.station_ids = frozenset(station_ids)
         self.data = {}
 
@@ -58,9 +59,17 @@ class WeatherCoordinator(DataUpdateCoordinator[dict[str, WeatherStation]]):
         except VegvesenApiError as err:
             raise UpdateFailed(str(err)) from err
         registry = dr.async_get(self.hass)
+        # Entry-scoped identifiers work on both supported HA registry versions.
+        devices_by_identifier = {
+            identifier: device
+            for device in dr.async_entries_for_config_entry(
+                registry, self._config_entry_id
+            )
+            for identifier in device.identifiers
+        }
         for station in stations.values():
-            device = registry.async_get_device(
-                identifiers={(DOMAIN, f"weather_station:{station.source_id}")}
+            device = devices_by_identifier.get(
+                (DOMAIN, f"weather_station:{station.source_id}")
             )
             if device is not None and device.name != station.name:
                 registry.async_update_device(device.id, name=station.name)

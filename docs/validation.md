@@ -7,12 +7,17 @@
 | Primary development | 2026.9.4 | 3.14.8 | 0.13.367 | `uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-Both run the same 314 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+Both run the same 315 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
-The [0.7.3 public release review](release-readiness.md) records the final code,
+The [public release review and 0.7.4 follow-up](release-readiness.md) record the code,
 documentation and package assessment. Six additional action-error tests exercise
 native exception translation for missing/wrong devices and unloaded routes in
 English and Bokmål. All translation keys and placeholders match across languages.
+
+The 0.7.4 regression verifies that weather refreshes update only devices owned
+by their config entry. Recovery tests also check that device-name updates emit
+no deprecated lookup warning while preserving user names and existing entity IDs.
+Both target suites and local lint, formatting, Hassfest and HACS checks passed.
 
 The [0.7.2 runtime review](runtime-review.md) adds regressions for initial HTTP 429
 with and without a healthy source family, automatic retry, manual refresh,
@@ -173,10 +178,10 @@ schema validator. It uses HACS's real download/uninstall code, with its frontend
 websocket API driving those operations; the HA configuration forms use a browser.
 
 The installed 0.7.2 and 0.7.3 runs logged a weather device-name refresh deprecation
-from HA 2026.9.4. `DeviceRegistry.async_get_device` still works on the tested
-targets but is scheduled for removal in HA 2027.8. An entry-scoped replacement
-compatible with the minimum target remains a follow-up; no runtime code was
-changed during these lifecycle checks.
+from HA 2026.9.4. Version 0.7.4 replaces `DeviceRegistry.async_get_device` with
+the public `async_entries_for_config_entry` helper, supported by both tested
+targets. Its regression tests pass on both versions; the browser and interactive
+HACS lifecycle scenarios were not repeated for this isolated registry change.
 
 A separate one-off check using the public 0.7.2 and 0.7.3 GitHub release archives
 passed on HA 2026.9.4 on 2026-10-04. It installed 0.7.2 into a disposable instance,
