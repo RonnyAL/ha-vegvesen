@@ -170,6 +170,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             name_input = page.locator("ha-selector-text input")
             expect(name_input).to_have_count(1)
             name_input.fill("Trondheim-Orkanger")
+            page.get_by_role("button", name="Continue", exact=True).click()
             locations = page.locator("ha-selector-location")
             expect(locations).to_have_count(2)
             for location, latitude, longitude in [
@@ -289,16 +290,61 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 "English and Norwegian visible edit actions and source labels verified"
             )
             page.get_by_role("button", name="Legg til rute", exact=True).click()
-            expect(page.locator("ha-selector-location")).to_have_count(2)
-            expect(
-                page.get_by_role("button", name="Beregn rute", exact=True)
-            ).to_be_visible()
+            page.locator("ha-selector-text input").fill("Sonebasert rute")
+            endpoints = page.locator("ha-selector-select")
+            expect(endpoints).to_have_count(2)
+
+            def choose_endpoint(index: int, label: str) -> None:
+                field = endpoints.nth(index).locator("ha-picker-field")
+                field.click()
+                endpoints.nth(index).locator("ha-dropdown-item").get_by_text(
+                    label, exact=True
+                ).click()
+                expect(field).to_have_js_property("value", label)
+
+            expect(endpoints.nth(0)).to_have_js_property("label", "Start")
+            expect(endpoints.nth(1)).to_have_js_property("label", "Mål")
+            choose_endpoint(0, "Trondheim (zone.trondheim)")
+            choose_endpoint(1, "Orkanger (zone.orkanger)")
+            expect(page.locator("ha-selector-location")).to_have_count(0)
+            page.screenshot(path=str(RESULTS / "route-zones-bokmal.png"))
+            page.get_by_role("button", name="Fortsett", exact=True).click()
+            for label in (
+                "Endre innstillinger",
+                "Velg ruteforslag",
+                "Beregn ruten på nytt",
+                "Lagre rute",
+            ):
+                expect(page.get_by_text(label, exact=True)).to_be_visible()
+            page.screenshot(path=str(RESULTS / "route-overview-bokmal.png"))
+            action("Velg ruteforslag")
+            expect(picker).to_have_js_property("label", "Rute")
+            done("Ferdig")
+            action("Endre innstillinger")
+            expect(endpoints.nth(0).locator("ha-picker-field")).to_have_js_property(
+                "value", "Trondheim (zone.trondheim)"
+            )
+            choose_endpoint(1, "Velg på kart")
+            page.get_by_role("button", name="Fortsett", exact=True).click()
+            expect(page.locator("ha-selector-location")).to_have_count(1)
+            expect(page.locator("ha-selector-location")).to_have_js_property(
+                "label", "Mål"
+            )
+            page.get_by_role("button", name="Beregn rute", exact=True).click()
+            expect(page.get_by_text("Lagre rute", exact=True)).to_be_visible()
             expect(page.get_by_text("MISSING_VALUE", exact=False)).to_have_count(0)
-            page.screenshot(path=str(RESULTS / "route-bokmal.png"))
             close_label = page.locator("home-assistant").evaluate(
                 "element => element.hass.localize('ui.common.close')"
             )
             page.get_by_role("button", name=close_label, exact=True).click()
+            page.get_by_role("button", name="Endre rute", exact=True).click()
+            expect(page.get_by_text("Lagre rute", exact=True)).to_be_visible()
+            action("Endre innstillinger")
+            expect(endpoints.nth(0).locator("ha-picker-field")).to_have_js_property(
+                "value", "Velg på kart"
+            )
+            page.get_by_role("button", name=close_label, exact=True).click()
+            print("Bokmål route labels, zones and reconfiguration verified")
             deadline = time.monotonic() + 60
             while time.monotonic() < deadline:
                 response = session.get(BASE + "/api/states", timeout=10)
@@ -427,6 +473,8 @@ def main() -> None:
             "  time_zone: Europe/Oslo\n  unit_system: metric\n"
             "frontend:\nhttp:\n  server_host: 127.0.0.1\n  server_port: 18123\n"
             "logger:\n  default: warning\n"
+            "zone:\n  - name: Trondheim\n    latitude: 63.43\n    longitude: 10.395\n"
+            "  - name: Orkanger\n    latitude: 63.305\n    longitude: 9.846\n"
             f"ffmpeg:\n  ffmpeg_bin: {ROOT}/.tools/browsers/ffmpeg-1011/ffmpeg-linux\n"
         )
         with (RESULTS / "home-assistant.log").open("w") as log:

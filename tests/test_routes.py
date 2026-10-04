@@ -17,6 +17,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.translation import async_get_translations
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from yarl import URL
 
@@ -101,6 +102,25 @@ def forecast_url(bbox: str, target: datetime, start: int | None = None) -> str:
     if start is not None:
         params["startIndex"] = str(start)
     return str(URL(FORECAST_URL).with_query(params))
+
+
+async def submit_manual_route(manager: Any, result: Any, data: dict[str, Any]) -> Any:
+    """Exercise settings followed by only the requested manual location fields."""
+    if result["step_id"] == "route_settings":
+        result = await manager.async_configure(
+            result["flow_id"],
+            {
+                **{k: data[k] for k in ("name", "corridor_m", "forecast_hours")},
+                "start_source": "map",
+                "end_source": "map",
+            },
+        )
+        if result.get("errors"):
+            return result
+    assert result["step_id"] == "route_locations"
+    return await manager.async_configure(
+        result["flow_id"], {k: data[k] for k in ("start", "end")}
+    )
 
 
 def source_entity(hass: HomeAssistant, key: str) -> str:
@@ -235,25 +255,17 @@ async def test_route_flow(  # noqa: PLR0915
                 (entry.entry_id, "route"), context={"source": SOURCE_USER}
             )
         assert result["step_id"] == "route_settings"
-        assert result["data_schema"].schema["start"].selector_type == "location"
-        # Native HA cannot initialize a required location selector without a
-        # default. This prevents a blank dialog before any input is possible.
-        for field in result["data_schema"].schema:
-            if str(field) in {"start", "end"}:
-                assert field.default() == {
-                    "latitude": hass.config.latitude,
-                    "longitude": hass.config.longitude,
-                }
+        assert result["data_schema"].schema["start_source"].selector_type == "select"
         data = {
             k: route_data[k]
             for k in ("name", "start", "end", "corridor_m", "forecast_hours")
         }
         mock_http.get(routing_url(route_data), payload=routing)
-        result = await manager.async_configure(result["flow_id"], data)
+        result = await submit_manual_route(manager, result, data)
         assert result["type"] is FlowResultType.MENU
         result = await menu_action(manager, result, "route_settings")
         data["corridor_m"] = 200
-        result = await manager.async_configure(result["flow_id"], data)
+        result = await submit_manual_route(manager, result, data)
         assert (
             len(mock_http.requests) == 1
         )  # Changing the corridor never recalculates the road.
@@ -278,7 +290,7 @@ async def test_route_flow(  # noqa: PLR0915
     )
     result = await menu_action(manager, result, "route_settings")
     data["name"] = "Renamed route"
-    result = await manager.async_configure(result["flow_id"], data)
+    result = await submit_manual_route(manager, result, data)
     result = await menu_action(manager, result, "route_save")
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
@@ -444,9 +456,9 @@ async def test_route_settings_failure_and_retry(
         bad["name"] = " "
     else:
         bad["start"]["latitude"] = 100
-    result = await manager.async_configure(result["flow_id"], bad)
+    result = await submit_manual_route(manager, result, bad)
     assert result["type"] is FlowResultType.FORM
-    assert result["errors"]["base"] == (
+    assert next(iter(result["errors"].values())) == (
         "cannot_connect"
         if failure == "http"
         else "no_route"
@@ -455,17 +467,17 @@ async def test_route_settings_failure_and_retry(
     )
     assert not entry.subentries
     mock_http.get(routing_url(data), payload=routing)
-    result = await manager.async_configure(result["flow_id"], data)
+    result = await submit_manual_route(manager, result, data)
     assert result["type"] is FlowResultType.MENU
     result = await menu_action(manager, result, "route_settings")
     bad = deepcopy(data)
     bad["end"]["longitude"] += 0.001
     bad["name"] = " "
-    result = await manager.async_configure(result["flow_id"], bad)
+    result = await submit_manual_route(manager, result, bad)
     assert result["errors"]
     bad["name"] = "Changed destination"
     mock_http.get(routing_url(bad), payload=routing)
-    result = await manager.async_configure(result["flow_id"], bad)
+    result = await submit_manual_route(manager, result, bad)
     assert result["type"] is FlowResultType.MENU
     assert sum(len(calls) for calls in mock_http.requests.values()) == (
         3 if failure in {"http", "no_route"} else 2
@@ -599,3 +611,183 @@ def test_segment_zero(forecasts: list[dict[str, Any]]) -> None:
     forecast = parse_forecast(forecasts[0])
     assert forecast.source_id.startswith("0:")
     assert forecast.properties["ROAD_TEMPERATURE"] == 0
+
+
+@pytest.mark.parametrize("kind", ["parent", "subentry"])
+@pytest.mark.parametrize("mixed", [False, True])
+async def test_zone_endpoints(  # noqa: PLR0915
+    hass: HomeAssistant,
+    mock_http: aioresponses,
+    routing: dict[str, Any],
+    route_data: dict[str, Any],
+    kind: str,
+    *,
+    mixed: bool,
+) -> None:
+    """Zones use named selections; mixed routes ask only for the manual endpoint."""
+    for endpoint, zone_id in (("start", "zone.home"), ("end", "zone.work")):
+        hass.states.async_set(
+            zone_id,
+            "0",
+            {
+                **route_data[endpoint],
+                "friendly_name": "Home" if endpoint == "start" else "Work",
+            },
+        )
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="public_service", data={})
+    with patch("custom_components.vegvesen.async_setup_entry", return_value=True):
+        if kind == "parent":
+            manager = hass.config_entries.flow
+            result = await manager.async_init(DOMAIN, context={"source": SOURCE_USER})
+            result = await menu_action(manager, result, "route")
+        else:
+            entry.add_to_hass(hass)
+            manager = hass.config_entries.subentries
+            result = await manager.async_init(
+                (entry.entry_id, "route"), context={"source": SOURCE_USER}
+            )
+        options = result["data_schema"].schema["start_source"].config["options"]
+        assert {"value": "zone.home", "label": "Home (zone.home)"} in options
+        data = {
+            "name": "Commute",
+            "corridor_m": 100,
+            "forecast_hours": 1,
+            "start_source": "zone.home",
+            "end_source": "map" if mixed else "zone.work",
+        }
+        mock_http.get(routing_url(route_data), payload=routing)
+        result = await manager.async_configure(result["flow_id"], data)
+        if mixed:
+            assert result["step_id"] == "route_locations"
+            assert list(result["data_schema"].schema) == ["end"]
+            field = next(iter(result["data_schema"].schema))
+            assert field.default() == {
+                "latitude": hass.config.latitude,
+                "longitude": hass.config.longitude,
+            }
+            result = await manager.async_configure(
+                result["flow_id"], {"end": route_data["end"]}
+            )
+        assert result["step_id"] == "route_overview"
+        result = await menu_action(manager, result, "route_save")
+        if kind == "parent":
+            entry = result["result"]
+        subentry = next(iter(entry.subentries.values()))
+        assert subentry.data["start_source"] == "zone.home"
+        assert subentry.data["start_zone_name"] == "Home"
+        assert subentry.data["start"] == route_data["start"]
+        assert subentry.data["end"] == route_data["end"]
+    # A moved zone does not silently rewrite a saved route. Explicit recalculation
+    # resolves the current point and preserves the logical route identity.
+    updated = {**route_data, "start": {"latitude": 63.431, "longitude": 10.396}}
+    hass.states.async_set(
+        "zone.home", "0", {**updated["start"], "friendly_name": "Home"}
+    )
+    assert subentry.data["start"] == route_data["start"]
+    manager = hass.config_entries.subentries
+    result = await manager.async_init(
+        (entry.entry_id, "route"),
+        context={"source": SOURCE_RECONFIGURE, "subentry_id": subentry.subentry_id},
+    )
+    assert sum(len(calls) for calls in mock_http.requests.values()) == 1
+    mock_http.get(routing_url(updated), payload=routing)
+    result = await menu_action(manager, result, "route_recalculate")
+    result = await menu_action(manager, result, "route_save")
+    assert result["reason"] == "reconfigure_successful"
+    saved = entry.subentries[subentry.subentry_id]
+    assert saved.data["start"] == updated["start"]
+    assert saved.unique_id == subentry.unique_id
+    result = await manager.async_init(
+        (entry.entry_id, "route"),
+        context={"source": SOURCE_RECONFIGURE, "subentry_id": saved.subentry_id},
+    )
+    hass.states.async_remove("zone.home")
+    result = await menu_action(manager, result, "route_recalculate")
+    assert result["step_id"] == "route_settings"
+    assert result["errors"] == {"start_source": "zone_unavailable"}
+    assert entry.subentries[saved.subentry_id].data == saved.data
+
+
+@pytest.mark.parametrize(
+    "damage", ["deleted", "unavailable", "missing_coordinates", "invalid_coordinates"]
+)
+async def test_zone_missing_during_selection(hass: HomeAssistant, damage: str) -> None:
+    """A disappeared zone is never silently replaced by home coordinates."""
+    hass.states.async_set("zone.home", "0", {"latitude": 63.43, "longitude": 10.395})
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="public_service", data={})
+    entry.add_to_hass(hass)
+    manager = hass.config_entries.subentries
+    result = await manager.async_init(
+        (entry.entry_id, "route"), context={"source": SOURCE_USER}
+    )
+    if damage == "deleted":
+        hass.states.async_remove("zone.home")
+    else:
+        hass.states.async_set(
+            "zone.home",
+            "unavailable" if damage == "unavailable" else "0",
+            {"latitude": "invalid", "longitude": 0}
+            if damage == "invalid_coordinates"
+            else {},
+        )
+    result = await manager.async_configure(
+        result["flow_id"],
+        {
+            "name": "Example",
+            "start_source": "zone.home",
+            "end_source": "map",
+            "corridor_m": 100,
+            "forecast_hours": 1,
+        },
+    )
+    result = await manager.async_configure(
+        result["flow_id"], {"end": {"latitude": 63.305, "longitude": 9.846}}
+    )
+    assert result["step_id"] == "route_settings"
+    assert result["errors"] == {"start_source": "zone_unavailable"}
+    assert not entry.subentries
+
+
+@pytest.mark.parametrize("language", ["en", "nb"])
+@pytest.mark.parametrize("category", ["config", "config_subentries"])
+async def test_route_labels(hass: HomeAssistant, language: str, category: str) -> None:
+    """All route actions and fields exist in HA's actual translation resources."""
+    labels = await async_get_translations(hass, language, category, {DOMAIN})
+    prefix = f"component.{DOMAIN}.{category}"
+    if category == "config_subentries":
+        prefix += ".route"
+        assert labels[f"{prefix}.initiate_flow.user"] == (
+            "Legg til rute" if language == "nb" else "Add route"
+        )
+        assert labels[f"{prefix}.initiate_flow.reconfigure"]
+        assert labels[f"{prefix}.entry_type"]
+    for step, fields in {
+        "route_settings": [
+            "name",
+            "start_source",
+            "end_source",
+            "corridor_m",
+            "forecast_hours",
+        ],
+        "route_locations": ["start", "end"],
+        "route_choice": ["route"],
+    }.items():
+        for field in fields:
+            assert labels[f"{prefix}.step.{step}.data.{field}"]
+    for action in ("route_settings", "route_choice", "route_recalculate", "route_save"):
+        assert labels[f"{prefix}.step.route_overview.menu_options.{action}"]
+    selectors = await async_get_translations(hass, language, "selector", {DOMAIN})
+    assert selectors[f"component.{DOMAIN}.selector.route_endpoint.options.map"] == (
+        "Velg på kart" if language == "nb" else "Choose on map"
+    )
+
+    entities = await async_get_translations(hass, language, "entity", {DOMAIN})
+    for key in (
+        "road_condition",
+        "slip_risk",
+        "minimum_road_temperature",
+        "maximum_road_temperature",
+        "forecast_time",
+        "forecast_segments",
+    ):
+        assert entities[f"component.{DOMAIN}.entity.sensor.route_{key}.name"]

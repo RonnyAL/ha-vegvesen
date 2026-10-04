@@ -64,18 +64,18 @@ Readings and statuses are exposed as provided by the source. Missing readings ar
 
 Choose **Add route / Legg til rute** on the integration, or **Route forecast / Ruteprognose** during first setup.
 
-1. Name the route and choose a **start** and **destination** on the maps or enter their coordinates. The maps initially centre on your Home Assistant location.
+1. Name the route and choose a **start** and **destination** from your existing Home Assistant zones. Each dropdown also offers **Choose on map / Velg på kart**; you can mix zones and map points.
 2. Set the **corridor** (distance on either side of the route, initially 100 metres) and **forecast hours ahead** (initially 1).
-3. Choose **Calculate route / Beregn rute**. Review the proposed road names and distance. **Choose route / Velg ruteforslag** lets you select another proposal if the service offers one.
+3. Choose **Continue / Fortsett**. If you selected map points, set those points on the next screen and choose **Calculate route / Beregn rute**. Maps initially centre on your Home Assistant location. Review the proposed road names and distance. **Choose route / Velg ruteforslag** lets you select another proposal if the service offers one.
 4. Choose **Save route / Lagre rute**. You can edit the settings from the overview before saving, or use the route's reconfigure action later.
 
 Each saved route creates one device with six sensors. **Road condition** and **Slipperiness** summarize the source categories on matching road segments. A single category is shown when all matched segments agree; differing categories show **Mixed**. If some matched segments lack a category, the summary shows **Incomplete data**; if all lack it, it is **unknown**. Attributes list the original category codes and their counts. Slipperiness comes from the source, without an integration-generated risk score. **No new precipitation** does not mean dry road or safe driving conditions.
 
 The temperature sensors show the lowest and highest available **forecast road-surface temperatures**, preserving unusual source values. These are forecasts, distinct from measured station temperatures. Missing temperatures are omitted from the minimum/maximum and counted in attributes; no available values means **unknown**.
 
-**Forecast time** is the hour the forecast applies to, not its publication time. With 1 hour ahead selected, a refresh at 14:35 selects the forecast for 15:00. The selection rolls forward on each refresh. **Forecast segments** counts the matching segments, including ones with missing values. Zero matching segments gives a count of 0 and unknown condition/temperature/time sensors. A failed or incomplete API request makes that route unavailable until a complete refresh succeeds.
+**Forecast valid time / Prognosen gjelder for** is the hour the forecast applies to, not when it was published or fetched. HA may display it as a time in the future; that is expected. With 1 hour ahead selected, a refresh at 14:35 selects the forecast for 15:00. The selection rolls forward on each refresh. **Forecast segments** counts the matching segments, including ones with missing values. Zero matching segments gives a count of 0 and unknown condition/temperature/time sensors. A failed or incomplete API request makes that route unavailable until a complete refresh succeeds.
 
-Routes have their own geography, independently of selected counties, stations, cameras or other routes. Overlapping routes do not add duplicate stations or cameras. Saved road geometry is reused during polling; **Recalculate route / Beregn ruten på nytt** explicitly requests a fresh road proposal. Forecasts for one route can fail without stopping the others.
+Routes have their own geography, independently of selected counties, stations, cameras or other routes. Overlapping routes do not add duplicate stations or cameras. Saved road geometry is reused during polling; **Recalculate route / Beregn ruten på nytt** explicitly requests a fresh road proposal. Zone centres are copied when calculating a route. If you move a zone, recalculate to use its new position. Deleting a zone does not alter an already saved route; select another endpoint before recalculating. Forecasts for one route can fail without stopping the others.
 
 This first version supports two endpoints, without intermediate stops, imported tracks or a route-line map preview. Matching is geographic: nearby side roads, crossing roads and opposite carriageways may be included in the corridor. Forecast coverage is not guaranteed along the entire route. Large routes can exceed the request deadline and become unavailable; partial results are never presented as complete. This version does not include traffic incidents or closures.
 
@@ -91,7 +91,7 @@ To remove one source or route, remove its subentry in **Devices & services**. To
 
 **The integration does not appear:** confirm HACS downloaded it, restart Home Assistant, then search again in **Add integration**.
 
-**Blank fields, old setup text or a `MISSING_VALUE` error after updating:** confirm the integration reports **0.5.0 or newer**, restart HA, then refresh the browser. If the companion app still shows old text, compare with a fresh browser window: restarting HA alone does not clear the app’s cached frontend translations.
+**Blank fields, old setup text or a `MISSING_VALUE` error after updating:** confirm the integration reports **0.5.0 or newer**, restart HA, then refresh the browser. If the companion app shows a lone **+**, blank menu buttons, raw field names or old text while a fresh browser works, use **Reset frontend cache** in the app’s settings. Restarting HA alone does not clear the app’s cached frontend translations. See [HA’s cache troubleshooting](https://www.home-assistant.io/faq/).
 
 **A source is missing:** check the appropriate county/municipality, including **Unknown county → Unknown municipality** for unclassified sources. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
 

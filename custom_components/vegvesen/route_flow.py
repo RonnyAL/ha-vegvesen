@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from copy import deepcopy
 from typing import Any
 from uuid import uuid4
 
@@ -30,6 +31,7 @@ class RouteFlow:
     _route_data: dict[str, Any]
     _route_choices: list[RoadRoute]
     _route_choice: int = 0
+    _route_stops: list[dict[str, float]] | None = None
 
     def _initialize_route(self) -> None:
         if not hasattr(self, "_route_data"):
@@ -55,44 +57,50 @@ class RouteFlow:
         self._initialize_route()
         return await self.async_step_route_settings(user_input)
 
+    def _endpoint_selector(self) -> SelectSelector:
+        """List existing HA zones by friendly name alongside a manual-map option."""
+        zones = {
+            state.entity_id: state.name for state in self.hass.states.async_all("zone")
+        }
+        # Keep a removed saved zone visible so it cannot silently turn into a map
+        # point or another zone. Calculation reports the missing zone explicitly.
+        for endpoint in ("start", "end"):
+            source = self._route_data.get(f"{endpoint}_source", "map")
+            if source != "map" and source not in zones:
+                zones[source] = self._route_data.get(f"{endpoint}_zone_name", source)
+        return SelectSelector(
+            SelectSelectorConfig(
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key="route_endpoint",
+                options=[
+                    {"value": entity_id, "label": f"{name} ({entity_id})"}
+                    for entity_id, name in sorted(
+                        zones.items(), key=lambda item: (item[1].casefold(), item[0])
+                    )
+                ]
+                + [{"value": "map", "label": "Choose on map"}],
+            )
+        )
+
     async def async_step_route_settings(
         self, user_input: dict[str, Any] | None = None
     ) -> Any:
-        """Calculate actual road routes, retaining edits if the service fails."""
+        """Select zones or manual endpoints without rendering unnecessary maps."""
         errors = {}
         if user_input is not None:
-            changed_stops = any(
-                user_input[key] != self._route_data.get(key) for key in ("start", "end")
-            )
-            if changed_stops:
-                self._route_choices = []
             self._route_data.update(user_input)
-            valid_points = all(
-                all(math.isfinite(point[k]) for k in ("latitude", "longitude"))
-                and -90 <= point["latitude"] <= 90  # noqa: PLR2004
-                and -180 <= point["longitude"] <= 180  # noqa: PLR2004
-                for point in (user_input["start"], user_input["end"])
-            )
-            if not valid_points or not user_input["name"].strip():
-                errors["base"] = "invalid_route"
+            if not user_input["name"].strip():
+                errors["name"] = "invalid_route"
+            elif self._manual_endpoints():
+                return await self.async_step_route_locations()
             else:
-                try:
-                    if changed_stops or not self._route_choices:
-                        # Discard candidates for the old stops, including on failure.
-                        self._route_choices = []
-                        self._route_choices = await RouteApiClient(
-                            async_get_clientsession(self.hass)
-                        ).async_routes([user_input["start"], user_input["end"]])
-                        self._route_choice = 0
-                    if self._route_choices:
-                        return await self.async_step_route_overview()
-                    errors["base"] = "no_route"
-                except VegvesenApiError:
-                    errors["base"] = "cannot_connect"
+                errors = await self._async_calculate_route()
+                if not errors:
+                    return await self.async_step_route_overview()
         fields = {
             "name": TextSelector(),
-            "start": LocationSelector(),
-            "end": LocationSelector(),
+            "start_source": self._endpoint_selector(),
+            "end_source": self._endpoint_selector(),
             "corridor_m": NumberSelector(
                 NumberSelectorConfig(
                     min=10,
@@ -112,11 +120,12 @@ class RouteFlow:
                 )
             ),
         }
+        defaults = {"start_source": "map", "end_source": "map", **self._route_data}
         schema = vol.Schema(
             {
                 (
-                    vol.Required(key, default=self._route_data[key])
-                    if key in self._route_data
+                    vol.Required(key, default=defaults[key])
+                    if key in defaults
                     else vol.Required(key)
                 ): selector
                 for key, selector in fields.items()
@@ -124,6 +133,81 @@ class RouteFlow:
         )
         return self.async_show_form(
             step_id="route_settings", data_schema=schema, errors=errors
+        )
+
+    def _manual_endpoints(self) -> list[str]:
+        return [
+            key
+            for key in ("start", "end")
+            if self._route_data.get(f"{key}_source", "map") == "map"
+        ]
+
+    async def async_step_route_locations(
+        self, user_input: dict[str, Any] | None = None
+    ) -> Any:
+        """Show maps only for endpoints explicitly selected as manual points."""
+        errors = {}
+        if user_input is not None:
+            self._route_data.update(user_input)
+            errors = await self._async_calculate_route()
+            if not errors:
+                return await self.async_step_route_overview()
+            if "zone_unavailable" in errors.values():
+                result = await self.async_step_route_settings()
+                result["errors"] = errors
+                return result
+        return self.async_show_form(
+            step_id="route_locations",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(key, default=self._route_data[key]): LocationSelector()
+                    for key in self._manual_endpoints()
+                }
+            ),
+            errors=errors,
+        )
+
+    async def _async_calculate_route(self) -> dict[str, str]:
+        """Resolve zones at explicit calculation time and reuse unchanged geometry."""
+        for endpoint in ("start", "end"):
+            source = self._route_data.get(f"{endpoint}_source", "map")
+            if source == "map":
+                self._route_data.pop(f"{endpoint}_zone_name", None)
+                continue
+            zone = self.hass.states.get(source) if source.startswith("zone.") else None
+            if zone is None or zone.state in {"unknown", "unavailable"}:
+                return {f"{endpoint}_source": "zone_unavailable"}
+            point = {k: zone.attributes.get(k) for k in ("latitude", "longitude")}
+            if not self._valid_point(point):
+                return {f"{endpoint}_source": "zone_unavailable"}
+            self._route_data[endpoint] = point
+            self._route_data[f"{endpoint}_zone_name"] = zone.name
+        stops = [self._route_data[key] for key in ("start", "end")]
+        if stops != self._route_stops:
+            self._route_choices = []
+        if not all(self._valid_point(point) for point in stops):
+            return {"base": "invalid_route"}
+        try:
+            if not self._route_choices:
+                self._route_choices = await RouteApiClient(
+                    async_get_clientsession(self.hass)
+                ).async_routes(stops)
+                self._route_choice = 0
+                self._route_stops = deepcopy(stops)
+        except VegvesenApiError:
+            return {"base": "cannot_connect"}
+        return {} if self._route_choices else {"base": "no_route"}
+
+    @staticmethod
+    def _valid_point(point: dict[str, Any]) -> bool:
+        """Validate endpoint coordinates without assuming zone attributes exist."""
+        return (
+            all(
+                type(point.get(k)) in (int, float) and math.isfinite(point[k])
+                for k in ("latitude", "longitude")
+            )
+            and -90 <= point["latitude"] <= 90  # noqa: PLR2004
+            and -180 <= point["longitude"] <= 180  # noqa: PLR2004
         )
 
     async def async_step_route_overview(
@@ -155,12 +239,12 @@ class RouteFlow:
     ) -> Any:
         """Explicitly request fresh proposals for the existing endpoints."""
         self._route_choices = []
-        return await self.async_step_route_settings(
-            {
-                key: self._route_data[key]
-                for key in ("name", "start", "end", "corridor_m", "forecast_hours")
-            }
-        )
+        errors = await self._async_calculate_route()
+        if not errors:
+            return await self.async_step_route_overview()
+        result = await self.async_step_route_settings()
+        result["errors"] = errors
+        return result
 
     async def async_step_route_choice(
         self, user_input: dict[str, Any] | None = None
@@ -231,6 +315,9 @@ class RouteSubentryFlow(RouteFlow, ConfigSubentryFlow):
             )
         ]
         self._route_choice = 0
+        self._route_stops = deepcopy(
+            [self._route_data[key] for key in ("start", "end")]
+        )
         return await self.async_step_route_overview()
 
     def _save_route(self) -> SubentryFlowResult:

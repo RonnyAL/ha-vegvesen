@@ -27,7 +27,7 @@ There is no API credential or integration-wide location setting. Geographic moni
 
 ## First test session
 
-Record your HA version and integration version **0.6.0**, plus selected source IDs. These are public source identifiers, but your choice of sources can reveal locations of interest; omit them from public reports if needed.
+Record your HA version and integration version **0.6.1**, plus selected source IDs. These are public source identifiers, but your choice of sources can reveal locations of interest; omit them from public reports if needed.
 
 | Check | Expected result |
 | --- | --- |
@@ -54,7 +54,7 @@ Include version numbers, the affected entity type, relevant timestamps and the e
 
 ## Updates and removal
 
-For a later reviewed revision, use HACS's download/redownload or update control, restart HA, then refresh the browser. An app can retain stale frontend translations after restarting HA; compare with a fresh browser window if needed. Record which source revision you tested: without releases, the default-branch revision is the available package. The current manifest version is 0.6.0; a default-branch development update may require redownload rather than an update notification. Confirm selections and registry identities survive the restart. The categorized picker uses unchanged saved source IDs; actual HACS upgrade testing remains the user installation check.
+For a later reviewed revision, use HACS's download/redownload or update control, restart HA, then refresh the browser. An app can retain stale frontend translations after restarting HA; compare with a fresh browser window if needed. Record which source revision you tested: without releases, the default-branch revision is the available package. The current manifest version is 0.6.1; a default-branch development update may require redownload rather than an update notification. Confirm selections and registry identities survive the restart. The categorized picker uses unchanged saved source IDs; actual HACS upgrade testing remains the user installation check.
 
 To remove the integration, remove its parent entry from **Devices & services**, remove the downloaded package through HACS, and restart HA. Removing an individual station/camera subentry keeps the parent and other sources. Export anything you want to retain before removing the parent; this guide does not ask the development agent to perform removal on your instance.
 
@@ -65,6 +65,6 @@ scripts/package
 scripts/smoke-ui
 ```
 
-The local archive is `.tools/packages/vegvesen-0.6.0.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including native-flow translations, brand images, the original MIT license and the data-attribution notice. It excludes environments, developer tools, tests, API fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds from the same files deterministic in the pinned environment.
+The local archive is `.tools/packages/vegvesen-0.6.1.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including native-flow translations, brand images, the original MIT license and the data-attribution notice. It excludes environments, developer tools, tests, API fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds from the same files deterministic in the pinned environment.
 
 The smoke runner extracts this package into a disposable HA configuration, then selects sources through the UI and verifies temperature, observation time and camera display. This proves the installed files work independently of a development source-tree link. It is not an actual HACS download test. The archive is a local review artifact; `hacs.json` still uses the ordinary repository layout, without ZIP-release mode.

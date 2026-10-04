@@ -76,16 +76,16 @@
         "title": "Route settings",
         "data": {
           "name": "Name",
-          "start": "Start",
-          "end": "Destination",
           "corridor_m": "Distance from route",
-          "forecast_hours": "Forecast hours ahead"
+          "forecast_hours": "Forecast hours ahead",
+          "start_source": "Start",
+          "end_source": "Destination"
         },
         "data_description": {
           "corridor_m": "Include roads within this distance on either side, including nearby side roads.",
           "forecast_hours": "Whole hours after the start of the current hour."
         },
-        "submit": "Calculate route"
+        "submit": "Continue"
       },
       "route_overview": {
         "title": "Route forecast",
@@ -103,6 +103,14 @@
           "route": "Route"
         },
         "submit": "Done"
+      },
+      "route_locations": {
+        "title": "Choose points",
+        "data": {
+          "start": "Start",
+          "end": "Destination"
+        },
+        "submit": "Calculate route"
       }
     },
     "error": {
@@ -115,10 +123,11 @@
       "invalid_source": "Choose an available source from the dropdown.",
       "already_configured": "One or more selected sources are already configured. Remove them from the selection.",
       "invalid_route": "Choose valid locations and a name.",
-      "no_route": "No drivable route found between these locations."
+      "no_route": "No drivable route found between these locations.",
+      "zone_unavailable": "This zone has no usable coordinates. Choose another zone or a point on the map."
     },
     "abort": {
-      "already_configured": "Statens vegvesen is already configured. Add weather stations or road cameras to the existing integration."
+      "already_configured": "Statens vegvesen is already configured. Add sources or routes to the existing integration."
     }
   },
   "config_subentries": {
@@ -247,16 +256,16 @@
           "title": "Route settings",
           "data": {
             "name": "Name",
-            "start": "Start",
-            "end": "Destination",
             "corridor_m": "Distance from route",
-            "forecast_hours": "Forecast hours ahead"
+            "forecast_hours": "Forecast hours ahead",
+            "start_source": "Start",
+            "end_source": "Destination"
           },
           "data_description": {
             "corridor_m": "Include roads within this distance on either side, including nearby side roads.",
             "forecast_hours": "Whole hours after the start of the current hour."
           },
-          "submit": "Calculate route"
+          "submit": "Continue"
         },
         "route_overview": {
           "title": "Route forecast",
@@ -274,12 +283,21 @@
             "route": "Route"
           },
           "submit": "Done"
+        },
+        "route_locations": {
+          "title": "Choose points",
+          "data": {
+            "start": "Start",
+            "end": "Destination"
+          },
+          "submit": "Calculate route"
         }
       },
       "error": {
         "invalid_route": "Choose valid locations and a name.",
         "no_route": "No drivable route found between these locations.",
-        "cannot_connect": "Could not calculate the route. Try again."
+        "cannot_connect": "Could not calculate the route. Try again.",
+        "zone_unavailable": "This zone has no usable coordinates. Choose another zone or a point on the map."
       },
       "abort": {
         "reconfigure_successful": "Route updated."
@@ -328,7 +346,7 @@
         "name": "Highest forecast road temperature"
       },
       "route_forecast_time": {
-        "name": "Forecast time"
+        "name": "Forecast valid time"
       },
       "route_forecast_segments": {
         "name": "Forecast road segments"
@@ -344,6 +362,11 @@
     "municipality": {
       "options": {
         "unknown": "Unknown municipality"
+      }
+    },
+    "route_endpoint": {
+      "options": {
+        "map": "Choose on map"
       }
     }
   },

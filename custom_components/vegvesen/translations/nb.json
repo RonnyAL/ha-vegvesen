@@ -76,16 +76,16 @@
         "title": "Ruteinnstillinger",
         "data": {
           "name": "Navn",
-          "start": "Start",
-          "end": "Mål",
           "corridor_m": "Avstand fra ruten",
-          "forecast_hours": "Prognose frem i tid"
+          "forecast_hours": "Prognose frem i tid",
+          "start_source": "Start",
+          "end_source": "Mål"
         },
         "data_description": {
           "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
           "forecast_hours": "Antall hele timer etter starten av inneværende time."
         },
-        "submit": "Beregn rute"
+        "submit": "Fortsett"
       },
       "route_overview": {
         "title": "Ruteprognose",
@@ -103,6 +103,14 @@
           "route": "Rute"
         },
         "submit": "Ferdig"
+      },
+      "route_locations": {
+        "title": "Velg punkter",
+        "data": {
+          "start": "Start",
+          "end": "Mål"
+        },
+        "submit": "Beregn rute"
       }
     },
     "error": {
@@ -115,10 +123,11 @@
       "invalid_source": "Velg en tilgjengelig datakilde fra nedtrekkslisten.",
       "already_configured": "En eller flere valgte datakilder er allerede konfigurert. Fjern dem fra utvalget.",
       "invalid_route": "Velg gyldige punkter og et navn.",
-      "no_route": "Ingen kjørbar rute funnet mellom punktene."
+      "no_route": "Ingen kjørbar rute funnet mellom punktene.",
+      "zone_unavailable": "Sonen mangler gyldige koordinater. Velg en annen sone eller et punkt på kartet."
     },
     "abort": {
-      "already_configured": "Statens vegvesen er allerede konfigurert. Legg til værstasjoner eller veikameraer i den eksisterende integrasjonen."
+      "already_configured": "Statens vegvesen er allerede konfigurert. Legg til datakilder eller ruter i den eksisterende integrasjonen."
     }
   },
   "config_subentries": {
@@ -247,16 +256,16 @@
           "title": "Ruteinnstillinger",
           "data": {
             "name": "Navn",
-            "start": "Start",
-            "end": "Mål",
             "corridor_m": "Avstand fra ruten",
-            "forecast_hours": "Prognose frem i tid"
+            "forecast_hours": "Prognose frem i tid",
+            "start_source": "Start",
+            "end_source": "Mål"
           },
           "data_description": {
             "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
             "forecast_hours": "Antall hele timer etter starten av inneværende time."
           },
-          "submit": "Beregn rute"
+          "submit": "Fortsett"
         },
         "route_overview": {
           "title": "Ruteprognose",
@@ -274,12 +283,21 @@
             "route": "Rute"
           },
           "submit": "Ferdig"
+        },
+        "route_locations": {
+          "title": "Velg punkter",
+          "data": {
+            "start": "Start",
+            "end": "Mål"
+          },
+          "submit": "Beregn rute"
         }
       },
       "error": {
         "invalid_route": "Velg gyldige punkter og et navn.",
         "no_route": "Ingen kjørbar rute funnet mellom punktene.",
-        "cannot_connect": "Kunne ikke beregne ruten. Prøv igjen."
+        "cannot_connect": "Kunne ikke beregne ruten. Prøv igjen.",
+        "zone_unavailable": "Sonen mangler gyldige koordinater. Velg en annen sone eller et punkt på kartet."
       },
       "abort": {
         "reconfigure_successful": "Ruten er oppdatert."
@@ -328,7 +346,7 @@
         "name": "Høyeste veitemperatur i prognosen"
       },
       "route_forecast_time": {
-        "name": "Prognosetid"
+        "name": "Prognosen gjelder for"
       },
       "route_forecast_segments": {
         "name": "Veistrekninger med prognose"
@@ -344,6 +362,11 @@
     "municipality": {
       "options": {
         "unknown": "Ukjent kommune"
+      }
+    },
+    "route_endpoint": {
+      "options": {
+        "map": "Velg på kart"
       }
     }
   },

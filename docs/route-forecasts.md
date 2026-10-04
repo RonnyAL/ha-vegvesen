@@ -74,10 +74,19 @@ Each route owns a local UUID, saved geometry, corridor distance and forecast
 hour offset in a `route` subentry under the existing parent. Reconfiguration
 preserves entity/device identity. Explicit recalculation requests fresh road
 proposals; routine polling and editing only the name/corridor/hour offset reuse
-geometry. The maps use HA's native location selectors with explicit home-location
+geometry. From 0.6.1, native dropdowns offer existing `zone.*` entities by friendly name
+and ID, plus a translated manual-map option. Only manual endpoints render maps.
+The map forms use HA's native location selectors with explicit home-location
 initial values; required empty location selectors otherwise fail to render in
 the tested HA frontend. Locations remain in HA's configuration and are sent to
 the public routing service when calculating; no user locations are tracked here.
+Zone entity IDs and names are retained alongside the resolved coordinates. A
+moved zone is resolved again when applying settings or explicitly recalculating;
+normal polling uses the saved geometry. Deleted/unavailable/malformed zones cause
+an editable field error, never a silent switch to home coordinates. Existing
+0.6.0 coordinate-only routes remain editable without migration or changed IDs.
+The dropdown and map selectors exist in the minimum HA version; the newer
+choose-selector widget does not, so it is not required.
 
 A route coordinator polls every 30 minutes. This is an integration choice,
 not a verified source publication cadence. Target time is current UTC hour plus

@@ -7,7 +7,7 @@
 | Primary development | 2026.9.4 | 3.14.8 | 0.13.367 | `uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-Both run the same 222 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+Both run the same 234 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
 The Bokmål test configures HA with language `nb`, checks translated temperature and observation names, resolves both translated subentry actions through HA's translation loader, and verifies source-based entity identity remains intact.
 
@@ -53,7 +53,7 @@ refreshes normally, and checks both families' field labels and overview actions.
 No translation resources are manually injected. Screenshots and timing results
 remain ignored in `.tools/smoke-results`.
 
-The runner also saves the public Trondheim–Orkanger route through native map/coordinate inputs, checks its editable overview and proposal selector, and opens its Bokmål settings. The result has three physical devices, one route service device and twelve entities. Six route forecast states must become available against the live API. The test checks weather
+The runner also saves the public Trondheim–Orkanger route through native map/coordinate inputs, checks its editable overview and proposal selector, then exercises the full Bokmål route flow: named zones, a mixed zone/map pair, all four overview labels, the route proposal label, retained choices when editing, and an existing route's reconfigure action. The result has three physical devices, one route service device and twelve entities. Six route forecast states must become available against the live API. The test checks weather
 and camera states, retrieves a JPEG through HA's camera proxy, opens the camera
 details dialog, and checks the rendered image. It also reopens a weather flow
 to exercise cached discovery. The minimal test instance has no recorder or
@@ -103,6 +103,8 @@ reason to remove configured sources or reinstall the integration.
 
 ## Remaining distribution work
 
-The immediate target is user testing through a HACS custom repository, described in the [installation guide](custom-repository-test.md). Default-list submission is deferred; a release is optional for default-branch installation. The repository is now public and the user reports the initial HACS installation working. Actual HACS 0.6.0 upgrade/removal testing remains pending. Longer-running live recovery observations and a minimum-version frontend smoke test remain future work. Saved route forecasts are implemented; area monitors and automatic physical-source ownership/deduplication remain future work. See [route details](route-forecasts.md).
+The immediate target is user testing through a HACS custom repository, described in the [installation guide](custom-repository-test.md). Default-list submission is deferred; a release is optional for default-branch installation. The repository is now public and the user reports the initial HACS installation working. The user reports 0.6.0 route operation working on HA 2026.10.0b0; that beta is not an automated test target. Actual HACS 0.6.1 upgrade/removal testing remains pending. Longer-running live recovery observations and a minimum-version frontend smoke test remain future work. Saved route forecasts are implemented; area monitors and automatic physical-source ownership/deduplication remain future work. See [route details](route-forecasts.md).
 
 The native picker tests cover all four parent/subentry source paths, actual HA form serialization, populated region filtering, invalid/out-of-region source IDs, missing/malformed index data, and new, moved or coordinate-free sources. Cache tests cover TTL expiry, shared flow reuse, copied snapshots, simultaneous flows, cancellation, independent families and failed/incomplete pagination without publishing partial data. Geography never runs during setup or entity polling. [Source and behavior details](geographic-selection.md).
+
+For 0.6.1, route field/menu/action translations are checked through HA’s translation loader in English and Bokmål, for both initial setup and subentries. Tests cover mixed endpoints, moved/deleted/unavailable zones and stable route identities. The user confirmed 0.6.0’s blank route labels occurred only in the companion app, with the browser rendering correctly; clearing the app frontend cache is the remedy, not an integration-specific frontend patch.
