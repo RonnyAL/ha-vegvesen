@@ -4,7 +4,7 @@ Bring road weather readings, road-camera still images and route forecasts from S
 
 This is an independent community integration, not an official Statens vegvesen product.
 
-**Route-map beta:** this branch contains experimental maps in **0.8.0b7**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
+**Route-map beta:** the development branch (`main`) includes the maps published in **0.8.0b7**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
 
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
@@ -218,9 +218,9 @@ Beta-only summary/count entities may remain unavailable after rollback and can
 be removed through HA. Do not delete the route configuration. A saved 0-hour
 offset still loads on 0.7.4; its older settings form requires 1–24 hours when
 you edit a route.
-Remove the optional map cards and their Dashboard Resource when reverting to
-0.7.4. On card upgrades, update the resource URL's version suffix and refresh
-the frontend after restarting HA.
+Remove the optional map cards when reverting to 0.7.4, along with any manual
+Dashboard Resource left over from an earlier beta. Card upgrades are automatic
+with integration updates; restart HA and refresh the frontend afterward.
 See [HACS's version-selection instructions](https://www.hacs.xyz/docs/use/repositories/dashboard/#downloading-a-specific-version-of-a-repository).
 
 ## Updates and removal

@@ -1,7 +1,7 @@
 # Interactive route-map card
 
-The **0.8.0b7** experiment stays on `feature/route-maps`, separate from stable
-**0.7.4**. Installation and upgrade instructions are in the
+Route-map development is now on `main`. The latest published beta is **0.8.0b7**;
+the stable release remains **0.7.4**. Installation and upgrade instructions are in the
 [README](../README.md#interactive-dashboard-card).
 
 ## Route selection and data model
