@@ -79,3 +79,36 @@ The [route-map beta](route-maps.md) has a third locked target in
 `environments/beta`, using HA 2026.10.0b0 and its matching test package. Its PNG
 renderer uses Pillow already provided by HA core; it adds no host dependency.
 The native image and signed-path APIs are also available at the existing minimum.
+
+## Interactive card
+
+Use Node **22.23.2** with npm **10.9.8**, separate from HA's Python runtime:
+
+```bash
+npm ci --ignore-scripts
+npm run build
+npm run check
+```
+
+`package-lock.json` pins MapLibre, the VersaTiles style generator, esbuild,
+ESLint and Prettier. Builds make no network requests. The generated JavaScript
+and license notices are committed so ordinary HACS integration downloads work
+without a second frontend repository or a build during installation. CI runs
+the same lint, formatting, JavaScript tests and byte-for-byte bundle check.
+`frontend/` contains editable sources; `custom_components/vegvesen/frontend/`
+contains distribution assets. npm's cache and node_modules are ignored.
+
+The optional live browser checks exercise the packaged resource, native card
+editor, OSM vector tiles, touch panning, zoom, segment popups and English/Bokmål:
+
+```bash
+scripts/smoke-ui --route-card
+scripts/smoke-ui --minimum --route-card
+scripts/smoke-ui --beta --route-card
+```
+
+These use a disposable HA on loopback port **18127** with public town-centre
+endpoints. Credentials/configuration are removed and HA stopped in `finally`.
+Run them sequentially with other environment-syncing scripts. The browser uses
+software WebGL for headless validation; physical companion-app testing remains
+necessary. See [card architecture](route-card.md).

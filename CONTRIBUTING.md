@@ -6,6 +6,12 @@ Use supported native HA/HACS mechanisms and verify official guidance before desi
 
 Run `scripts/setup` followed by `scripts/check`. These are also the CI commands. Ruff handles lint and formatting checks; tests use Home Assistant's custom-component test package and mocked network responses. When changing dependency pins, regenerate `uv.lock` using the pinned uv version and rerun the checks.
 
+The optional dashboard card uses Node **22.23.2**. Run `npm ci --ignore-scripts`
+and `npm run check`, matching the frontend CI job. After editing `frontend/`, run
+`npm run build` and commit the generated runtime bundle and license notices in
+`custom_components/vegvesen/frontend/`. The reproducibility check fails when
+generated files differ from the locked sources. No Node tooling runs inside HA.
+
 Run `scripts/check-beta` for the separately locked HA 2026.10.0b0 target.
 Run `scripts/check-minimum` for the independently locked HA 2025.12.0 environment. Update its lock with `UV_CACHE_DIR="$PWD/.cache/uv" UV_PYTHON_INSTALL_DIR="$PWD/.tools/python" uv lock --project environments/minimum` when changing its pins. Run `scripts/validate-hassfest` and `scripts/validate-hacs` for the same packaging validation used by CI. The optional `scripts/smoke-ui` uses live public APIs and a temporary local HTTP server; it is separate from the deterministic mocked CI suite. Details, isolation guarantees, and limitations are in [docs/validation.md](docs/validation.md).
 

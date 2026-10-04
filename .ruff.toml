@@ -33,3 +33,4 @@ max-complexity = 25
 "scripts/fetch-validation-source.py" = ["S310"] # Fixed HTTPS URLs, SHA256 checked
 "scripts/setup-smoke-browser.py" = ["S310", "S603", "S607"] # Pinned HTTPS packages; dpkg-deb extracts locally
 "scripts/smoke-ui.py" = ["S603", "PLR0915", "TRY301"] # Controlled HA subprocess and sequential UI scenario
+"scripts/smoke-route-card.py" = ["S101", "PLR0915", "PLR2004"] # Assertions in sequential browser test

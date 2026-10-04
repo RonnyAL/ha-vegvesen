@@ -11,6 +11,24 @@ permissions:
   contents: read
 
 jobs:
+  frontend:
+    name: Route map card / Node 22.23.2
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22.23.2"
+          cache: npm
+      - name: Install locked frontend dependencies
+        run: npm ci --ignore-scripts
+      - name: Lint, formatting, tests and reproducible bundle
+        run: npm run check
+
   checks:
     name: Python 3.14.8 / HA 2026.9.4
     runs-on: ubuntu-latest

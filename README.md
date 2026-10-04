@@ -131,7 +131,8 @@ show_name: true
 show_state: false
 ```
 
-These are static images, without map panning, zoom controls or segment popups.
+The image entity is a static overview. For panning, zooming and segment details,
+use the optional interactive card below.
 Existing routes gain their image automatically. Forecast images follow the same
 complete snapshots and availability as the route sensors; viewing one makes no
 extra forecast request. With no matching segments, the image shows the selected
@@ -151,11 +152,60 @@ Bokmål, with English fallback), independently of each user's profile language.
 HA 2026.10's native map changes apply to the endpoint picker. The generated
 images use OSM raster tiles and also work on the supported older HA versions.
 
+### Interactive dashboard card
+
+The beta includes **Statens vegvesen route map**, an optional custom dashboard
+card with a vector background, touch panning, zoom controls and **Fit route /
+Vis hele ruten**. Tap a colored segment for its source condition, road temperature,
+slipperiness and forecast time. Expand **Conditions / Føreforhold** for the legend.
+The forecast time uses Home Assistant's configured time zone.
+
+After installing the beta and restarting HA:
+
+1. Open **Settings → Dashboards → menu → Resources**. Enable **Advanced mode**
+   in your profile if Resources is hidden.
+2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b2` as a
+   **JavaScript module**. This is a one-time resource registration for all routes.
+3. Refresh the browser or fully close and reopen the companion app.
+4. Edit a dashboard, choose **Add card → Statens vegvesen route map**, and select
+   the route's existing **Route map / Rutekart** image entity. Save the card.
+
+No second route configuration or additional entity is needed. The selected image
+entity identifies the saved route; the card draws the geometry and cached
+forecasts itself. HA's ordinary image detail dialog continues to show the static
+overview. Keep the selected image entity enabled.
+
+Equivalent card YAML (replace the example entity ID):
+
+```yaml
+type: custom:vegvesen-route-map
+entity: image.hjem_jobb_rutekart
+```
+
+Optional YAML settings are `title` and `height` (240–1,000 pixels; default 400).
+Advanced users can set `map_style_url` to another public HTTP(S) MapLibre style
+URL, following that provider's terms and attribution requirements.
+See HA's [resource registration guide](https://developers.home-assistant.io/docs/frontend/custom-ui/registering-resources/).
+
+The card uses MapLibre and OpenStreetMap Shortbread **vector tiles**, with a
+subdued light/dark style. Tiles and label fonts are requested directly by the
+browser and use its HTTP cache. The map provider receives the viewer's IP
+address, the HA site's origin as a referrer, and requested tile areas; route
+names and complete route geometry are not uploaded. Only visible map views are
+requested; there is no offline download. Source forecasts still come from the
+integration's existing cache, without extra Vegvesen polling. Missing geometry
+is counted in the legend; an outage clears forecast lines until data recovers.
+
+Interactive maps require WebGL 2 in the browser/app. The static image remains
+available on devices without it. The card uses supported HA dashboard/resource
+and WebSocket APIs; it does not depend on HA's internal map components or tile
+proxy. Map interaction and appearance are separate from the configuration preview.
+
 ### Try the route-map beta
 
 1. In HACS, open **Statens vegvesen** → menu → **Update information**.
 2. Choose **Redownload** → **Need a different version?**, then select release
-   **0.8.0b1**. If your HACS version offers a beta filter, enable it.
+   **0.8.0b2**. If your HACS version offers a beta filter, enable it.
 3. Restart Home Assistant, then reconfigure a route to see its preview and open
    the route device's new image entity.
 
@@ -163,6 +213,9 @@ To revert, use the same version selector to download **0.7.4**, then restart HA.
 Saved settings, routes and existing sensor/camera identities remain compatible.
 The beta-only image entity may remain unavailable in the entity registry after
 rollback; it can be removed through HA. Do not delete the route configuration.
+Remove the optional map cards and their Dashboard Resource when reverting to
+0.7.4. On card upgrades, update the resource URL's version suffix and refresh
+the frontend after restarting HA.
 See [HACS's version-selection instructions](https://www.hacs.xyz/docs/use/repositories/dashboard/#downloading-a-specific-version-of-a-repository).
 
 ## Updates and removal

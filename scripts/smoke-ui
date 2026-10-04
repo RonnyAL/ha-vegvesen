@@ -2,8 +2,8 @@
 # Explicit, temporary loopback-only HA test. The Python runner always stops HA.
 set -euo pipefail
 for arg in "$@"; do
-    if [[ ! "$arg" =~ ^(--minimum|--beta|--hacs|--rollback)$ ]]; then
-        echo "Usage: scripts/smoke-ui [--minimum|--beta] [--rollback] or --hacs" >&2
+    if [[ ! "$arg" =~ ^(--minimum|--beta|--hacs|--rollback|--route-card)$ ]]; then
+        echo "Usage: scripts/smoke-ui [--minimum|--beta] [--rollback|--route-card] or --hacs" >&2
         exit 2
     fi
 done
@@ -28,7 +28,16 @@ export FONTCONFIG_FILE="${PWD}/.tools/fonts.conf"
 export LD_LIBRARY_PATH="${PWD}/.tools/native/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 "${VEGVESEN_UV}" run --locked --no-sync playwright install chromium --only-shell
 scripts/package
-if [[ "${1:-}" == "--hacs" ]]; then
+if [[ " $* " == *" --route-card "* ]]; then
+    if [[ " $* " == *" --hacs "* || " $* " == *" --rollback "* ]]; then
+        echo "The route-card scenario runs separately from HACS and rollback." >&2
+        exit 2
+    fi
+    card_target=primary
+    if [[ " $* " == *" --minimum "* ]]; then card_target=minimum; fi
+    if [[ " $* " == *" --beta "* ]]; then card_target=beta; fi
+    "${VEGVESEN_UV}" run --locked --no-sync python -u scripts/smoke-route-card.py --target "$card_target"
+elif [[ "${1:-}" == "--hacs" ]]; then
     "${VEGVESEN_UV}" run --locked --no-sync python -u scripts/smoke-hacs.py
 else
     "${VEGVESEN_UV}" run --locked --no-sync python -u scripts/smoke-ui.py "$@"

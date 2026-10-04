@@ -20,6 +20,7 @@ from .const import (
 from .coordinator import CameraCoordinator, WeatherCoordinator
 from .data import VegvesenData
 from .discovery import async_get_discovery
+from .route_card import async_setup_route_card
 from .route_coordinator import RouteCoordinator
 from .route_services import async_setup_route_service
 
@@ -36,6 +37,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa: ARG001
     """Register the route action independently of entry setup and reloads."""
     async_setup_route_service(hass)
+    await async_setup_route_card(hass)
     return True
 
 

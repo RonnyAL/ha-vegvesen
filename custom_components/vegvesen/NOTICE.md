@@ -33,3 +33,9 @@ standard raster tiles, subject to the [tile usage policy](https://operations.osm
 and [OpenStreetMap copyright and licence terms](https://www.openstreetmap.org/copyright).
 The integration's MIT licence does not replace these map/data terms. Attribution
 is visible in each generated image and linked beneath configuration previews.
+
+The optional interactive card uses OpenStreetMap Shortbread vector tiles and
+label fonts under the [vector tile policy](https://operations.osmfoundation.org/policies/vector/).
+It bundles MapLibre GL JS (BSD-3-Clause) and styles generated with VersaTiles
+Style (MIT). Their notices, including bundled dependencies, are retained in
+[frontend/LICENSES.md](frontend/LICENSES.md).

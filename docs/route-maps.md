@@ -5,6 +5,10 @@ entities. Version **0.8.0b1** is a GitHub prerelease, separate from `main` and t
 stable **0.7.4** release. It does not change saved entry/subentry versions, route
 geometry, forecast polling, existing sensor identities or source values.
 
+The next beta, **0.8.0b2**, adds an optional [interactive dashboard card](route-card.md)
+with MapLibre/OSM vector tiles. The static-image design and 0.8.0b1 validation
+record below remain applicable to previews and image entities.
+
 ## Verified Home Assistant capabilities
 
 Checked against HA 2025.12.0, 2026.9.4 and 2026.10.0b0 and their pinned frontends:

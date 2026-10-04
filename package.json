@@ -1,0 +1,27 @@
+{
+  "name": "vegvesen-route-map",
+  "version": "0.8.0-beta.2",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.23.2"
+  },
+  "scripts": {
+    "build": "node frontend/build.js",
+    "lint": "eslint frontend",
+    "format:check": "prettier --check frontend package.json",
+    "test": "node --test frontend/*.test.js",
+    "check": "npm run lint && npm run format:check && npm test && node frontend/build.js --check"
+  },
+  "dependencies": {
+    "maplibre-gl": "6.12.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@versatiles/style": "6.1.1",
+    "esbuild": "0.28.2",
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.9"
+  }
+}

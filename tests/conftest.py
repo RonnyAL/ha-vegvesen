@@ -96,7 +96,7 @@ def mock_http(counties_payload: list[dict[str, Any]]) -> Generator[aioresponses]
             "aioresponses.core.ClientResponse",
             partial(ClientResponse, **arguments),
         ),
-        aioresponses() as responses,
+        aioresponses(passthrough=["http://127.0.0.1"]) as responses,
     ):
         responses.get(
             f"{GEOGRAPHY_URL}/fylkerkommuner?utkoordsys=4326",
