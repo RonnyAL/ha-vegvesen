@@ -92,6 +92,24 @@ repository. It does not support installing the same repository twice as both
 an Integration and a Dashboard package. Adding a `dist/` directory alone would
 not give this Integration download the Dashboard resource lifecycle.
 
+There is another native path for a bundled card: HA's public
+[`add_extra_js_url` / `remove_extra_js_url` helpers](https://github.com/home-assistant/core/blob/2026.9.4/homeassistant/components/frontend/__init__.py#L417)
+explicitly support custom integrations. They exist on all three locked HA targets;
+[HACS itself uses the registration helper](https://github.com/hacs/integration/blob/2.0.5/custom_components/hacs/frontend.py#L45)
+for its icon module. Using that API would load the module through the integration,
+without editing Lovelace storage or requiring a second HACS package. A separate
+Dashboard repository is therefore an option, not a prerequisite for automation.
+
+Before enabling that path for this card, test cold browser loads, the card picker,
+normal and panel views, lifecycle and migration from manually registered resources.
+There is an [upstream report of custom-module loading-order failures](https://github.com/home-assistant/frontend/issues/52570),
+including panel views; that report is a reason to test our supported frontends,
+not a verified failure of this card. Do not patch HA's frontend to work around it.
+The intended first-time flow, once verified, would be: install the integration,
+restart HA, configure a route, refresh the frontend, then add the custom card and
+select the route's existing image entity. No manual resource entry would be needed.
+This helper-based loading is not implemented in 0.8.0b4.
+
 With the current bundled distribution, a new user installs the integration in
 HACS, restarts HA, adds Statens vegvesen and configures a route. The native image
 works immediately. To use the optional interactive card, they register the
