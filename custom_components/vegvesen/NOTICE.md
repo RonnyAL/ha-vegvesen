@@ -27,3 +27,9 @@ The bundled source index uses point lookups to establish administrative
 membership. Runtime selection matches source IDs and coordinates to that index.
 
 The generic road/weather icon is original integration artwork, covered by the project's MIT license. It is not Statens vegvesen's official logo.
+
+**Background maps: © OpenStreetMap contributors.** Rendered images use OSM's
+standard raster tiles, subject to the [tile usage policy](https://operations.osmfoundation.org/policies/tiles/)
+and [OpenStreetMap copyright and licence terms](https://www.openstreetmap.org/copyright).
+The integration's MIT licence does not replace these map/data terms. Attribution
+is visible in each generated image and linked beneath configuration previews.

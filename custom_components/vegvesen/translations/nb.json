@@ -62,7 +62,7 @@
       },
       "route_overview": {
         "title": "Ruteprognose",
-        "description": "**{name}**\n\n{route} · {distance} km\n\nKorridor: {corridor} m på hver side\n\nPrognose: +{hours} t",
+        "description": "**{name}**\n\n{route} · {distance} km\n\nKorridor: {corridor} m på hver side\n\nPrognose: +{hours} t\n\n![Valgt rute]({preview_url})\n\n[© OpenStreetMap contributors]({osm_url})",
         "menu_options": {
           "route_settings": "Endre innstillinger",
           "route_choice": "Velg ruteforslag",
@@ -232,7 +232,7 @@
         },
         "route_overview": {
           "title": "Ruteprognose",
-          "description": "**{name}**\n\n{route} · {distance} km\n\nKorridor: {corridor} m på hver side\n\nPrognose: +{hours} t",
+          "description": "**{name}**\n\n{route} · {distance} km\n\nKorridor: {corridor} m på hver side\n\nPrognose: +{hours} t\n\n![Valgt rute]({preview_url})\n\n[© OpenStreetMap contributors]({osm_url})",
           "menu_options": {
             "route_settings": "Endre innstillinger",
             "route_choice": "Velg ruteforslag",
@@ -319,6 +319,11 @@
       },
       "route_forecast_segments": {
         "name": "Veistrekninger med prognose"
+      }
+    },
+    "image": {
+      "route_map": {
+        "name": "Rutekart"
       }
     }
   },

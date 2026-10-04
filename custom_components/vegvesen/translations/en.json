@@ -62,7 +62,7 @@
       },
       "route_overview": {
         "title": "Route forecast",
-        "description": "**{name}**\n\n{route} · {distance} km\n\nCorridor: {corridor} m on either side\n\nForecast: +{hours} h",
+        "description": "**{name}**\n\n{route} · {distance} km\n\nCorridor: {corridor} m on either side\n\nForecast: +{hours} h\n\n![Selected route]({preview_url})\n\n[© OpenStreetMap contributors]({osm_url})",
         "menu_options": {
           "route_settings": "Change settings",
           "route_choice": "Choose route",
@@ -232,7 +232,7 @@
         },
         "route_overview": {
           "title": "Route forecast",
-          "description": "**{name}**\n\n{route} · {distance} km\n\nCorridor: {corridor} m on either side\n\nForecast: +{hours} h",
+          "description": "**{name}**\n\n{route} · {distance} km\n\nCorridor: {corridor} m on either side\n\nForecast: +{hours} h\n\n![Selected route]({preview_url})\n\n[© OpenStreetMap contributors]({osm_url})",
           "menu_options": {
             "route_settings": "Change settings",
             "route_choice": "Choose route",
@@ -319,6 +319,11 @@
       },
       "route_forecast_segments": {
         "name": "Forecast road segments"
+      }
+    },
+    "image": {
+      "route_map": {
+        "name": "Route map"
       }
     }
   },

@@ -28,6 +28,7 @@ The minimum supported HA version is **2025.12.0**, distinct from the primary dev
 
 ```bash
 scripts/check-minimum
+scripts/check-beta
 scripts/validate-hassfest
 scripts/validate-hacs
 ```
@@ -39,6 +40,7 @@ The explicit live UI smoke test is available for Debian 12 amd64:
 ```bash
 scripts/smoke-ui
 scripts/smoke-ui --minimum
+scripts/smoke-ui --beta --rollback
 # Interactive GitHub authorization is required for this separate HACS check.
 scripts/smoke-ui --hacs
 ```
@@ -72,3 +74,8 @@ UV_CACHE_DIR="$PWD/.cache/uv" uv run --locked --no-sync python -u scripts/build-
 ```
 
 This makes public API requests with at most four concurrent point lookups, coalesces identical coordinates, and replaces the file only after complete catalogues and successful lookups. Review the generated changes and retain Kartverket attribution. Runtime labels require an exact source-ID and coordinate match; new or moved sources remain selectable under unknown county/municipality, without guessed geography. See [geographic selection](geographic-selection.md).
+
+The [route-map beta](route-maps.md) has a third locked target in
+`environments/beta`, using HA 2026.10.0b0 and its matching test package. Its PNG
+renderer uses Pillow already provided by HA core; it adds no host dependency.
+The native image and signed-path APIs are also available at the existing minimum.

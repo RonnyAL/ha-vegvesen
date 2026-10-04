@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     LocationSelector,
     NumberSelector,
@@ -23,6 +24,8 @@ from homeassistant.helpers.selector import (
 from .api import VegvesenApiError
 from .discovery import async_get_discovery
 from .route_api import RoadRoute, RoutePointError
+from .route_map import MapContent
+from .route_map_view import DATA_MAPS, async_get_route_maps
 
 if TYPE_CHECKING:
     import asyncio
@@ -280,6 +283,9 @@ class RouteFlow:
     ) -> Any:
         """Show the selected road proposal and explicit edit/save actions."""
         route = self._route_choices[self._route_choice]
+        preview_url = async_get_route_maps(self.hass).async_preview(
+            self.flow_id, MapContent(self._route_name(), route.geometry)
+        )
         return self.async_show_menu(
             step_id="route_overview",
             menu_options=[
@@ -294,8 +300,17 @@ class RouteFlow:
                 "distance": f"{route.length / 1000:.1f}",
                 "corridor": f"{self._route_data['corridor_m']:g}",
                 "hours": f"{self._route_data['forecast_hours']:g}",
+                "preview_url": preview_url,
+                "osm_url": "https://www.openstreetmap.org/copyright",
             },
         )
+
+    @callback
+    def async_remove(self) -> None:
+        """Drop private preview geometry when HA completes or aborts the flow."""
+        if maps := self.hass.data.get(DATA_MAPS):
+            maps.previews.pop(self.flow_id, None)
+        super().async_remove()
 
     def _route_name(self) -> str:
         """Suggest a readable device name; HA generates and owns entity IDs."""

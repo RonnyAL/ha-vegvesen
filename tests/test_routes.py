@@ -513,7 +513,7 @@ async def test_routes_weather_isolation_and_removal(
         )
         == 4
     )
-    assert len(registry.entities) == 16
+    assert len(registry.entities) == 18
     mock_http.get(url, payload=page(forecasts))
     await failed.async_refresh()
     assert failed.last_update_success
@@ -527,7 +527,7 @@ async def test_routes_weather_isolation_and_removal(
     assert routes[route_entries[0].subentry_id]._shutdown_requested
     assert len(config_entry.runtime_data.routes) == 1
     assert registry.async_get(station_id).device_id == station_device
-    assert len(registry.entities) == 10
+    assert len(registry.entities) == 11
     # Editing a loaded route reloads its corridor without replacing entities.
     retained = route_entries[1]
     original = config_entry.runtime_data.routes[retained.subentry_id]

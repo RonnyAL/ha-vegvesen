@@ -13,7 +13,7 @@ HACS falls back to a commit identifier; the integration manifest's version does
 not change that behavior.
 
 Use ordinary published GitHub releases with tags such as `0.6.2`, matching
-`custom_components/vegvesen/manifest.json`. Keep root/minimum project versions
+`custom_components/vegvesen/manifest.json`. Keep root/minimum/beta project versions
 and their lockfile project metadata synchronized. Publish from the exact tested
 commit after Checks and Validate pass. Include concise user-facing changes,
 compatibility, restart instructions and material limitations in the release notes.
@@ -76,3 +76,14 @@ distinguishes Python integrations (HA restart) from dashboard plugins (frontend
 cache refresh). Themes and other repository categories also have different
 lifecycles. That distinction can explain apparently restart-free HACS updates;
 without inspecting a specific other integration, do not assume its mechanism.
+
+## Experimental route-map release
+
+Publish **0.8.0b1** from the exact validated `feature/route-maps` commit as a
+GitHub **prerelease**, with `make_latest=false`. Leave `main` and the latest stable
+release **0.7.4** unchanged. Never attach this tag to a different commit later.
+HACS uses its ordinary release-version selector; no separate custom repository,
+update mechanism or manifest URL is needed. Rollback uses **Redownload** to select
+0.7.4, followed by an HA restart. The beta retains the stable config schema and
+existing identities; the added image entity may remain unavailable after rollback.
+See [route-map validation](route-maps.md) for the disposable rollback check.

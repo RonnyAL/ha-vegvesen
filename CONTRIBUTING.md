@@ -6,6 +6,7 @@ Use supported native HA/HACS mechanisms and verify official guidance before desi
 
 Run `scripts/setup` followed by `scripts/check`. These are also the CI commands. Ruff handles lint and formatting checks; tests use Home Assistant's custom-component test package and mocked network responses. When changing dependency pins, regenerate `uv.lock` using the pinned uv version and rerun the checks.
 
+Run `scripts/check-beta` for the separately locked HA 2026.10.0b0 target.
 Run `scripts/check-minimum` for the independently locked HA 2025.12.0 environment. Update its lock with `UV_CACHE_DIR="$PWD/.cache/uv" UV_PYTHON_INSTALL_DIR="$PWD/.tools/python" uv lock --project environments/minimum` when changing its pins. Run `scripts/validate-hassfest` and `scripts/validate-hacs` for the same packaging validation used by CI. The optional `scripts/smoke-ui` uses live public APIs and a temporary local HTTP server; it is separate from the deterministic mocked CI suite. Details, isolation guarantees, and limitations are in [docs/validation.md](docs/validation.md).
 
 `scripts/package` creates a deterministic local runtime archive and SHA256 file inside ignored `.tools/packages`. Keep the installed component's `LICENSE` byte-for-byte identical to the root license, and retain `NOTICE.md` for scaffold and data attribution. The smoke test extracts this archive rather than linking the development tree. Distribution uses numbered GitHub releases through a [HACS custom repository](docs/custom-repository-test.md). Submission to HACS's default list is a separate process.
@@ -22,3 +23,7 @@ not part of CI. The [public release review](docs/release-readiness.md) records
 completed checks and remaining validation limits.
 
 The integration is based on [ludeeus/integration_blueprint](https://github.com/ludeeus/integration_blueprint). Contributions use the existing [MIT license](LICENSE); preserve its copyright and license notice. Statens vegvesen source data has separate licensing and attribution requirements documented in the README.
+
+The experimental route maps have [design and validation notes](docs/route-maps.md).
+Use `scripts/smoke-ui --beta --rollback` for the beta frontend and a disposable
+rollback to 0.7.4. Do not run environment-syncing scripts concurrently.

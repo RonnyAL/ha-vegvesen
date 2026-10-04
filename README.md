@@ -4,11 +4,13 @@ Bring road weather readings, road-camera still images and route forecasts from S
 
 This is an independent community integration, not an official Statens vegvesen product.
 
+**Route-map beta:** this branch contains experimental maps in **0.8.0b1**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
+
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
 | Weather station | Air temperature and observation time | 10 minutes |
 | Road camera | Still image and source availability | 1 minute |
-| Saved route | Forecast road condition, slipperiness, minimum/maximum road temperature, forecast time and segment count | Just after each hour and half-hour |
+| Saved route | Forecast road condition, slipperiness, minimum/maximum road temperature, forecast time, segment count and route map | Just after each hour and half-hour |
 
 Setup is available in English and Norwegian Bokmål. No API key or Statens vegvesen account is required.
 
@@ -18,7 +20,7 @@ Setup is available in English and Norwegian Bokmål. No API key or Statens vegve
 - [HACS](https://www.hacs.xyz/docs/use/) **2.0.5 or newer** for HACS installation.
 - Internet access to Statens vegvesen's public services.
 
-Automated compatibility tests cover Home Assistant **2025.12.0** and **2026.9.4**.
+Automated compatibility tests cover Home Assistant **2025.12.0**, **2026.9.4** and **2026.10.0b0**.
 
 ## Install with HACS
 
@@ -79,10 +81,10 @@ Choose **Add route / Legg til rute** on the integration, or **Route forecast / R
 
 1. Choose a **start** and **destination** from your existing Home Assistant zones. Each dropdown also offers **Choose on map / Velg på kart**; you can mix zones and map points. The route name is optional: two zones give a name such as **Hjem → Jobb**. With one zone, its name is combined with the road proposal name; with map points only, the road proposal name is used. Enter a name to override the default.
 2. Set the **corridor** (distance on either side of the route, initially 100 metres) and **forecast hours ahead** (initially 1).
-3. Choose **Continue / Fortsett**. If you selected map points, set those points on the next screen and choose **Calculate route / Beregn rute**. Maps initially centre on your Home Assistant location. Review the proposed road names and distance. **Choose route / Velg ruteforslag** lets you select another proposal if the service offers one.
+3. Choose **Continue / Fortsett**. If you selected map points, set those points on the next screen and choose **Calculate route / Beregn rute**. Maps initially centre on your Home Assistant location. Review the proposed route on the map, along with its road names and distance. **Choose route / Velg ruteforslag** lets you select another proposal if the service offers one.
 4. Choose **Save route / Lagre rute**. You can edit the settings from the overview before saving, or use the route's reconfigure action later.
 
-Each saved route creates one device with six sensors. **Road condition** and **Slipperiness** summarize the source categories on matching road segments. A single category is shown when all matched segments agree; differing categories show **Mixed**. If some matched segments lack a category, the summary shows **Incomplete data**; if all lack it, it is **unknown**. Attributes list the original category codes and their counts. Slipperiness comes from the source, without an integration-generated risk score. **No new precipitation** does not mean dry road or safe driving conditions.
+Each saved route creates one device with six sensors and a **Route map / Rutekart** image. **Road condition** and **Slipperiness** summarize the source categories on matching road segments. A single category is shown when all matched segments agree; differing categories show **Mixed**. If some matched segments lack a category, the summary shows **Incomplete data**; if all lack it, it is **unknown**. Attributes list the original category codes and their counts. Slipperiness comes from the source, without an integration-generated risk score. **No new precipitation** does not mean dry road or safe driving conditions.
 
 The temperature sensors show the lowest and highest available **forecast road-surface temperatures**, preserving unusual source values. These are forecasts, distinct from measured station temperatures. Missing temperatures are omitted from the minimum/maximum and counted in attributes; no available values means **unknown**.
 
@@ -101,11 +103,67 @@ relevant map or zone field asks you to choose a point closer to a supported road
 
 Routes have their own geography, independently of selected counties, stations, cameras or other routes. They do not automatically add stations or cameras. Saved road geometry is reused during polling; **Recalculate route / Beregn ruten på nytt** requests a fresh road proposal. Zone centres are copied when calculating a route. If you move a zone, recalculate to use its new position. Deleting a zone does not alter an already saved route; select another endpoint before recalculating. Ordinary request failures affect only that route; a server rate limit can pause routes using the same forecast service.
 
-Routes support two endpoints, without intermediate stops, imported tracks or a route-line map preview. Matching is geographic: nearby side roads, crossing roads and opposite carriageways may be included in the corridor. Forecast coverage is not guaranteed along the entire route. Large routes can exceed the request deadline and become unavailable; partial results are never presented as complete. Traffic incidents and closures are not included.
+Routes support two endpoints, without intermediate stops or imported tracks. Matching is geographic: nearby side roads, crossing roads and opposite carriageways may be included in the corridor. Forecast coverage is not guaranteed along the entire route. Large routes can exceed the request deadline and become unavailable; partial results are never presented as complete. Traffic incidents and closures are not included.
 
 Route calculation sends the selected endpoint coordinates to Statens vegvesen. Forecast requests send the route's bounding rectangle and requested forecast time. Saved route settings and geometry are stored in Home Assistant.
 
 For individual segment forecasts, use **Statens vegvesen: Get route forecasts** in **Developer tools → Actions**, selecting the route device. The response contains geometry and unchanged source properties from the latest successful refresh. It makes no extra network request; it reports an error while the route is unavailable or unloaded. The action remains listed during integration reloads. Full segment geometry is kept out of entity attributes and recorder history.
+
+## Route maps (beta)
+
+The configuration overview shows the selected road proposal, with **A** at the
+start and **B** at the destination. Choosing another proposal updates the preview.
+
+The **Route map / Rutekart** image on each saved route device shows the selected
+route in dark blue and the actual forecast segments in source-category colors.
+The legend includes the forecast's valid time in UTC. Gray means missing data,
+a source error or an unrecognized condition. **No new precipitation** is a source
+category; it does not mean dry or safe roads. Nearby side roads and opposite
+carriageways can appear because matching uses the configured corridor.
+
+Add the image entity to a dashboard using HA's native **Picture entity** card.
+For example, replace the entity ID below with your route's image:
+
+```yaml
+type: picture-entity
+entity: image.hjem_jobb_rutekart
+show_name: true
+show_state: false
+```
+
+These are static images, without map panning, zoom controls or segment popups.
+Existing routes gain their image automatically. Forecast images follow the same
+complete snapshots and availability as the route sensors; viewing one makes no
+extra forecast request. With no matching segments, the image shows the selected
+route and reports that no forecast segments are available.
+
+Background maps use [OpenStreetMap](https://www.openstreetmap.org/copyright).
+Tiles are requested only when an image is viewed, shared between previews and
+route images, and cached in bounded memory for up to seven days. Rendering runs
+locally. OpenStreetMap receives the requested tile coordinates and the HA
+server's IP address, not zone names or an uploaded route. If the basemap is
+unavailable, the route and forecast lines still appear on a plain background;
+weather, cameras and forecast polling are unaffected. Reopen the image after
+service recovery to retry the background.
+
+Image labels follow Home Assistant's configured system language (English or
+Bokmål, with English fallback), independently of each user's profile language.
+HA 2026.10's native map changes apply to the endpoint picker. The generated
+images use OSM raster tiles and also work on the supported older HA versions.
+
+### Try the route-map beta
+
+1. In HACS, open **Statens vegvesen** → menu → **Update information**.
+2. Choose **Redownload** → **Need a different version?**, then select release
+   **0.8.0b1**. If your HACS version offers a beta filter, enable it.
+3. Restart Home Assistant, then reconfigure a route to see its preview and open
+   the route device's new image entity.
+
+To revert, use the same version selector to download **0.7.4**, then restart HA.
+Saved settings, routes and existing sensor/camera identities remain compatible.
+The beta-only image entity may remain unavailable in the entity registry after
+rollback; it can be removed through HA. Do not delete the route configuration.
+See [HACS's version-selection instructions](https://www.hacs.xyz/docs/use/repositories/dashboard/#downloading-a-specific-version-of-a-repository).
 
 ## Updates and removal
 
@@ -136,6 +194,8 @@ To remove one source or route, remove its configuration under the integration in
 **Data provided by Statens vegvesen / Data levert av Statens vegvesen.** Weather and camera data use [NLOD](https://dataut.vegvesen.no/nb/dataservice/vaerdata-malinger-api); see also the [camera dataset](https://dataut.vegvesen.no/en/dataset/webkamera).
 
 The [road-routing dataset](https://dataut.vegvesen.no/nb/dataset/ruteplandata-bil) lists NLOD. Road-condition forecasts come from Statens vegvesen's public [Vegvær map service](https://www.vegvesen.no/fag/teknologi/apne-data/et-utvalg-apne-data/ogc-karttjenester/kartlag/). See the [API notes](docs/route-forecasts.md) for verified endpoints and remaining documentation gaps.
+
+Background maps: [© OpenStreetMap contributors](https://www.openstreetmap.org/copyright), used under the [OSMF tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
 
 Administrative geography: [© Kartverket](https://www.kartverket.no/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), under [Kartverket's terms of use](https://www.kartverket.no/api-og-data/vilkar-for-bruk).
 

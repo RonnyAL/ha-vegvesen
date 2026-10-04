@@ -13,6 +13,11 @@
       "source_availability": {
         "default": "mdi:cctv"
       }
+    },
+    "image": {
+      "route_map": {
+        "default": "mdi:map"
+      }
     }
   }
 }

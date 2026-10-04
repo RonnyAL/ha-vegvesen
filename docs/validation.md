@@ -5,9 +5,10 @@
 | Purpose | Home Assistant | Python | pytest custom-component package | Lock |
 | --- | --- | --- | --- | --- |
 | Primary development | 2026.9.4 | 3.14.8 | 0.13.367 | `uv.lock` |
+| Beta compatibility | 2026.10.0b0 | 3.14.8 | 0.13.368 | `environments/beta/uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-Both run the same 315 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+All three run the same 342 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
 The [public release review and 0.7.4 follow-up](release-readiness.md) record the code,
 documentation and package assessment. Six additional action-error tests exercise
@@ -61,16 +62,18 @@ Use uv 0.12.22. Native source selection requires no integration JavaScript or No
 scripts/setup
 scripts/check
 scripts/check-minimum
+scripts/check-beta
 scripts/validate-hassfest
 scripts/validate-hacs
 scripts/smoke-ui
 scripts/smoke-ui --minimum
+scripts/smoke-ui --beta --rollback
 # Interactive: requires GitHub's normal HACS device authorization.
 scripts/smoke-ui --hacs
 git diff --check
 ```
 
-The first five checks match CI. The live UI smoke test is an explicit local check for Debian 12 amd64, separate from deterministic mocked tests. Normal setup, test and packaging scripts never start HA or use Docker. Optional dependency groups share the primary `.venv`; `uv sync` installs the selected groups and removes unselected ones. Run `scripts/smoke-ui` again to restore the browser/frontend group after ordinary setup or validation.
+Setup and the five deterministic checks match CI. Run environment-syncing scripts sequentially. The live UI smoke test is an explicit local check for Debian 12 amd64, separate from deterministic mocked tests. Normal setup, test and packaging scripts never start HA or use Docker. Optional dependency groups share the primary `.venv`; `uv sync` installs the selected groups and removes unselected ones. Run `scripts/smoke-ui` again to restore the browser/frontend group after ordinary setup or validation.
 
 ## Packaging validation
 
@@ -81,6 +84,11 @@ The first five checks match CI. The live UI smoke test is an explicit local chec
 The separate remote HACS action runs for public repositories with `comment: false` and no ignored checks, including description, topics and brand assets. It inspects GitHub repository content and metadata; its results are available in the repository's Actions tab after pushing. Private repositories are skipped because HACS cannot install them. The repository has a public description and search topics; `hacs.json` declares Norway with `country: "NO"`. This is distribution metadata, not a restriction on source or route selection. Its pinned action wrapper still uses HACS's upstream `main` Docker image, so that remote check is not reproducible to the same degree as the pinned local checks. A local pass is not a claim of HACS listing or successful HACS installation.
 
 ## UI smoke test
+
+The route-map beta extends this scenario with rendered preview/image checks and
+an optional stable rollback. See [route-maps.md](route-maps.md) for the separate
+beta target, isolation, current test coverage and limitations. Historical release
+evidence below retains the versions and entity counts actually tested.
 
 The packaged 0.7.3 check passed on both HA 2026.9.4 and HA 2025.12.0 on
 2026-10-04, including native progress,

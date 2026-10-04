@@ -11,6 +11,7 @@ from zipfile import ZipFile
 import requests
 from playwright.sync_api import Page, WebSocket, expect, sync_playwright
 from smoke_instance import SmokeInstance, handle_termination
+from smoke_rollback import verify_rollback
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = "http://127.0.0.1:18123"
@@ -56,6 +57,37 @@ def verify_sensor_icons(page: Page, route_states: dict) -> None:
         page.keyboard.press("Escape")
         expect(page.locator("ha-more-info-dialog")).to_be_hidden()
     print("Native route sensor icons rendered from icons.json")
+
+
+def verify_route_image(
+    page: Page, session: requests.Session, states: list[dict]
+) -> tuple[dict, int]:
+    """Display the native image entity and retain a public-fixture PNG."""
+    route_image = next(
+        state
+        for state in states
+        if state["entity_id"].startswith("image.trondheim_orkanger_")
+    )
+    map_response = session.get(
+        BASE + route_image["attributes"]["entity_picture"], timeout=10
+    )
+    map_response.raise_for_status()
+    if not map_response.content.startswith(b"\x89PNG"):
+        raise AssertionError("Route image proxy did not return a PNG")
+    (RESULTS / "route-map.png").write_bytes(map_response.content)
+    page.locator("home-assistant").evaluate(
+        "(element, id) => element.dispatchEvent("
+        "new CustomEvent('hass-more-info', "
+        "{detail: {entityId: id}, bubbles: true, composed: true}))",
+        route_image["entity_id"],
+    )
+    map_image = page.locator("more-info-image img")
+    expect(map_image).to_be_visible()
+    expect(map_image).to_have_js_property("naturalWidth", 960)
+    page.screenshot(path=str(RESULTS / "route-image-dialog.png"))
+    page.keyboard.press("Escape")
+    expect(page.locator("ha-more-info-dialog")).to_be_hidden()
+    return route_image, len(map_response.content)
 
 
 def run_browser(tokens: dict, session: requests.Session) -> None:
@@ -239,6 +271,9 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             expect(picker).to_have_js_property("label", "Route")
             done()
             expect(page.get_by_text("Save route", exact=True)).to_be_visible()
+            preview = page.locator("ha-markdown img")
+            expect(preview).to_be_visible()
+            expect(preview).to_have_js_property("naturalWidth", 960)
             page.screenshot(path=str(RESULTS / "route-overview.png"))
             action("Save route")
             page.get_by_role("button", name="Finish", exact=True).click()
@@ -341,7 +376,13 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 "Lagre rute",
             ):
                 expect(page.get_by_text(label, exact=True)).to_be_visible()
+            expect(preview).to_be_visible()
+            expect(preview).to_have_js_property("naturalWidth", 960)
             page.screenshot(path=str(RESULTS / "route-overview-bokmal.png"))
+            page.set_viewport_size({"width": 390, "height": 844})
+            expect(preview).to_be_visible()
+            page.screenshot(path=str(RESULTS / "route-overview-mobile.png"))
+            page.set_viewport_size({"width": 1280, "height": 900})
             action("Velg ruteforslag")
             expect(picker).to_have_js_property("label", "Rute")
             done("Ferdig")
@@ -424,6 +465,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_text("1 tjeneste", exact=False).first.wait_for(state="visible")
             page.screenshot(path=str(RESULTS / "integration.png"))
             verify_sensor_icons(page, route_states)
+            route_image, route_png_bytes = verify_route_image(page, session, states)
             page.locator("home-assistant").evaluate(
                 "(element, id) => element.dispatchEvent("
                 "new CustomEvent('hass-more-info', "
@@ -440,6 +482,8 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 "observation": observations[0]["entity_id"],
                 "camera": camera["entity_id"],
                 "jpeg_bytes": len(image.content),
+                "route_image": route_image["entity_id"],
+                "route_png_bytes": route_png_bytes,
                 "weather_list_seconds": round(weather_list_seconds, 2),
                 "camera_list_seconds": round(camera_list_seconds, 2),
                 "cached_weather_list_seconds": round(warm_list_seconds, 2),
@@ -468,14 +512,20 @@ def main() -> None:
     """Run the packaged UI against either locked HA target."""
     global BASE, RESULTS  # noqa: PLW0603
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--minimum", action="store_true")
+    targets = parser.add_mutually_exclusive_group()
+    targets.add_argument("--minimum", action="store_true")
+    targets.add_argument("--beta", action="store_true")
+    parser.add_argument("--rollback", action="store_true")
     args = parser.parse_args()
-    port = 18124 if args.minimum else 18123
+    port = 18124 if args.minimum else 18126 if args.beta else 18123
     python = (
         ROOT / "environments/minimum/.venv/bin/python"
         if args.minimum
         else Path(sys.executable)
     )
+    if args.beta:
+        python = ROOT / "environments/beta/.venv/bin/python"
+        RESULTS = ROOT / ".tools/smoke-results-beta"
     if args.minimum:
         RESULTS = ROOT / ".tools/smoke-results-minimum"
     with TemporaryDirectory(prefix="vegvesen-smoke-", dir=ROOT / ".tools") as temporary:
@@ -492,6 +542,8 @@ def main() -> None:
             instance.start()
             instance.onboard()
             run_browser(instance.tokens, instance.session)
+            if args.rollback:
+                verify_rollback(instance)
         finally:
             instance.stop()
     print("Disposable configuration and authentication storage removed")

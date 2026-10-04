@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
     from .data import VegvesenConfigEntry
 
-PLATFORMS = [Platform.SENSOR, Platform.CAMERA]
+PLATFORMS = [Platform.SENSOR, Platform.CAMERA, Platform.IMAGE]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Explicit, temporary loopback-only HA test. The Python runner always stops HA.
 set -euo pipefail
-if [[ "$#" -gt 1 || ! "${1:-}" =~ ^(--minimum|--hacs)?$ ]]; then
-    echo "Usage: scripts/smoke-ui [--minimum|--hacs]" >&2
-    exit 2
-fi
+for arg in "$@"; do
+    if [[ ! "$arg" =~ ^(--minimum|--beta|--hacs|--rollback)$ ]]; then
+        echo "Usage: scripts/smoke-ui [--minimum|--beta] [--rollback] or --hacs" >&2
+        exit 2
+    fi
+done
 cd "$(dirname "$0")/.."
 source scripts/common
 export CC="${PWD}/scripts/zig-cc"
@@ -12,10 +14,13 @@ export CXX="${PWD}/scripts/zig-cxx"
 export ZIG_GLOBAL_CACHE_DIR="${PWD}/.cache/zig/global"
 export ZIG_LOCAL_CACHE_DIR="${PWD}/.cache/zig/local"
 "${VEGVESEN_UV}" sync --locked --group smoke --group validation
-if [[ "${1:-}" == "--minimum" ]]; then
+if [[ " $* " == *" --minimum "* ]]; then
     export UV_PYTHON_INSTALL_DIR="${PWD}/.tools/python"
     export UV_PYTHON_BIN_DIR="${PWD}/.tools/bin"
     "${VEGVESEN_UV}" sync --project environments/minimum --locked --group smoke
+fi
+if [[ " $* " == *" --beta "* ]]; then
+    "${VEGVESEN_UV}" sync --project environments/beta --locked --group smoke
 fi
 "${VEGVESEN_UV}" run --locked --no-sync python scripts/setup-smoke-browser.py
 export PLAYWRIGHT_BROWSERS_PATH="${PWD}/.tools/browsers"

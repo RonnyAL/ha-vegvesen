@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source scripts/common
+"${VEGVESEN_UV}" sync --project environments/beta --locked --python 3.14.8
+"${VEGVESEN_UV}" run --project environments/beta --locked --no-sync pytest -c pyproject.toml

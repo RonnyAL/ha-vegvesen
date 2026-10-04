@@ -34,7 +34,7 @@ class SmokeInstance:
             probe.bind(("127.0.0.1", port))
         results.mkdir(parents=True, exist_ok=True)
         # A failed run must not leave a previous run's success marker behind.
-        for name in ("result.json", "lifecycle.json", "failure.png"):
+        for name in ("result.json", "lifecycle.json", "rollback.json", "failure.png"):
             (results / name).unlink(missing_ok=True)
         (results / "home-assistant.log").write_text("")
         (config / ".storage").mkdir()

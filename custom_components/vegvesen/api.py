@@ -207,7 +207,7 @@ def parse_station(feature: Any) -> WeatherStation:
     )
 
 
-def _retry_after(value: str | None) -> float:
+def retry_after_seconds(value: str | None) -> float:
     """Parse both standard forms of Retry-After; fall back to one minute."""
     if value is not None:
         try:
@@ -240,7 +240,7 @@ class VegvesenApiClient:
 
     def rate_limit(self, endpoint: str, header: str | None) -> VegvesenRateLimitError:
         """Retain a server cooldown without creating another polling timer."""
-        delay = _retry_after(header)
+        delay = retry_after_seconds(header)
         self._retry_at[endpoint] = max(
             self._retry_at.get(endpoint, 0), monotonic() + delay
         )
