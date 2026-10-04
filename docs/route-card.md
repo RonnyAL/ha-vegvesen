@@ -1,6 +1,6 @@
 # Interactive route-map card
 
-The **0.8.0b3** experiment remains on `feature/route-maps`. It adds an optional
+The **0.8.0b4** experiment remains on `feature/route-maps`. It adds an optional
 dashboard card to the static previews/images introduced in 0.8.0b1. Existing
 route settings, subentry versions, sensor identities and image identities are
 unchanged. Installation instructions are in the [README](../README.md#interactive-dashboard-card).
@@ -72,8 +72,7 @@ continues to use the existing simple static route image.
 
 The user registers one normal JavaScript module resource. The integration does
 not edit Lovelace storage, inject hidden modules or change HA's entity dialogs.
-For the finished card, the intended distribution is a separate HACS Dashboard
-package. HACS's own [plugin installation lifecycle](https://github.com/hacs/integration/blob/2.0.5/custom_components/hacs/repositories/plugin.py)
+HACS's own [plugin installation lifecycle](https://github.com/hacs/integration/blob/2.0.5/custom_components/hacs/repositories/plugin.py)
 adds and updates resources in storage mode and removes them on uninstall.
 YAML-managed resources remain manual. An Integration download does not perform
 that Dashboard lifecycle just because it contains JavaScript. This beta has
@@ -84,10 +83,34 @@ Source/tool versions are pinned in `package-lock.json`; generated assets and
 third-party licenses ship in the integration folder. Development and validation
 commands are in [development.md](development.md#interactive-card).
 
+## One source repository and first-time installation
+
+Both integration and card sources can remain in this repository. HACS's
+[repository registry](https://github.com/hacs/integration/blob/main/custom_components/hacs/base.py)
+keys packages by GitHub repository ID and full name, with one category per
+repository. It does not support installing the same repository twice as both
+an Integration and a Dashboard package. Adding a `dist/` directory alone would
+not give this Integration download the Dashboard resource lifecycle.
+
+With the current bundled distribution, a new user installs the integration in
+HACS, restarts HA, adds Statens vegvesen and configures a route. The native image
+works immediately. To use the optional interactive card, they register the
+bundled module once in Dashboard Resources, refresh the frontend, then add a
+Statens vegvesen route map card and select that route's image entity. Additional
+routes only need additional cards; there is no repeated resource registration.
+
+If automatic HACS resource management is chosen later, the maintained source
+can still stay here, with built card/worker/license files published to a separate
+Dashboard repository. A new user would download the integration and that card
+package in HACS; HACS manages the resource, and the user adds a card selecting
+their saved route. YAML-managed resources remain manual. This is a distribution
+option, not yet implemented; no second repository or publishing pipeline is
+created for this beta.
+
 ## Validation
 
-The mocked suite contains **344 Python tests** and passes on HA **2025.12.0**,
-**2026.9.4** and **2026.10.0b0**, with 96% statement coverage. Six JavaScript tests
+The mocked suite contains **354 Python tests** and passes on HA **2025.12.0**,
+**2026.9.4** and **2026.10.0b0**, with 97% statement coverage. Six JavaScript tests
 exercise state-driven updates, disconnect/recovery, late responses, configuration,
 source categories, disconnected geometry and large/antimeridian route fitting.
 ESLint, Prettier and the deterministic bundle check use the same commands in CI.

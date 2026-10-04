@@ -116,7 +116,9 @@ start and **B** at the destination. Choosing another proposal updates the previe
 
 The **Route map / Rutekart** image on each saved route device shows the selected
 route in dark blue and the actual forecast segments in source-category colors.
-The legend includes the forecast's valid time in UTC. Gray means missing data,
+The compact legend lists only conditions drawn in the current image and includes
+the forecast's valid time in UTC. Lines scale with the fitted zoom, and attribution
+appears over the map. Gray means missing data,
 a source error or an unrecognized condition. **No new precipitation** is a source
 category; it does not mean dry or safe roads. Nearby side roads and opposite
 carriageways can appear because matching uses the configured corridor.
@@ -167,15 +169,14 @@ After installing the beta and restarting HA:
 
 1. Open **Settings → Dashboards → menu → Resources**. Enable **Advanced mode**
    in your profile if Resources is hidden.
-2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b3` as a
+2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b4` as a
    **JavaScript module**. This is a one-time resource registration for all routes.
 3. Refresh the browser or fully close and reopen the companion app.
 4. Edit a dashboard, choose **Add card → Statens vegvesen route map**, and select
    the route's existing **Route map / Rutekart** image entity. Save the card.
 
 The card files are included in this beta; no files need copying to `www`.
-Resource registration is still manual. Separate HACS Dashboard distribution,
-which can manage resources automatically, is planned for the finished card.
+Resource registration is still manual, once for the whole installation.
 
 No second route configuration or additional entity is needed. The selected image
 entity identifies the saved route; the card draws the geometry and cached
@@ -212,7 +213,7 @@ proxy. Map interaction and appearance are separate from the configuration previe
 
 1. In HACS, open **Statens vegvesen** → menu → **Update information**.
 2. Choose **Redownload** → **Need a different version?**, then select release
-   **0.8.0b3**. If your HACS version offers a beta filter, enable it.
+   **0.8.0b4**. If your HACS version offers a beta filter, enable it.
 3. Restart Home Assistant, then reconfigure a route to see its preview and open
    the route device's new image entity.
 
