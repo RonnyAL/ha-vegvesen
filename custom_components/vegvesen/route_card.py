@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import voluptuous as vol
 from homeassistant.auth.permissions.const import POLICY_READ
-from homeassistant.components import websocket_api
+from homeassistant.components import frontend, websocket_api
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
 from .route_sensor import ROUTE_SENSORS
@@ -27,7 +29,7 @@ if TYPE_CHECKING:
 
 
 async def async_setup_route_card(hass: HomeAssistant) -> None:
-    """Ship a normal manually registered dashboard JS module, once per process."""
+    """Serve the bundled module and register its data API once per process."""
     await hass.http.async_register_static_paths(
         [
             StaticPathConfig(
@@ -39,6 +41,19 @@ async def async_setup_route_card(hass: HomeAssistant) -> None:
     )
     websocket_api.async_register_command(hass, websocket_route_map)
     websocket_api.async_register_command(hass, websocket_subscribe_route_map)
+
+
+async def async_register_route_card(
+    hass: HomeAssistant, entry: VegvesenConfigEntry
+) -> None:
+    """Load the bundled card through HA's public custom-integration helper."""
+    # Optional after-dependency: headless installations still expose source data.
+    if "frontend" not in hass.config.components:
+        return
+    integration = await async_get_integration(hass, DOMAIN)
+    url = f"/vegvesen/route-map/vegvesen-route-map.js?v={integration.version}"
+    frontend.add_extra_js_url(hass, url)
+    entry.async_on_unload(partial(frontend.remove_extra_js_url, hass, url))
 
 
 @callback
@@ -79,11 +94,11 @@ def _resolve_device(
     hass: HomeAssistant, device_id: str
 ) -> tuple[VegvesenConfigEntry, str] | None:
     """Identify the saved route from its device, never a translated name/model."""
-    if (device := dr.async_get(hass).async_get(device_id)) is None:
+    registry = dr.async_get(hass)
+    if (device := registry.async_get(device_id)) is None:
         return None
-    for entry_id in device.config_entries:
-        entry = hass.config_entries.async_get_entry(entry_id)
-        if entry is None or entry.domain != DOMAIN:
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if device not in dr.async_entries_for_config_entry(registry, entry.entry_id):
             continue
         for subentry in entry.subentries.values():
             if (

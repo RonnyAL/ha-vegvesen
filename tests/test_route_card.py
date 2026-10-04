@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
+from homeassistant.components import frontend
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -21,8 +24,21 @@ from .test_routes import forecast_url
 
 
 @pytest.fixture
+def frontend_urls(hass: Any) -> frontend.UrlManager:
+    """Use HA's real module manager without starting a browser server in unit tests."""
+    manager = frontend.UrlManager(lambda _change, _url: None, ["/unrelated.js"])
+    hass.data[frontend.DATA_EXTRA_MODULE_URL] = manager
+    hass.config.components.add("frontend")
+    return manager
+
+
+@pytest.fixture
 async def card_route(
-    hass: Any, mock_http: Any, route_data: dict, forecasts: list
+    hass: Any,
+    mock_http: Any,
+    route_data: dict,
+    forecasts: list,
+    frontend_urls: frontend.UrlManager,
 ) -> tuple:
     """Load a public fixture and simulate upgrading a renamed beta image."""
     target = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) + timedelta(
@@ -58,6 +74,7 @@ async def card_route(
     mock_http.get(url, payload=page(forecasts))
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
+    assert len(frontend_urls.urls) == 2
     assert registry.async_get(retired.entity_id) is None
     assert not hass.states.async_all("image")
     entity_id = registry.async_get_entity_id(
@@ -66,6 +83,50 @@ async def card_route(
     registry.async_update_entity(entity_id, new_entity_id="sensor.renamed_route")
     await hass.async_block_till_done()
     return entry, next(iter(entry.runtime_data.routes.values())), url
+
+
+async def test_automatic_module_registration_lifecycle(
+    hass: Any,
+    card_route: tuple,
+    frontend_urls: frontend.UrlManager,
+    mock_http: Any,
+    forecasts: list,
+) -> None:
+    """The release URL registers once, cleans up on unload and returns on reload."""
+    entry, _coordinator, url = card_route
+    registered = frontend_urls.urls - {"/unrelated.js"}
+    assert len(registered) == 1
+    manifest = json.loads(
+        (
+            Path(__file__).parents[1] / "custom_components/vegvesen/manifest.json"
+        ).read_text()
+    )
+    assert registered == {
+        f"/vegvesen/route-map/vegvesen-route-map.js?v={manifest['version']}"
+    }
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert frontend_urls.urls == {"/unrelated.js"}
+
+    # A failed retry must not leave a registered URL or an unload callback behind.
+    mock_http.get(url, status=503)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    assert frontend_urls.urls == {"/unrelated.js"}
+    mock_http.get(url, payload=page(forecasts))
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert frontend_urls.urls == {"/unrelated.js", *registered}
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    assert frontend_urls.urls == {"/unrelated.js"}
+
+
+async def test_headless_entry_does_not_require_frontend(hass: Any) -> None:
+    """The optional card must not force a frontend onto headless installations."""
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="public_service")
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    assert "frontend" not in hass.config.components
+    assert frontend.DATA_EXTRA_MODULE_URL not in hass.data
+    assert await hass.config_entries.async_unload(entry.entry_id)
 
 
 @pytest.mark.parametrize("use_device", [False, True])

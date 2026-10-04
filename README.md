@@ -4,7 +4,7 @@ Bring road weather readings, road-camera still images and route forecasts from S
 
 This is an independent community integration, not an official Statens vegvesen product.
 
-**Route-map beta:** this branch contains experimental maps in **0.8.0b6**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
+**Route-map beta:** this branch contains experimental maps in **0.8.0b7**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
 
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
@@ -153,17 +153,19 @@ OpenStreetMap roads come from different datasets.
 
 After installing the beta and restarting HA:
 
-1. Open **Settings → Dashboards → menu → Resources**. Enable **Advanced mode**
-   in your profile if Resources is hidden.
-2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b6` as a
-   **JavaScript module**. This is a one-time resource registration for all routes.
-3. Refresh the browser or fully close and reopen the companion app.
-4. Edit a dashboard, choose **Add card → Statens vegvesen route map**, and select
+1. Configure a route in **Settings → Devices & services → Statens vegvesen**.
+2. Refresh the browser or fully close and reopen the companion app.
+3. Edit a dashboard, choose **Add card → By card → Statens vegvesen route map**, and select
    your saved route by name in **Route / Rute**. Save the card. If you have only
    one route, it is selected automatically.
 
-The card files are included in this beta; no files need copying to `www`.
-Resource registration is still manual, once for the whole installation.
+The card is included and loaded automatically. No JavaScript files, Dashboard
+Resources entries or separate HACS downloads need managing. After an integration
+update, restart HA and refresh the browser/app to load the updated card.
+
+If you registered `vegvesen-route-map.js` in an earlier beta, its old entry under
+**Settings → Dashboards → menu → Resources** is no longer needed and can be
+removed. Existing cards keep working through automatic registration.
 
 The selection identifies the route's Home Assistant device. The card receives
 cached geometry and forecast updates directly from the integration, even when
@@ -188,7 +190,6 @@ device_id: YOUR_ROUTE_DEVICE_ID
 Optional YAML settings are `title` and `height` (240–1,000 pixels; default 400).
 Advanced users can set `map_style_url` to another public HTTP(S) MapLibre style
 URL, following that provider's terms and attribution requirements.
-See HA's [resource registration guide](https://developers.home-assistant.io/docs/frontend/custom-ui/registering-resources/).
 
 The card uses MapLibre and OpenStreetMap Shortbread **vector tiles**, with a
 subdued light/dark style. Tiles and label fonts are requested directly by the
@@ -207,7 +208,7 @@ proxy. Map interaction and appearance are separate from the configuration previe
 
 1. In HACS, open **Statens vegvesen** → menu → **Update information**.
 2. Choose **Redownload** → **Need a different version?**, then select release
-   **0.8.0b6**. If your HACS version offers a beta filter, enable it.
+   **0.8.0b7**. If your HACS version offers a beta filter, enable it.
 3. Restart Home Assistant. Reconfigure an existing route if you want to select
    0 hours, and follow the card instructions above.
 

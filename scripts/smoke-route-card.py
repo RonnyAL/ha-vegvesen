@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
-from playwright.sync_api import Locator, expect, sync_playwright
+from playwright.sync_api import Browser, Locator, Page, Route, expect, sync_playwright
 from smoke_instance import ROOT, SmokeInstance, handle_termination
 
 
@@ -21,6 +21,108 @@ def choose_route(selector: Locator) -> None:
     else:
         selector.get_by_role("combobox").fill("Trondheim")
     selector.get_by_text("Trondheim - Orkanger", exact=True).click()
+
+
+def cold_views(browser: Browser, base: str, tokens: dict, results: Path) -> None:
+    """Cold storage dashboards must find the automatically registered card."""
+    for view, path in (
+        ("panel", "route-test/panel"),
+        ("sections", "route-test/sections"),
+        ("yaml", "route-yaml/0"),
+    ):
+        context = browser.new_context(viewport={"width": 390, "height": 844})
+        context.add_init_script(
+            f"localStorage.setItem('hassTokens', {json.dumps(json.dumps(tokens))});"
+        )
+        page = context.new_page()
+        if view == "panel":
+            # A warm extra module may arrive before HA's own app. Reproduce
+            # that ordering so card/editor registration must wait for HA.
+            def delay_app(route: Route) -> None:
+                time.sleep(1)
+                route.continue_()
+
+            page.route("**/frontend_latest/app.*.js", delay_app)
+        try:
+            page.goto(f"{base}/{path}")
+            expect(page.locator("vegvesen-route-map canvas")).to_be_visible(
+                timeout=30000
+            )
+            assert (
+                page.evaluate("""() => window.customCards.filter(
+                card => card.type === 'vegvesen-route-map').length""")
+                == 1
+            )
+            page.screenshot(path=str(results / f"cold-{view}.png"))
+        except BaseException:
+            print(page.locator("body").aria_snapshot())
+            page.screenshot(path=str(results / f"failure-{view}.png"))
+            raise
+        finally:
+            context.close()
+
+
+def automatic_loading_lifecycle(page: Page, base: str, entry_id: str) -> None:
+    """Use public APIs to check registration, legacy resources and removal."""
+
+    # This is the same normal WebSocket API used by the frontend and custom cards.
+    def ws(command: str, **data: object) -> object:
+        return page.locator("home-assistant").evaluate(
+            "(element, message) => element.hass.callWS(message)",
+            {"type": command, **data},
+        )
+
+    assert ws("lovelace/resources") == []
+    resource = ws(
+        "lovelace/resources/create",
+        url="/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b6",
+        res_type="module",
+    )
+    page.reload()
+    expect(page.locator("vegvesen-route-map canvas")).to_be_visible(timeout=30000)
+    assert (
+        page.evaluate("""() => window.customCards.filter(
+        card => card.type === 'vegvesen-route-map').length""")
+        == 1
+    )
+    # Removing the now-unnecessary manual resource leaves the automatic card working.
+    ws("lovelace/resources/delete", resource_id=resource["id"])
+    response = page.reload()
+    assert "/vegvesen/route-map/vegvesen-route-map.js?v=" in response.text(), (
+        "Module absent from HA index"
+    )
+    expect(page.locator("vegvesen-route-map canvas")).to_be_visible(timeout=30000)
+    assert ws("lovelace/resources") == []
+    ws("config_entries/disable", entry_id=entry_id, disabled_by="user")
+    # A fresh page after unloading must no longer load the module.
+    page.goto(base + "/config/integrations")
+    page.reload()
+    expect(page.locator("home-assistant")).to_be_visible()
+    assert page.evaluate("customElements.get('vegvesen-route-map') === undefined")
+    ws("config_entries/disable", entry_id=entry_id, disabled_by=None)
+    # HA includes registered modules in the next frontend page load.
+    page.reload()
+    page.wait_for_function("customElements.get('vegvesen-route-map') !== undefined")
+    page.goto(base + "/route-test/0")
+    expect(page.locator("vegvesen-route-map canvas")).to_be_visible(timeout=30000)
+
+
+def card_picker(page: Page, device_id: str) -> None:
+    """Find the bundled card and its route selector through the normal picker."""
+    page.get_by_role("button", name="Add card", exact=True).first.click()
+    dialog = page.locator("hui-dialog-create-card")
+    dialog.get_by_role("tab", name="By card", exact=True).click()
+    picker = dialog.locator("hui-card-picker")
+    picker.locator("input").fill("Statens vegvesen")
+    # HA places a click-capturing overlay above each live preview.
+    picker.locator(".card").filter(has_text="Statens vegvesen route map").locator(
+        ".overlay"
+    ).click()
+    editor = page.locator("hui-dialog-edit-card")
+    expect(editor.locator("ha-selector-device")).to_be_visible()
+    expect(editor.locator("ha-selector-device")).to_have_js_property("value", device_id)
+    editor.get_by_role("button", name="Cancel", exact=True).click()
+    expect(editor).not_to_be_visible()
 
 
 def run(instance: SmokeInstance) -> None:
@@ -71,12 +173,9 @@ def run(instance: SmokeInstance) -> None:
         for entity in instance.ws("config/entity_registry/list")
         if entity["entity_id"] == entity_id
     )
+    entry_id = instance.ws("config_entries/get", domain="vegvesen")[0]["entry_id"]
     assert instance.ws("vegvesen/route_map", device_id=device_id)["geometry"]
-    instance.ws(
-        "lovelace/resources/create",
-        url="/vegvesen/route-map/vegvesen-route-map.js",
-        res_type="module",
-    )
+    assert instance.ws("lovelace/resources") == []
     instance.ws(
         "lovelace/dashboards/create",
         url_path="route-test",
@@ -95,10 +194,55 @@ def run(instance: SmokeInstance) -> None:
                     "cards": [
                         {"type": "custom:vegvesen-route-map", "entity": entity_id}
                     ],
-                }
+                },
+                {
+                    "title": "Panel",
+                    "path": "panel",
+                    "type": "panel",
+                    "cards": [
+                        {"type": "custom:vegvesen-route-map", "device_id": device_id}
+                    ],
+                },
+                {
+                    "title": "Sections",
+                    "path": "sections",
+                    "type": "sections",
+                    "sections": [
+                        {
+                            "type": "grid",
+                            "cards": [
+                                {
+                                    "type": "custom:vegvesen-route-map",
+                                    "device_id": device_id,
+                                }
+                            ],
+                        }
+                    ],
+                },
             ]
         },
     )
+    # YAML dashboards use the same automatic module registration.
+    (instance.config / "route-map.yaml").write_text(
+        json.dumps(
+            {
+                "views": [
+                    {
+                        "title": "Route",
+                        "cards": [
+                            {
+                                "type": "custom:vegvesen-route-map",
+                                "device_id": device_id,
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+    # Test normal HA startup with an existing entry, not only live flow creation.
+    instance.stop()
+    instance.start()
     tokens = {
         **instance.tokens,
         "hassUrl": base,
@@ -112,7 +256,9 @@ def run(instance: SmokeInstance) -> None:
         page = browser.new_page(viewport={"width": 390, "height": 844}, has_touch=True)
         page.set_default_timeout(30000)
         errors = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on(
+            "pageerror", lambda error: (errors.append(str(error)), print(error.stack))
+        )
 
         def trace_socket(socket: object) -> None:
             commands = {}
@@ -139,7 +285,7 @@ def run(instance: SmokeInstance) -> None:
             "console",
             lambda message: (
                 print(message.text)
-                if message.text.startswith("Card rejection:")
+                if message.text.startswith("Card rejection:") or message.type == "error"
                 else None
             ),
         )
@@ -313,6 +459,7 @@ def run(instance: SmokeInstance) -> None:
                 )
                 button_id = tooltip.evaluate("e => e.for")
                 page.locator(f"hui-root ha-icon-button[id='{button_id}']").click()
+            card_picker(page, device_id)
             page.get_by_role("button", name="Edit", exact=True).first.click()
             dialog = page.locator("hui-dialog-edit-card")
             selector = dialog.locator("ha-selector-device")
@@ -345,9 +492,12 @@ def run(instance: SmokeInstance) -> None:
             saved_card = saved["views"][0]["cards"][0]
             assert saved_card["device_id"] == device_id, saved_card
             assert "entity" not in saved_card, saved_card
-            page.reload()
-            expect(card.locator("canvas")).to_be_visible(timeout=30000)
-            assert card.evaluate("c => c._config.device_id") == device_id
+            for _ in range(3):
+                page.reload()
+                expect(card.locator("canvas")).to_be_visible(timeout=30000)
+                assert card.evaluate("c => c._config.device_id") == device_id
+            cold_views(browser, base, tokens, instance.results)
+            automatic_loading_lifecycle(page, base, entry_id)
             # HA 2025.12 can reject a skipped native view transition on a
             # language change. It is unrelated to card rendering; keep all
             # other uncaught frontend failures fatal.
@@ -375,6 +525,11 @@ def run(instance: SmokeInstance) -> None:
                         "visual_editor": True,
                         "summary_highlight": True,
                         "forecast_hours": 0,
+                        "automatic_registration": True,
+                        "card_picker": True,
+                        "cold_views": ["masonry", "panel", "sections", "yaml"],
+                        "manual_resource_coexistence": True,
+                        "unload_and_reregistration": True,
                     },
                     indent=2,
                 )
@@ -382,6 +537,18 @@ def run(instance: SmokeInstance) -> None:
             )
         except BaseException:
             print("Browser errors:", errors)
+            print(
+                "Module diagnostics:",
+                page.evaluate("""() => ({
+                    defined: !!customElements.get('vegvesen-route-map'),
+                    resources: performance.getEntriesByType('resource')
+                        .filter(r => r.name.includes('/vegvesen/route-map/'))
+                        .map(r => ({url: r.name, start: r.startTime,
+                            duration: r.duration, size: r.transferSize})),
+                    registered: window.customCards?.filter(
+                        c => c.type === 'vegvesen-route-map').length
+                })"""),
+            )
             print(page.locator("body").aria_snapshot())
             page.screenshot(path=str(instance.results / "failure.png"))
             raise
@@ -413,7 +580,10 @@ def main() -> None:
         )
         with (config / "configuration.yaml").open("a") as settings:
             settings.write(
-                "lovelace:\n  mode: storage\nrecorder:\n  purge_keep_days: 1\n"
+                "lovelace:\n  mode: storage\n  dashboards:\n"
+                "    route-yaml:\n      mode: yaml\n      title: Route YAML\n"
+                "      filename: route-map.yaml\n      show_in_sidebar: false\n"
+                "recorder:\n  purge_keep_days: 1\nenergy:\n"
             )
         try:
             instance.start()

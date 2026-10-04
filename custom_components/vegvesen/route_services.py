@@ -25,16 +25,16 @@ def async_setup_route_service(hass: HomeAssistant) -> None:
     """Register once; resolve the current loaded runtime for each action call."""
 
     async def forecasts(call: ServiceCall) -> ServiceResponse:
-        device = dr.async_get(hass).async_get(call.data["device_id"])
+        registry = dr.async_get(hass)
+        device = registry.async_get(call.data["device_id"])
         if device is None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="invalid_route_device"
             )
         entries = [
             entry
-            for entry_id in device.config_entries
-            if (entry := hass.config_entries.async_get_entry(entry_id)) is not None
-            and entry.domain == DOMAIN
+            for entry in hass.config_entries.async_entries(DOMAIN)
+            if device in dr.async_entries_for_config_entry(registry, entry.entry_id)
         ]
         if not entries or not any(
             domain == DOMAIN and identifier.startswith("route:")

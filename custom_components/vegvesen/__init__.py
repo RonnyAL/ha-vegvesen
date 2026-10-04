@@ -21,7 +21,7 @@ from .const import (
 from .coordinator import CameraCoordinator, WeatherCoordinator
 from .data import VegvesenData
 from .discovery import async_get_discovery
-from .route_card import async_setup_route_card
+from .route_card import async_register_route_card, async_setup_route_card
 from .route_coordinator import RouteCoordinator
 from .route_services import async_setup_route_service
 
@@ -44,6 +44,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa:
 
 async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> bool:
     """Create entry resources and set up selected station entities."""
+    await async_register_route_card(hass, entry)
     shared = async_get_discovery(hass)
     client = shared.client
     station_ids = {

@@ -2,7 +2,8 @@
   "domain": "vegvesen",
   "name": "Statens vegvesen",
   "after_dependencies": [
-    "camera"
+    "camera",
+    "frontend"
   ],
   "codeowners": [
     "@RonnyAL"
@@ -20,5 +21,5 @@
     "shapely==2.1.2"
   ],
   "single_config_entry": true,
-  "version": "0.8.0b6"
+  "version": "0.8.0b7"
 }

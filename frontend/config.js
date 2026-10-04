@@ -5,7 +5,7 @@ export const routeSchema = [
     required: true,
     selector: {
       device: {
-        filter: [{ integration: "vegvesen", model: "Route forecast" }],
+        filter: [{ manufacturer: "Statens vegvesen", model: "Route forecast" }],
       },
     },
   },

@@ -1,6 +1,12 @@
 import { editorConfig, routeSchema } from "./config.js";
 import { labels, language } from "./labels.js";
 
+// Extra modules can arrive before HA initializes its custom-element registry.
+// Wait for its root component before defining either the editor or the card
+// (which imports this module). This is ordinary Web Component readiness, not a
+// patched registry or a dependency on dashboard internals.
+await customElements.whenDefined("home-assistant");
+
 // HA's documented custom-card editor lifecycle, with its native form/selector.
 export class VegvesenRouteMapEditor extends HTMLElement {
   constructor() {
@@ -22,7 +28,6 @@ export class VegvesenRouteMapEditor extends HTMLElement {
         }),
       );
     });
-    this.shadowRoot.append(this._form);
   }
 
   setConfig(config) {
@@ -41,6 +46,9 @@ export class VegvesenRouteMapEditor extends HTMLElement {
     this._form.data = editorConfig(this._config, this._hass);
     const label = labels[language(this._hass)].route;
     this._form.computeLabel = () => label;
+    // Native fields require hass during their first connected render. HA can
+    // attach an editor before it has supplied both hass and configuration.
+    if (!this._form.parentNode) this.shadowRoot.append(this._form);
   }
 }
 

@@ -98,8 +98,9 @@ the same lint, formatting, JavaScript tests and byte-for-byte bundle check.
 `frontend/` contains editable sources; `custom_components/vegvesen/frontend/`
 contains distribution assets. npm's cache and node_modules are ignored.
 
-The optional live browser checks exercise the packaged resource, native card
-editor, OSM vector tiles, touch panning, zoom, segment popups and English/Bokmål:
+The optional live browser checks exercise automatic module loading, the native
+card picker/editor, OSM vector tiles, touch panning, zoom, segment popups and
+English/Bokmål:
 
 ```bash
 scripts/smoke-ui --route-card
@@ -112,3 +113,9 @@ endpoints. Credentials/configuration are removed and HA stopped in `finally`.
 Run them sequentially with other environment-syncing scripts. The browser uses
 software WebGL for headless validation; physical companion-app testing remains
 necessary. See [card architecture](route-card.md).
+
+The scenario starts with no Dashboard Resources, restarts HA with the saved
+integration, and checks cold masonry, panel, sections and YAML dashboards. It
+also checks coexistence with an old manual resource, removal of that resource,
+and config-entry disable/enable followed by a normal frontend refresh. No test
+edits dashboard storage directly.

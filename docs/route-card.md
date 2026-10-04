@@ -1,13 +1,13 @@
 # Interactive route-map card
 
-The **0.8.0b6** experiment stays on `feature/route-maps`, separate from stable
+The **0.8.0b7** experiment stays on `feature/route-maps`, separate from stable
 **0.7.4**. Installation and upgrade instructions are in the
 [README](../README.md#interactive-dashboard-card).
 
 ## Route selection and data model
 
 The graphical editor offers **Route / Rute**, a native device selector filtered
-by integration `vegvesen` and model `Route forecast`. It lists saved route names,
+by manufacturer `Statens vegvesen` and model `Route forecast`. It lists saved route names,
 excluding weather stations and cameras. The card stores `device_id`; the backend
 resolves it using registry identifiers and route subentries, never display names
 or model strings. A single route is preselected for a new card; several routes
@@ -91,60 +91,59 @@ continues to use the existing simple static route image.
 - [MapLibre API](https://maplibre.org/maplibre-gl-js/docs/)
 - [OSM vector-tile policy](https://operations.osmfoundation.org/policies/vector/)
 
-The user registers one normal JavaScript module resource. The integration does
-not edit Lovelace storage, inject hidden modules or change HA's entity dialogs.
-HACS's own [plugin installation lifecycle](https://github.com/hacs/integration/blob/2.0.5/custom_components/hacs/repositories/plugin.py)
-adds and updates resources in storage mode and removes them on uninstall.
-YAML-managed resources remain manual. An Integration download does not perform
-that Dashboard lifecycle just because it contains JavaScript. This beta has
-not yet been split into a separate Dashboard package; its resource registration
-remains manual. This keeps resource management with HACS rather than duplicating
-its use of HA's internal resource collection in the integration.
-Source/tool versions are pinned in `package-lock.json`; generated assets and
+## Bundled loading and lifecycle
+
+Starting with 0.8.0b7, the integration registers its bundled module through HA's
+public [`add_extra_js_url` / `remove_extra_js_url` helpers](https://github.com/home-assistant/core/blob/2026.9.4/homeassistant/components/frontend/__init__.py#L417).
+These helpers explicitly support custom integrations and exist on all three
+locked HA targets. [HACS uses the registration helper](https://github.com/hacs/integration/blob/2.0.5/custom_components/hacs/frontend.py#L45)
+for its icon module. The module URL includes the loaded integration manifest's
+version, so the next release supplies a new URL without a dashboard edit.
+
+HA starts extra modules alongside its own app, whose
+[entry point initializes the custom-element registry](https://github.com/home-assistant/frontend/blob/20260930.0/src/entrypoints/app.ts).
+Before defining the editor and card, the module waits for the `home-assistant`
+root component using the browser's standard
+[`customElements.whenDefined`](https://developer.mozilla.org/en-US/docs/Web/API/CustomElementRegistry/whenDefined).
+This prevents an early registration from being lost during HA startup. It does
+not replace or patch the registry. The browser scenario delays HA's app to test
+this ordering, as well as repeated warm reloads.
+
+The frontend is an optional `after_dependencies` entry. When available, module
+registration happens during config-entry setup and removal uses
+`entry.async_on_unload`. Failed setup, unloading, disabling and removal clean up
+the registration; a successful retry/reload registers it again. Static file
+serving and the WebSocket handlers remain scoped to the integration component.
+A headless installation can use the weather/camera/forecast data without starting
+HA's frontend. Browser code already loaded cannot be unloaded from an open page;
+its data subscription still handles entry unloading and clears unavailable data.
+
+Registered URLs are included in subsequent frontend page loads. After first
+configuration or an update, users refresh the browser or reopen the companion
+app. Config-entry reloads do not replace Python or JavaScript code already
+loaded in memory. No hot reload, dashboard-storage mutation or cache clearing is
+implemented. The existing manifest/static-path/WebSocket APIs and minimum HA
+2025.12.0 remain sufficient.
+
+A new user installs the integration, restarts HA, configures a route, refreshes
+the frontend, then chooses **Add card → By card → Statens vegvesen route map** and
+selects the route. No local files or manual resource registration are required.
+Both the integration and card are maintained and shipped in this repository.
+HACS installs the Integration package; HA's frontend helper handles module
+loading. This does not depend on HACS installing the same repository twice in
+different categories or on its Dashboard-package resource lifecycle.
+
+Old manual resource entries are left under the user's control. Element and
+card-picker registrations are idempotent, allowing the old URL and automatic
+URL to coexist. Removing the old resource through HA's Resources UI is a
+one-time cleanup; users need not maintain its version parameter. YAML resource
+entries can likewise be removed from the user's own configuration. The generated
+JavaScript contains no credentials or route coordinates. Map-provider requests
+start only when a map is rendered, as described above.
+
+The source/tool versions are pinned in `package-lock.json`; generated assets and
 third-party licenses ship in the integration folder. Development and validation
 commands are in [development.md](development.md#interactive-card).
-
-## One source repository and first-time installation
-
-Both integration and card sources can remain in this repository. HACS's
-[repository registry](https://github.com/hacs/integration/blob/main/custom_components/hacs/base.py)
-keys packages by GitHub repository ID and full name, with one category per
-repository. It does not support installing the same repository twice as both
-an Integration and a Dashboard package. Adding a `dist/` directory alone would
-not give this Integration download the Dashboard resource lifecycle.
-
-There is another native path for a bundled card: HA's public
-[`add_extra_js_url` / `remove_extra_js_url` helpers](https://github.com/home-assistant/core/blob/2026.9.4/homeassistant/components/frontend/__init__.py#L417)
-explicitly support custom integrations. They exist on all three locked HA targets;
-[HACS itself uses the registration helper](https://github.com/hacs/integration/blob/2.0.5/custom_components/hacs/frontend.py#L45)
-for its icon module. Using that API would load the module through the integration,
-without editing Lovelace storage or requiring a second HACS package. A separate
-Dashboard repository is therefore an option, not a prerequisite for automation.
-
-Before enabling that path for this card, test cold browser loads, the card picker,
-normal and panel views, lifecycle and migration from manually registered resources.
-There is an [upstream report of custom-module loading-order failures](https://github.com/home-assistant/frontend/issues/52570),
-including panel views; that report is a reason to test our supported frontends,
-not a verified failure of this card. Do not patch HA's frontend to work around it.
-The intended first-time flow, once verified, would be: install the integration,
-restart HA, configure a route, refresh the frontend, then add the custom card and
-select a saved route. No manual resource entry would be needed.
-This helper-based loading is not implemented in 0.8.0b6.
-
-With the current bundled distribution, a new user installs the integration in
-HACS, restarts HA, adds Statens vegvesen and configures a route. Route sensors
-work immediately. To use the optional interactive card, they register the
-bundled module once in Dashboard Resources, refresh the frontend, then add a
-Statens vegvesen route map card and select a route by name. Additional
-routes only need additional cards; there is no repeated resource registration.
-
-If automatic HACS resource management is chosen later, the maintained source
-can still stay here, with built card/worker/license files published to a separate
-Dashboard repository. A new user would download the integration and that card
-package in HACS; HACS manages the resource, and the user adds a card selecting
-their saved route. YAML-managed resources remain manual. This is a distribution
-option, not yet implemented; no second repository or publishing pipeline is
-created for this beta.
 
 ## Validation
 
@@ -179,3 +178,14 @@ on the minimum and beta frontends verify the native Route/Rute device picker,
 preselection for legacy cards, normal editor saving to `device_id`, and a fresh
 page load of the saved device-based card. Touch interaction, category selection
 and failure handling retain their existing coverage.
+
+For 0.8.0b7, all 364 Python tests pass on the three locked HA targets
+(97% statement coverage), alongside nine JavaScript tests. New tests cover
+automatic registration, failed setup/recovery, unload/removal and headless setup.
+Packaged browser checks on HA 2025.12.0 and 2026.10.0b0 start without Dashboard
+Resources and verify startup after an HA restart, the card picker, repeated
+editor openings/reloads, cold masonry/panel/sections/YAML dashboards, coexistence
+with a manual resource, deleting that resource, and disabling/re-enabling the
+integration with a frontend refresh. The minimum frontend also passes the
+deliberately delayed HA-app startup check. These use disposable configurations
+and public route coordinates; physical companion-app testing remains necessary.
