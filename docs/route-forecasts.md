@@ -60,7 +60,7 @@ forecast collection metadata, WMS GetCapabilities and bounded live requests.
 | --- | --- | --- |
 | Route endpoints | `Stops` uses coordinates in the selected `InputSRS`; WGS84 is supported. The service describes Norwegian, Swedish and Finnish road networks. | Send longitude,latitude with explicit `EPSG_4326` input/output. Validate finite geographic coordinates; let the service decide road-network reachability rather than imposing a country or area boundary. |
 | Endpoint road matching | HTTP 404 codes 9200/9201 identify an unmatched start/end. No numeric snap-distance limit was found in the inspected v3 contract. | From 0.6.4, show an editable error on that map or zone field. Do not invent a snapping radius. Accept both documented `Code` and observed `code`. Other no-route codes remain distinct from overload, timeout and internal errors. |
-| Forecast time | The endpoint accepts a timezone-aware timestamp filter. No fixed rolling horizon is advertised by the collection or WMS metadata. | Whole-hour offsets match observed source timestamps. The 1–24-hour selector range is an integration choice, not a guarantee that each target is published. A complete empty response remains unknown; no nearer-time substitution. |
+| Forecast time | The endpoint accepts a timezone-aware timestamp filter. No fixed rolling horizon is advertised by the collection or WMS metadata. | Whole-hour offsets match observed source timestamps. The 0–24-hour selector range is an integration choice, not a guarantee that each target is published. A complete empty response remains unknown; no nearer-time substitution. |
 | Corridor | The routing API receives no corridor parameter. Forecast retrieval receives the locally calculated geographic bounding box. | 10–2,000 metres is a UI/performance choice for local geometry matching, not an upstream radius requirement. No separate geographic restriction or undocumented route-length limit is added. |
 | Pagination/size | Actual OGC responses accept `limit=500` and supply continuation metadata. The inspected material does not establish a maximum route area or a guaranteed response size. | Keep the complete-pagination checks and bounded request deadline. An oversized/incomplete request fails instead of publishing partial data. |
 | Usage | The routing catalogue states 2,500 calls/day, alongside credential instructions that differ from the working open endpoint. | Calculate only during explicit configuration/recalculation and reuse unchanged geometry. Respect HTTP 429; do not assert a verified open-endpoint quota scope or apply the routing quota to the separate forecast API. |
@@ -231,3 +231,27 @@ from large state attributes. It rejects unavailable routes.
   monitor ownership separately, retain one source-ID identity, and remove a
   physical source only when no owner remains. Area ownership must be independent
   of route ownership. No monitor-ownership framework is implemented now.
+
+
+## Current-hour forecasts and route summaries (0.8.0b5)
+
+The default for new routes is 0 hours: the start of the current UTC hour. Existing
+saved offsets are retained. This remains a forecast, with polling at :00/:30;
+it is not a live observation or a source push feed. A bounded live query on
+2026-10-04 at 20:00 UTC for public segment 97463 and that exact current hour
+returned one record (`FORECAST_TIME=2026-10-04T22:00:00+02:00`). This verifies
+current-hour availability for that sample, not guaranteed coverage at every hour.
+No nearest-time substitution is made when the selected time is absent.
+
+`highest_slip_risk` reports the maximum of the source's ordered `low`, `medium`,
+`high` grades. Unrecognized codes are retained but not ranked; missing and
+unrecognized counts accompany the result. Existing mixed/partial summary states
+are unchanged. Four optional count sensors (disabled by default) count ice/frost,
+snow cover, drifting snow and high slipperiness. Counts are unknown if their
+field has no recognized values, including empty snapshots. Known values with
+missing/unrecognized peers retain their count and explicit gap attributes.
+These are counts within the corridor, not exact-route coverage or distance.
+
+The [interactive card](route-card.md) uses the same cached snapshot and source
+counts, with condition/slipperiness highlighting. Full geometry stays out of
+entity state and recorder. There is no saved-route image entity.

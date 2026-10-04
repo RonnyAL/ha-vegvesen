@@ -32,7 +32,7 @@ def run(instance: SmokeInstance) -> None:
             "start_source": "zone.trondheim",
             "end_source": "zone.orkanger",
             "corridor_m": 100,
-            "forecast_hours": 1,
+            "forecast_hours": 0,
         },
     )
     for _ in range(60):
@@ -44,11 +44,16 @@ def run(instance: SmokeInstance) -> None:
     assert post(path, {"next_step_id": "route_save"})["type"] == "create_entry"
     for _ in range(60):
         states = session.get(base + "/api/states", timeout=10).json()
-        images = [state for state in states if state["entity_id"].startswith("image.")]
-        if images and images[0]["state"] != "unavailable":
+        sensors = [
+            state
+            for state in states
+            if state["entity_id"].startswith("sensor.")
+            and state.get("attributes", {}).get("options") == ["low", "medium", "high"]
+        ]
+        if sensors and sensors[0]["state"] != "unavailable":
             break
         time.sleep(0.5)
-    entity_id = images[0]["entity_id"]
+    entity_id = sensors[0]["entity_id"]
     assert instance.ws("vegvesen/route_map", entity_id=entity_id)["geometry"]
     instance.ws(
         "lovelace/resources/create",
@@ -175,7 +180,26 @@ def run(instance: SmokeInstance) -> None:
             card.get_by_role("button", name="Fit route", exact=True).click()
             page.wait_for_timeout(1000)
             assert abs(card.evaluate("c => c._map.getZoom()") - zoom) < 0.01
-            card.get_by_text("Conditions", exact=True).click()
+            expect(card.locator(".headline")).to_contain_text(
+                "Highest forecast slipperiness:"
+            )
+            card.locator(".modes").get_by_role(
+                "button", name="Slipperiness", exact=True
+            ).click()
+            chip = card.locator(".legend button:not([disabled])").first
+            chip.click()
+            expect(chip).to_have_attribute("aria-pressed", "true")
+            expect(chip).to_be_focused()
+            assert card.evaluate("c => c._selection.mode === 'slip'")
+            assert card.evaluate(
+                "c => c._map.getStyle().sources.forecasts.data.features.length > 0"
+            )
+            page.screenshot(path=str(instance.results / "slipperiness-highlight.png"))
+            card.get_by_role("button", name="Fit route", exact=True).click()
+            assert card.evaluate("c => c._selection === undefined")
+            card.locator(".modes").get_by_role(
+                "button", name="Road condition", exact=True
+            ).click()
             page.screenshot(path=str(instance.results / "mobile-vector-card.png"))
             print(
                 "Mobile vector map rendered; zoom, touch pan and fit passed", flush=True
@@ -244,6 +268,11 @@ def run(instance: SmokeInstance) -> None:
             }""")
             expect(card.get_by_role("button", name="Vis hele ruten")).to_be_visible()
             expect(card.locator(".time")).to_contain_text("Prognosen gjelder for")
+            expect(card).to_have_js_property("_ready", value=True)
+            card.evaluate(
+                "async c => { if (!c._map.loaded()) await new Promise("
+                "resolve => c._map.once('idle', resolve)); }"
+            )
             page.screenshot(path=str(instance.results / "mobile-nb.png"))
             page.wait_for_timeout(1000)
             page.locator("home-assistant").evaluate("""element => {
@@ -294,6 +323,8 @@ def run(instance: SmokeInstance) -> None:
                         "touch_pan": True,
                         "segment_touch_target": True,
                         "visual_editor": True,
+                        "summary_highlight": True,
+                        "forecast_hours": 0,
                     },
                     indent=2,
                 )

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from homeassistant.const import Platform
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     CONF_CAMERA_ID,
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
 
     from .data import VegvesenConfigEntry
 
-PLATFORMS = [Platform.SENSOR, Platform.CAMERA, Platform.IMAGE]
+PLATFORMS = [Platform.SENSOR, Platform.CAMERA]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
@@ -85,6 +86,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> 
     if results and all(isinstance(result, ConfigEntryNotReady) for result in results):
         raise results[0]
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Retire only this integration's experimental route images. Saved route
+    # devices and sensor identities remain intact; previews have no entities.
+    registry = er.async_get(hass)
+    retired_ids = {
+        f"route:{s.data['route_id']}:map"
+        for s in entry.subentries.values()
+        if s.subentry_type == "route"
+    }
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if (
+            entity.domain == "image"
+            and entity.platform == DOMAIN
+            and entity.unique_id in retired_ids
+        ):
+            registry.async_remove(entity.entity_id)
     entry.async_on_unload(
         entry.add_update_listener(
             partial(_async_reload_entry, runtime=entry.runtime_data)

@@ -4,6 +4,9 @@ import cardCSS from "./route-map-card.css";
 import styles from "generated-styles";
 import {
   bounds,
+  category,
+  highlighted,
+  selectedBounds,
   color,
   lines,
   ROUTE_COLOR,
@@ -56,18 +59,30 @@ export class VegvesenRouteMap extends HTMLElement {
     this._fit = node("button");
     this._fit.onclick = () => this._fitRoute();
     header.append(this._title, this._fit);
+    this._mode = "condition";
+    this._headline = node("button", "", "headline");
+    this._headline.onclick = () => {
+      const code = this._snapshot?.summary.highest_slip_risk;
+      if (code) this._select("slip", code);
+    };
+    this._quality = node("div", "", "quality");
+    this._modes = node("div", "", "modes");
     this._status = node("div", "", "status");
     this._status.setAttribute("role", "status");
     this._container = node("div", "", "map");
     this._basemap = node("div", "", "basemap");
     this._time = node("div", "", "time");
     this._details = node("details");
+    this._details.open = true;
     this._summary = node("summary");
     this._legend = node("div", "", "legend");
     this._details.append(this._summary, this._legend);
     card.append(
       header,
       this._status,
+      this._headline,
+      this._quality,
+      this._modes,
       this._container,
       this._basemap,
       this._time,
@@ -76,6 +91,13 @@ export class VegvesenRouteMap extends HTMLElement {
     this.shadowRoot.append(css, card);
     this._data = new RouteData(
       (data) => {
+        if (
+          this._selection &&
+          !data.segments.some((feature) =>
+            highlighted(feature, this._selection),
+          )
+        )
+          this._selection = undefined;
         this._snapshot = data;
         this._error = undefined;
         this._renderText();
@@ -104,8 +126,10 @@ export class VegvesenRouteMap extends HTMLElement {
     if (changed) {
       this._data.stop();
       this._snapshot = undefined;
+      this._selection = undefined;
       this._destroyMap();
     }
+    this._renderText();
     this._update();
   }
 
@@ -135,7 +159,10 @@ export class VegvesenRouteMap extends HTMLElement {
     )
       this._destroyMap();
     this._dark = dark;
-    this._renderText();
+    const timeZone = this._hass.config?.time_zone;
+    if (previousLanguage !== this._lang || this._timeZone !== timeZone)
+      this._renderText();
+    this._timeZone = timeZone;
     if (!this._map && !this._webglFailed && this._snapshot) this._createMap();
     this._data.update(this._hass, this._config.entity);
   }
@@ -271,6 +298,7 @@ export class VegvesenRouteMap extends HTMLElement {
       });
     }
     const data = this._snapshot;
+    map.setPaintProperty("route", "line-opacity", this._selection ? 0.35 : 1);
     map.getSource("route").setData(
       collection(
         data
@@ -287,7 +315,10 @@ export class VegvesenRouteMap extends HTMLElement {
     map.getSource("forecasts").setData(
       collection(
         data?.segments
-          .filter((feature) => feature.geometry)
+          .filter(
+            (feature) =>
+              feature.geometry && highlighted(feature, this._selection),
+          )
           .map((feature) => ({
             ...feature,
             geometry: displayGeometry(
@@ -296,7 +327,7 @@ export class VegvesenRouteMap extends HTMLElement {
             ),
             properties: {
               _id: feature.id,
-              _color: color(feature.properties.ROAD_CONDITION),
+              _color: color(category(feature, this._mode), this._mode),
             },
           })) ?? [],
       ),
@@ -314,16 +345,34 @@ export class VegvesenRouteMap extends HTMLElement {
     });
     const geometryKey = JSON.stringify(data.geometry);
     if (!this._fitted || this._geometryKey !== geometryKey) {
-      this._fitRoute();
       this._fitted = true;
       this._geometryKey = geometryKey;
+      this._fitRoute();
     }
   }
 
   _fitRoute() {
+    this._selection = undefined;
+    this._renderText();
+    if (this._ready && this._fitted) this._draw();
     const extent = this._snapshot && bounds(this._snapshot.geometry);
     if (extent)
       this._map?.fitBounds(extent, { padding: 40, maxZoom: 15, duration: 0 });
+  }
+
+  _select(mode, code) {
+    const repeated =
+      this._selection?.mode === mode && this._selection.code === code;
+    this._mode = mode;
+    this._selection = repeated ? undefined : { mode, code };
+    this._renderText();
+    this._draw();
+    const extent =
+      this._selection &&
+      selectedBounds(this._snapshot.segments, this._selection);
+    if (extent)
+      this._map?.fitBounds(extent, { padding: 40, maxZoom: 15, duration: 0 });
+    else if (repeated) this._fitRoute();
   }
 
   _formatTime(value) {
@@ -372,12 +421,16 @@ export class VegvesenRouteMap extends HTMLElement {
   }
 
   _renderText() {
+    const focusedKey = this.shadowRoot.activeElement?.dataset?.focusKey;
     const l = this._labels ?? labels.en;
     this._title.textContent =
       this._config?.title ?? this._snapshot?.name ?? l.title;
     this._fit.textContent = l.fit;
     this._fit.disabled = !this._snapshot || this._webglFailed;
     this._summary.textContent = l.legend;
+    this._headline.hidden = !this._snapshot;
+    this._quality.textContent = "";
+    this._modes.replaceChildren();
     this._status.replaceChildren();
     if (this._webglFailed) this._status.textContent = l.webgl;
     else if (this._error) {
@@ -395,24 +448,70 @@ export class VegvesenRouteMap extends HTMLElement {
     this._legend.replaceChildren();
     this._details.hidden = !this._snapshot;
     if (!this._snapshot) return;
-    const codes = new Set(
-      this._snapshot.segments.map(
-        (segment) => segment.properties.ROAD_CONDITION,
-      ),
-    );
-    for (const code of codes) {
-      const item = node("span");
+    const summary = this._snapshot.summary;
+    const grade = summary.highest_slip_risk;
+    this._headline.textContent = `${l.highest}: ${grade ? sourceLabel(l, grade, "slip") : l.missing}`;
+    this._headline.disabled = !grade || this._webglFailed;
+    const warnings = [];
+    for (const [key, label] of [
+      ["slip_risk", l.slip],
+      ["road_condition", l.condition],
+    ]) {
+      const value = summary[key];
+      if (value.missing_segments)
+        warnings.push(`${label} — ${l.missing}: ${value.missing_segments}`);
+      if (value.unrecognized_segments)
+        warnings.push(
+          `${label} — ${l.unrecognized}: ${value.unrecognized_segments}`,
+        );
+    }
+    this._quality.textContent = warnings.join(" · ");
+    for (const mode of ["condition", "slip"]) {
+      const button = node("button", l[mode]);
+      button.dataset.focusKey = mode;
+      button.setAttribute("aria-pressed", String(this._mode === mode));
+      button.onclick = () => {
+        this._mode = mode;
+        this._fitRoute();
+      };
+      this._modes.append(button);
+    }
+    const values =
+      summary[this._mode === "slip" ? "slip_risk" : "road_condition"];
+    const categories = Object.entries(values.source_categories);
+    const absent =
+      values.missing_segments - (values.source_categories.ErrorOrNoData ?? 0);
+    if (absent) categories.push([null, absent]);
+    for (const [code, count] of categories) {
+      const item = node("button");
+      item.dataset.focusKey = JSON.stringify([this._mode, code]);
       const swatch = node("i", "", "swatch");
-      swatch.style.background = color(code);
-      item.append(swatch, document.createTextNode(sourceLabel(l, code)));
+      swatch.style.background = color(code, this._mode);
+      item.append(
+        swatch,
+        document.createTextNode(
+          `${sourceLabel(l, code, this._mode)}: ${count}`,
+        ),
+      );
+      item.setAttribute(
+        "aria-pressed",
+        String(
+          this._selection?.mode === this._mode && this._selection.code === code,
+        ),
+      );
+      item.disabled =
+        this._webglFailed ||
+        !selectedBounds(this._snapshot.segments, { mode: this._mode, code });
+      item.onclick = () => this._select(this._mode, code);
       this._legend.append(item);
     }
-    if (!codes.size) this._legend.append(node("span", l.empty));
-    const missing = this._snapshot.segments.filter(
-      (segment) => !segment.geometry,
-    ).length;
-    if (missing)
-      this._legend.append(node("span", `${l.no_geometry}: ${missing}`));
+    if (!categories.length) this._legend.append(node("span", l.empty));
+    if (focusedKey) {
+      const button = [
+        ...this.shadowRoot.querySelectorAll("button[data-focus-key]"),
+      ].find((element) => element.dataset.focusKey === focusedKey);
+      button?.focus({ preventScroll: true });
+    }
   }
 
   getCardSize() {
@@ -426,7 +525,9 @@ export class VegvesenRouteMap extends HTMLElement {
       entity:
         Object.keys(hass.states).find(
           (id) =>
-            id.startsWith("image.") &&
+            id.startsWith("sensor.") &&
+            hass.states[id]?.attributes.options?.length === 3 &&
+            hass.states[id]?.attributes.options?.includes("high") &&
             hass.entities?.[id]?.platform === "vegvesen",
         ) ?? "",
     };
@@ -438,7 +539,15 @@ export class VegvesenRouteMap extends HTMLElement {
           name: "entity",
           required: true,
           selector: {
-            entity: { filter: [{ integration: "vegvesen", domain: "image" }] },
+            entity: {
+              filter: [
+                {
+                  integration: "vegvesen",
+                  domain: "sensor",
+                  device_class: "enum",
+                },
+              ],
+            },
           },
         },
       ],

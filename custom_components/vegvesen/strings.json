@@ -55,7 +55,7 @@
         },
         "data_description": {
           "corridor_m": "Include roads within this distance on either side, including nearby side roads.",
-          "forecast_hours": "Whole hours after the start of the current hour. Missing forecasts for the selected time appear as unknown.",
+          "forecast_hours": "0 selects the forecast for the current hour. This is a forecast, not a live measurement.",
           "name": "Leave blank to use zone names and the road proposal name."
         },
         "submit": "Continue"
@@ -98,7 +98,7 @@
       "invalid_route": "Choose valid start and destination locations.",
       "no_route": "No drivable route found between these locations.",
       "zone_unavailable": "This zone has no usable coordinates. Choose another zone or a point on the map.",
-      "invalid_forecast_hours": "Choose a whole number of hours from 1 to 24.",
+      "invalid_forecast_hours": "Choose a whole number of hours from 0 to 24.",
       "invalid_corridor": "Choose a valid distance from 10 to 2000 metres.",
       "off_road_network": "Choose a point closer to a road supported by the routing service.",
       "no_sources_selected": "Select at least one option."
@@ -225,7 +225,7 @@
           },
           "data_description": {
             "corridor_m": "Include roads within this distance on either side, including nearby side roads.",
-            "forecast_hours": "Whole hours after the start of the current hour. Missing forecasts for the selected time appear as unknown.",
+            "forecast_hours": "0 selects the forecast for the current hour. This is a forecast, not a live measurement.",
             "name": "Leave blank to use zone names and the road proposal name."
           },
           "submit": "Continue"
@@ -261,7 +261,7 @@
         "no_route": "No drivable route found between these locations.",
         "cannot_connect": "Could not calculate the route. Try again.",
         "zone_unavailable": "This zone has no usable coordinates. Choose another zone or a point on the map.",
-        "invalid_forecast_hours": "Choose a whole number of hours from 1 to 24.",
+        "invalid_forecast_hours": "Choose a whole number of hours from 0 to 24.",
         "invalid_corridor": "Choose a valid distance from 10 to 2000 metres.",
         "off_road_network": "Choose a point closer to a road supported by the routing service."
       },
@@ -318,12 +318,32 @@
         "name": "Forecast valid time"
       },
       "route_forecast_segments": {
-        "name": "Forecast road segments"
-      }
-    },
-    "image": {
-      "route_map": {
-        "name": "Route map"
+        "name": "Forecast road segments",
+        "unit_of_measurement": "segments"
+      },
+      "route_highest_slip_risk": {
+        "name": "Highest forecast slipperiness",
+        "state": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "route_ice_or_frost_segments": {
+        "name": "Forecast segments with ice or frost",
+        "unit_of_measurement": "segments"
+      },
+      "route_snow_cover_segments": {
+        "name": "Forecast segments with snow cover",
+        "unit_of_measurement": "segments"
+      },
+      "route_drifting_snow_segments": {
+        "name": "Forecast segments with drifting snow",
+        "unit_of_measurement": "segments"
+      },
+      "route_high_slip_risk_segments": {
+        "name": "Forecast segments with high slipperiness",
+        "unit_of_measurement": "segments"
       }
     }
   },
@@ -341,6 +361,11 @@
     "route_endpoint": {
       "options": {
         "map": "Choose on map"
+      }
+    },
+    "forecast_hours": {
+      "unit_of_measurement": {
+        "h": "hours"
       }
     }
   },

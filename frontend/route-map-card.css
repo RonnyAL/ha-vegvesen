@@ -63,7 +63,7 @@ details {
   align-items: center;
 }
 .time {
-  padding-bottom: 0;
+  padding-bottom: 8px;
 }
 summary {
   cursor: pointer;
@@ -75,6 +75,7 @@ summary {
   gap: 10px 16px;
   padding: 8px 0;
 }
+.legend button,
 .legend span {
   display: inline-flex;
   gap: 6px;
@@ -126,4 +127,33 @@ summary {
 }
 .maplibregl-ctrl-attrib {
   color: #222;
+}
+
+.headline {
+  margin: 0 16px 8px;
+  text-align: left;
+  font-weight: 500;
+}
+.quality {
+  padding: 0 16px 8px;
+  font-size: 14px;
+}
+.quality:empty {
+  display: none;
+}
+.modes {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 8px;
+}
+.modes:empty {
+  display: none;
+}
+button[aria-pressed="true"] {
+  border-color: var(--primary-color);
+  background: var(--secondary-background-color);
+}
+button:disabled {
+  cursor: default;
+  color: var(--secondary-text-color);
 }

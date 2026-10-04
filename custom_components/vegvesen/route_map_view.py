@@ -38,7 +38,7 @@ class MapDocument:
         self._language: str | None = None
 
     async def async_image(self, maps: RouteMaps) -> bytes:
-        """Use the latest forecast snapshot without making forecast API requests."""
+        """Render the proposal only when viewed."""
         async with self._lock:
             language = maps.hass.config.language
             if (
@@ -56,7 +56,7 @@ class MapDocument:
                 pass
             labels = await maps.async_labels(language)
             self._image, complete = await maps.hass.async_add_executor_job(
-                render_map, self.content, view, tiles, labels
+                render_map, view, tiles, labels
             )
             self._expires = time.monotonic() + (3600 if complete else 60)
             self._language = language
@@ -64,7 +64,7 @@ class MapDocument:
 
 
 class RouteMaps:
-    """Share tile requests across flow previews and saved route images."""
+    """Share tile requests across flow previews."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Register one authenticated HA view for the lifetime of the integration."""

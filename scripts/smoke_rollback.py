@@ -13,7 +13,7 @@ STABLE_COMMIT = "10658a404a4aac1b7a6808e4e9ece02bea2a809e"
 
 
 def snapshot(instance: SmokeInstance) -> dict:
-    """Record public-fixture identities and saved subentries, excluding image state."""
+    """Record stable identities and saved subentries, excluding beta-only entities."""
     entry = instance.ws("config_entries/get", domain="vegvesen")[0]
     entities = [
         {
@@ -23,6 +23,14 @@ def snapshot(instance: SmokeInstance) -> dict:
         for item in instance.ws("config/entity_registry/list")
         if item.get("platform") == "vegvesen"
         and not item["entity_id"].startswith("image.")
+        and item["unique_id"].rsplit(":", 1)[-1]
+        not in {
+            "highest_slip_risk",
+            "ice_or_frost_segments",
+            "snow_cover_segments",
+            "drifting_snow_segments",
+            "high_slip_risk_segments",
+        }
     ]
     return {
         "entry_id": entry["entry_id"],

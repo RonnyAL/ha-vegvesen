@@ -1,28 +1,8 @@
 {
   "en": {
-    "selected_route": "Selected route",
-    "forecast_time": "Forecast valid time",
-    "basemap_unavailable": "Basemap unavailable",
-    "no_segments": "No forecast segments",
-    "no_visible_segments": "No forecast segments visible",
-    "unknown": "Missing, error or unrecognized condition",
-    "NoNewPrecipitation": "No new precipitation",
-    "WetRoadSurface": "Wet road surface",
-    "IceOrFrost": "Ice or frost",
-    "SnowCover": "Snow cover",
-    "DriftingSnow": "Drifting snow"
+    "basemap_unavailable": "Basemap unavailable"
   },
   "nb": {
-    "selected_route": "Valgt rute",
-    "forecast_time": "Prognosen gjelder for",
-    "basemap_unavailable": "Bakgrunnskart utilgjengelig",
-    "no_segments": "Ingen prognosestrekninger",
-    "no_visible_segments": "Ingen synlige prognosestrekninger",
-    "unknown": "Manglende, feil eller ukjent føreforhold",
-    "NoNewPrecipitation": "Ingen ny nedbør",
-    "WetRoadSurface": "Våt veibane",
-    "IceOrFrost": "Is eller rim",
-    "SnowCover": "Snødekke",
-    "DriftingSnow": "Snøfokk"
+    "basemap_unavailable": "Bakgrunnskart utilgjengelig"
   }
 }

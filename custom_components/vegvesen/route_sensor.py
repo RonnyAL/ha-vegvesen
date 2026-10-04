@@ -16,6 +16,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTRIBUTION, DOMAIN
 from .route_coordinator import RouteCoordinator
+from .route_summary import (
+    CONDITION_CODES,
+    SLIP_GRADES,
+    category_counts,
+    category_summary,
+    highest_slip_risk,
+)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -30,7 +37,18 @@ SOURCE_STATES = {
 }
 CONDITIONS = [*SOURCE_STATES.values(), "mixed", "partial_data"]
 SLIP_RISKS = ["low", "medium", "high", "mixed", "partial_data"]
+COUNT_SENSORS = {
+    "ice_or_frost_segments": ("ROAD_CONDITION", "IceOrFrost"),
+    "snow_cover_segments": ("ROAD_CONDITION", "SnowCover"),
+    "drifting_snow_segments": ("ROAD_CONDITION", "DriftingSnow"),
+    "high_slip_risk_segments": ("SLIP_RISK", "high"),
+}
 ROUTE_SENSORS = (
+    SensorEntityDescription(
+        key="highest_slip_risk",
+        translation_key="route_highest_slip_risk",
+        device_class=SensorDeviceClass.ENUM,
+    ),
     SensorEntityDescription(
         key="road_condition",
         translation_key="route_road_condition",
@@ -61,7 +79,14 @@ ROUTE_SENSORS = (
     SensorEntityDescription(
         key="forecast_segments",
         translation_key="route_forecast_segments",
-        native_unit_of_measurement="segments",
+    ),
+    *(
+        SensorEntityDescription(
+            key=key,
+            translation_key=f"route_{key}",
+            entity_registry_enabled_default=False,
+        )
+        for key in COUNT_SENSORS
     ),
 )
 
@@ -106,6 +131,8 @@ class RouteSensor(CoordinatorEntity[RouteCoordinator], SensorEntity):
     def options(self) -> list[str] | None:
         """Known source codes are translated; new source codes remain usable raw."""
         key = self.entity_description.key
+        if key == "highest_slip_risk":
+            return list(SLIP_GRADES)
         if key not in {"road_condition", "slip_risk"}:
             return None
         values = CONDITIONS if key == "road_condition" else SLIP_RISKS
@@ -124,10 +151,19 @@ class RouteSensor(CoordinatorEntity[RouteCoordinator], SensorEntity):
         if snapshot is None:
             return None
         key = self.entity_description.key
+        if key == "highest_slip_risk":
+            return highest_slip_risk(snapshot)
         if key == "forecast_segments":
             return len(snapshot.segments)
         if not snapshot.segments:
             return None
+        if key in COUNT_SENSORS:
+            field, code = COUNT_SENSORS[key]
+            counts = category_counts(snapshot, field)
+            # A zero requires at least one reported category. Missing records
+            # remain explicit in attributes, even when a positive count exists.
+            known = SLIP_GRADES if field == "SLIP_RISK" else CONDITION_CODES
+            return counts[code] if set(counts).intersection(known) else None
         if key == "forecast_time":
             return snapshot.forecast_time
         if key in {"road_condition", "slip_risk"}:
@@ -161,6 +197,17 @@ class RouteSensor(CoordinatorEntity[RouteCoordinator], SensorEntity):
             "forecast_time": snapshot.forecast_time.isoformat(),
             "matched_segments": len(snapshot.segments),
         }
+        if self.entity_description.key == "highest_slip_risk":
+            attributes.update(category_summary(snapshot, "SLIP_RISK"))
+        if self.entity_description.key in COUNT_SENSORS:
+            field, _ = COUNT_SENSORS[self.entity_description.key]
+            summary = category_summary(snapshot, field)
+            attributes.update(
+                {
+                    key: summary[key]
+                    for key in ("missing_segments", "unrecognized_segments")
+                }
+            )
         if self.entity_description.key in {"road_condition", "slip_risk"}:
             counts = self._categories()
             attributes["source_categories"] = {

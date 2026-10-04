@@ -320,3 +320,36 @@ async def test_route_calculation_cancellation(
     else:
         assert not entry.subentries
     assert not manager.async_progress()
+
+
+@pytest.mark.parametrize("kind", ["parent", "subentry"])
+async def test_current_hour_default_and_translation(
+    hass: HomeAssistant, kind: str
+) -> None:
+    """Native forms default to zero, accept it, and translate the unit suffix."""
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="public_service", data={})
+    manager, result = await start_flow(hass, "route", kind, entry)
+    serialized = FlowManagerIndexView(manager)._prepare_result_json(result)
+    field = next(f for f in serialized["data_schema"] if f["name"] == "forecast_hours")
+    assert field["default"] == 0
+    assert field["selector"]["number"]["min"] == 0
+    assert field["selector"]["number"]["max"] == 24
+    assert field["selector"]["number"]["translation_key"] == "forecast_hours"
+    for language, unit in [("en", "hours"), ("nb", "timer")]:
+        labels = await async_get_translations(hass, language, "selector", {DOMAIN})
+        assert (
+            labels[f"component.{DOMAIN}.selector.forecast_hours.unit_of_measurement.h"]
+            == unit
+        )
+    result = await manager.async_configure(
+        result["flow_id"],
+        {
+            "name": "Example",
+            "start_source": "map",
+            "end_source": "map",
+            "corridor_m": 100,
+            "forecast_hours": 0,
+        },
+    )
+    assert result["step_id"] == "route_locations"
+    manager.async_abort(result["flow_id"])

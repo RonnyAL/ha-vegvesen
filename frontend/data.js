@@ -7,9 +7,31 @@ export const COLORS = {
   ErrorOrNoData: "#777777",
 };
 export const UNKNOWN_COLOR = "#777777";
+export const SLIP_COLORS = {
+  low: "#009e73",
+  medium: "#e69f00",
+  high: "#d55e00",
+};
 export const ROUTE_COLOR = "#174ea6";
-export const color = (code) =>
-  Object.hasOwn(COLORS, code) ? COLORS[code] : UNKNOWN_COLOR;
+export const color = (code, mode = "condition") => {
+  const colors = mode === "slip" ? SLIP_COLORS : COLORS;
+  return Object.hasOwn(colors, code) ? colors[code] : UNKNOWN_COLOR;
+};
+export const category = (feature, mode) =>
+  feature.properties[mode === "slip" ? "SLIP_RISK" : "ROAD_CONDITION"] ?? null;
+export const highlighted = (feature, selection) =>
+  !selection || category(feature, selection.mode) === selection.code;
+export const selectedBounds = (segments, selection) => {
+  const selected = segments.filter(
+    (feature) => feature.geometry && highlighted(feature, selection),
+  );
+  return selected.length
+    ? bounds({
+        type: "MultiLineString",
+        coordinates: selected.flatMap((feature) => lines(feature.geometry)),
+      })
+    : undefined;
+};
 export const sourceLabel = (labels, code, kind = "condition") =>
   code == null
     ? labels.missing
@@ -57,8 +79,8 @@ export function bounds(geometry) {
 }
 
 export function validateConfig(config) {
-  if (!config?.entity?.startsWith("image."))
-    throw Error("Select a Statens vegvesen route map image entity");
+  if (!config?.entity?.startsWith("sensor."))
+    throw Error("Select a Statens vegvesen route forecast sensor");
   if (
     config.height !== undefined &&
     (!Number.isFinite(config.height) ||
@@ -71,8 +93,7 @@ export function validateConfig(config) {
   return { ...config };
 }
 
-// HA calls a card's hass setter for all state changes. Fetch just this route's
-// cached snapshot when its image changes or the connection recovers.
+// Subscribe to cached snapshot changes, independently of the anchor sensor state.
 export class RouteData {
   constructor(onData, onError, onReset) {
     Object.assign(this, { onData, onError, onReset });
@@ -80,34 +101,54 @@ export class RouteData {
   }
   stop() {
     this.generation++;
-    this.key = undefined;
+    this.connection = undefined;
+    this.entity = undefined;
+    if (this.unsubscribe) {
+      // The socket may already have closed. Its server subscriptions are gone.
+      Promise.resolve(this.unsubscribe()).catch(() => {});
+      this.unsubscribe = undefined;
+    }
   }
   async update(hass, entity) {
-    const state = hass.states[entity];
-    const key = `${entity}:${hass.connected}:${state?.last_updated}`;
-    if (key === this.key) return;
-    this.key = key;
-    const generation = ++this.generation;
-    if (
-      !hass.connected ||
-      !state ||
-      ["unknown", "unavailable"].includes(state.state)
-    ) {
+    if (!hass.connected) {
+      if (this.disconnected) return;
+      this.stop();
+      this.disconnected = true;
       this.onReset();
-      this.onError(!hass.connected ? "disconnected" : "unavailable");
+      this.onError("disconnected");
       return;
     }
+    this.disconnected = false;
+    if (this.connection === hass.connection && this.entity === entity) return;
+    this.stop();
+    this.connection = hass.connection;
+    this.entity = entity;
+    const generation = this.generation;
+    this.onReset();
     try {
-      const data = await hass.callWS({
-        type: "vegvesen/route_map",
-        entity_id: entity,
-      });
-      if (generation === this.generation) this.onData(data);
+      const unsubscribe = await hass.connection.subscribeMessage(
+        (event) => {
+          if (generation !== this.generation) return;
+          if (event.error) {
+            this.onReset();
+            this.onError(event.error);
+          } else this.onData(event.data);
+        },
+        { type: "vegvesen/subscribe_route_map", entity_id: entity },
+      );
+      if (generation !== this.generation) await unsubscribe();
+      else this.unsubscribe = unsubscribe;
     } catch (error) {
       if (generation !== this.generation) return;
       this.onReset();
       this.onError(
-        error.code === "unknown_command" ? "upgrade" : "unavailable",
+        error.code === "unknown_command"
+          ? "upgrade"
+          : error.code === "invalid_route"
+            ? "invalid_route"
+            : error.code === "unauthorized"
+              ? "unauthorized"
+              : "unavailable",
       );
     }
   }

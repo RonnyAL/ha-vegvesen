@@ -204,14 +204,17 @@ async def test_atomic_forecast_pages(
 
 
 @pytest.mark.parametrize("kind", ["parent", "subentry"])
+@pytest.mark.parametrize("forecast_hours", [0, 1])
 async def test_route_flow(  # noqa: PLR0915
     hass: HomeAssistant,
     mock_http: aioresponses,
     routing: dict[str, Any],
     route_data: dict[str, Any],
     kind: str,
+    forecast_hours: int,
 ) -> None:
     """Native route configuration saves only after an editable overview confirmation."""
+    route_data["forecast_hours"] = forecast_hours
     entry = MockConfigEntry(domain=DOMAIN, unique_id="public_service", data={})
     with patch("custom_components.vegvesen.async_setup_entry", return_value=True):
         if kind == "parent":
@@ -249,6 +252,7 @@ async def test_route_flow(  # noqa: PLR0915
             entry = result["result"]
         subentry = next(iter(entry.subentries.values()))
         assert subentry.data["corridor_m"] == 200
+        assert subentry.data["forecast_hours"] == forecast_hours
         assert subentry.data["geometry"] == route_data["geometry"]
         assert subentry.unique_id == f"route:{subentry.data['route_id']}"
     # Reconfiguration keeps identity, and can retain the stored route offline.
@@ -325,7 +329,7 @@ async def test_forecast_entities_and_recovery(  # noqa: PLR0915
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     coordinator = next(iter(entry.runtime_data.routes.values()))
-    assert len(hass.states.async_all("sensor")) == 6
+    assert len(hass.states.async_all("sensor")) == 7
     assert (
         hass.states.get(source_entity(hass, "minimum_road_temperature")).state
         == "-123.4"
@@ -513,7 +517,7 @@ async def test_routes_weather_isolation_and_removal(
         )
         == 4
     )
-    assert len(registry.entities) == 18
+    assert len(registry.entities) == 26
     mock_http.get(url, payload=page(forecasts))
     await failed.async_refresh()
     assert failed.last_update_success
@@ -527,7 +531,7 @@ async def test_routes_weather_isolation_and_removal(
     assert routes[route_entries[0].subentry_id]._shutdown_requested
     assert len(config_entry.runtime_data.routes) == 1
     assert registry.async_get(station_id).device_id == station_device
-    assert len(registry.entities) == 11
+    assert len(registry.entities) == 15
     # Editing a loaded route reloads its corridor without replacing entities.
     retained = route_entries[1]
     original = config_entry.runtime_data.routes[retained.subentry_id]

@@ -59,37 +59,6 @@ def verify_sensor_icons(page: Page, route_states: dict) -> None:
     print("Native route sensor icons rendered from icons.json")
 
 
-def verify_route_image(
-    page: Page, session: requests.Session, states: list[dict]
-) -> tuple[dict, int]:
-    """Display the native image entity and retain a public-fixture PNG."""
-    route_image = next(
-        state
-        for state in states
-        if state["entity_id"].startswith("image.trondheim_orkanger_")
-    )
-    map_response = session.get(
-        BASE + route_image["attributes"]["entity_picture"], timeout=10
-    )
-    map_response.raise_for_status()
-    if not map_response.content.startswith(b"\x89PNG"):
-        raise AssertionError("Route image proxy did not return a PNG")
-    (RESULTS / "route-map.png").write_bytes(map_response.content)
-    page.locator("home-assistant").evaluate(
-        "(element, id) => element.dispatchEvent("
-        "new CustomEvent('hass-more-info', "
-        "{detail: {entityId: id}, bubbles: true, composed: true}))",
-        route_image["entity_id"],
-    )
-    map_image = page.locator("more-info-image img")
-    expect(map_image).to_be_visible()
-    expect(map_image).to_have_js_property("naturalWidth", 960)
-    page.screenshot(path=str(RESULTS / "route-image-dialog.png"))
-    page.keyboard.press("Escape")
-    expect(page.locator("ha-more-info-dialog")).to_be_hidden()
-    return route_image, len(map_response.content)
-
-
 def run_browser(tokens: dict, session: requests.Session) -> None:
     """Create a parent and add a second source through frontend dialogs."""
     tokens.update(
@@ -361,6 +330,11 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 )
                 expect(endpoints.nth(index)).to_have_js_property("value", value)
 
+            hours = page.locator("ha-selector-number").filter(
+                has=page.get_by_text("timer", exact=True)
+            )
+            expect(hours).to_have_count(1)
+            expect(hours).to_have_js_property("value", 0)
             expect(endpoints.nth(0)).to_have_js_property("label", "Start")
             expect(endpoints.nth(1)).to_have_js_property("label", "Mål")
             choose_endpoint(0, "Trondheim (zone.trondheim)")
@@ -442,7 +416,7 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                     and cameras[0]["state"] != "unavailable"
                     and temperatures[0]["state"] != "unavailable"
                     and observations[0]["state"] != "unavailable"
-                    and len(route_states) == 6  # noqa: PLR2004
+                    and len(route_states) == 7  # noqa: PLR2004
                     and all(
                         state["state"] not in {"unknown", "unavailable"}
                         for state in route_states.values()
@@ -465,7 +439,6 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
             page.get_by_text("1 tjeneste", exact=False).first.wait_for(state="visible")
             page.screenshot(path=str(RESULTS / "integration.png"))
             verify_sensor_icons(page, route_states)
-            route_image, route_png_bytes = verify_route_image(page, session, states)
             page.locator("home-assistant").evaluate(
                 "(element, id) => element.dispatchEvent("
                 "new CustomEvent('hass-more-info', "
@@ -482,8 +455,6 @@ def run_browser(tokens: dict, session: requests.Session) -> None:
                 "observation": observations[0]["entity_id"],
                 "camera": camera["entity_id"],
                 "jpeg_bytes": len(image.content),
-                "route_image": route_image["entity_id"],
-                "route_png_bytes": route_png_bytes,
                 "weather_list_seconds": round(weather_list_seconds, 2),
                 "camera_list_seconds": round(camera_list_seconds, 2),
                 "cached_weather_list_seconds": round(warm_list_seconds, 2),

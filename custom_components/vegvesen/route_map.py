@@ -1,4 +1,4 @@
-"""Render route and source segment geometry without inferring road conditions."""
+"""Render route geometry for configuration previews."""
 
 from __future__ import annotations
 
@@ -9,13 +9,11 @@ from itertools import pairwise
 from typing import TYPE_CHECKING, Any
 
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
-from shapely.geometry import LineString, box
 
 from .route_geometry import validate_lines
 
 if TYPE_CHECKING:
     from .map_tiles import TileKey
-    from .route_coordinator import RouteSnapshot
 
 WIDTH, HEIGHT = 960, 480
 # Leave room for endpoint circles above the in-map attribution.
@@ -24,24 +22,14 @@ TILE_SIZE = 256
 BACKGROUND = "#eef0f2"
 MERCATOR_LIMIT = 85.05112878
 ROUTE_COLOR = "#174ea6"
-UNKNOWN_COLOR = "#777777"
-CONDITION_COLORS = {
-    "NoNewPrecipitation": "#009e73",
-    "WetRoadSurface": "#56b4e9",
-    "IceOrFrost": "#e69f00",
-    "SnowCover": "#cc79a7",
-    "DriftingSnow": "#d55e00",
-    "ErrorOrNoData": UNKNOWN_COLOR,
-}
 
 
 @dataclass(frozen=True, slots=True)
 class MapContent:
-    """One route proposal or one complete forecast snapshot, kept out of state."""
+    """One route proposal, kept out of entity state."""
 
     name: str
     geometry: dict[str, Any]
-    snapshot: RouteSnapshot | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,31 +181,14 @@ def _line_width(zoom: float) -> int:
     return round(stops[-1][1])
 
 
-def _draw_lines(canvas: Image.Image, view: Viewport, content: MapContent) -> set[str]:
-    """Draw actual source geometry and return only visible condition categories."""
+def _draw_lines(canvas: Image.Image, view: Viewport) -> None:
+    """Draw the route and its endpoints."""
     draw = ImageDraw.Draw(canvas)
     width = _line_width(view.zoom)
     for line in view.lines:
         points = [view.point(*p) for p in line]
         draw.line(points, fill="white", width=width + 2, joint="curve")
         draw.line(points, fill=ROUTE_COLOR, width=width + 1, joint="curve")
-    visible = set()
-    extent = box(-width / 2, -width / 2, WIDTH + width / 2, HEIGHT + width / 2)
-    if content.snapshot:
-        for segment in content.snapshot.segments:
-            if segment.geometry is None:
-                continue
-            code = segment.properties.get("ROAD_CONDITION")
-            color = CONDITION_COLORS.get(code, UNKNOWN_COLOR)
-            for line in validate_lines(segment.geometry):
-                # Polar source geometry is not representable on a Mercator map.
-                if view.mercator and any(abs(p[1]) > MERCATOR_LIMIT for p in line):
-                    continue
-                points = [view.point(*p) for p in line]
-                if not LineString(points).intersects(extent):
-                    continue
-                draw.line(points, fill=color, width=width, joint="curve")
-                visible.add("unknown" if color == UNKNOWN_COLOR else code)
     for label, point in (("A", view.lines[0][0]), ("B", view.lines[-1][-1])):
         x, y = view.point(*point)
         draw.ellipse(
@@ -231,57 +202,16 @@ def _draw_lines(canvas: Image.Image, view: Viewport, content: MapContent) -> set
             font=font,
             fill="white",
         )
-    return visible
-
-
-def _footer(
-    content: MapContent, visible: set[str], labels: dict[str, str]
-) -> Image.Image | None:
-    """Wrap the timestamp and visible legend items into a compact footer."""
-    if content.snapshot is None:
-        return None
-    stamp = content.snapshot.forecast_time.strftime("%Y-%m-%d %H:%M UTC")
-    items = [
-        (None, f"{labels['forecast_time']}: {stamp}"),
-        (ROUTE_COLOR, labels["selected_route"]),
-    ]
-    items.extend(
-        (color, labels[code])
-        for code, color in (*CONDITION_COLORS.items(), ("unknown", UNKNOWN_COLOR))
-        if code in visible
-    )
-    if not visible:
-        key = "no_visible_segments" if content.snapshot.segments else "no_segments"
-        items.append((None, labels[key]))
-    font = ImageFont.load_default(size=18)
-    placed = []
-    x, y = 16, 8
-    for color, label in items:
-        width = math.ceil(font.getlength(label)) + (32 if color else 0)
-        if x + width > WIDTH - 16:
-            x, y = 16, y + 26
-        placed.append((x, y, color, label))
-        x += width + 24
-    footer = Image.new("RGB", (WIDTH, y + 26), "white")
-    draw = ImageDraw.Draw(footer)
-    for x, y, color, label in placed:
-        if color:
-            draw.line((x, y + 9, x + 22, y + 9), fill=color, width=4)
-        draw.text(
-            (x + (32 if color else 0), y), label, font=font, anchor="lt", fill="#242424"
-        )
-    return footer
 
 
 def render_map(
-    content: MapContent,
     view: Viewport,
     tiles: dict[TileKey, bytes],
     labels: dict[str, str],
 ) -> tuple[bytes, bool]:
-    """Generate a PNG off the event loop; colors represent source codes only."""
+    """Generate a route-preview PNG off the event loop."""
     basemap, complete = _draw_basemap(view, tiles)
-    visible = _draw_lines(basemap, view, content)
+    _draw_lines(basemap, view)
     draw = ImageDraw.Draw(basemap)
     draw.text(
         (WIDTH - 8, HEIGHT - 8),
@@ -302,11 +232,6 @@ def render_map(
             stroke_width=2,
             stroke_fill="white",
         )
-    canvas = basemap
-    if (footer := _footer(content, visible, labels)) is not None:
-        canvas = Image.new("RGB", (WIDTH, HEIGHT + footer.height), "white")
-        canvas.paste(basemap, (0, 0))
-        canvas.paste(footer, (0, HEIGHT))
     output = BytesIO()
-    canvas.save(output, format="PNG")
+    basemap.save(output, format="PNG")
     return output.getvalue(), complete

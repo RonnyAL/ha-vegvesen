@@ -55,7 +55,7 @@
         },
         "data_description": {
           "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
-          "forecast_hours": "Hele timer etter starten av inneværende time. Manglende prognoser for valgt tidspunkt vises som ukjent.",
+          "forecast_hours": "0 velger prognosen for inneværende time. Dette er en prognose, ikke en sanntidsmåling.",
           "name": "La stå tomt for å bruke sonenavn og navnet på veiforslaget."
         },
         "submit": "Fortsett"
@@ -98,7 +98,7 @@
       "invalid_route": "Velg gyldige start- og målpunkter.",
       "no_route": "Ingen kjørbar rute funnet mellom punktene.",
       "zone_unavailable": "Sonen mangler gyldige koordinater. Velg en annen sone eller et punkt på kartet.",
-      "invalid_forecast_hours": "Velg et helt antall timer fra 1 til 24.",
+      "invalid_forecast_hours": "Velg et helt antall timer fra 0 til 24.",
       "invalid_corridor": "Velg en gyldig avstand fra 10 til 2000 meter.",
       "off_road_network": "Velg et punkt nærmere en vei som støttes av rutetjenesten.",
       "no_sources_selected": "Velg minst ett alternativ."
@@ -225,7 +225,7 @@
           },
           "data_description": {
             "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
-            "forecast_hours": "Hele timer etter starten av inneværende time. Manglende prognoser for valgt tidspunkt vises som ukjent.",
+            "forecast_hours": "0 velger prognosen for inneværende time. Dette er en prognose, ikke en sanntidsmåling.",
             "name": "La stå tomt for å bruke sonenavn og navnet på veiforslaget."
           },
           "submit": "Fortsett"
@@ -261,7 +261,7 @@
         "no_route": "Ingen kjørbar rute funnet mellom punktene.",
         "cannot_connect": "Kunne ikke beregne ruten. Prøv igjen.",
         "zone_unavailable": "Sonen mangler gyldige koordinater. Velg en annen sone eller et punkt på kartet.",
-        "invalid_forecast_hours": "Velg et helt antall timer fra 1 til 24.",
+        "invalid_forecast_hours": "Velg et helt antall timer fra 0 til 24.",
         "invalid_corridor": "Velg en gyldig avstand fra 10 til 2000 meter.",
         "off_road_network": "Velg et punkt nærmere en vei som støttes av rutetjenesten."
       },
@@ -318,12 +318,32 @@
         "name": "Prognosen gjelder for"
       },
       "route_forecast_segments": {
-        "name": "Veistrekninger med prognose"
-      }
-    },
-    "image": {
-      "route_map": {
-        "name": "Rutekart"
+        "name": "Veistrekninger med prognose",
+        "unit_of_measurement": "strekninger"
+      },
+      "route_highest_slip_risk": {
+        "name": "Høyeste varslede glatthet",
+        "state": {
+          "low": "Lav",
+          "medium": "Middels",
+          "high": "Høy"
+        }
+      },
+      "route_ice_or_frost_segments": {
+        "name": "Prognosestrekninger med is eller rim",
+        "unit_of_measurement": "strekninger"
+      },
+      "route_snow_cover_segments": {
+        "name": "Prognosestrekninger med snødekke",
+        "unit_of_measurement": "strekninger"
+      },
+      "route_drifting_snow_segments": {
+        "name": "Prognosestrekninger med snøfokk",
+        "unit_of_measurement": "strekninger"
+      },
+      "route_high_slip_risk_segments": {
+        "name": "Prognosestrekninger med høy glatthet",
+        "unit_of_measurement": "strekninger"
       }
     }
   },
@@ -341,6 +361,11 @@
     "route_endpoint": {
       "options": {
         "map": "Velg på kart"
+      }
+    },
+    "forecast_hours": {
+      "unit_of_measurement": {
+        "h": "timer"
       }
     }
   },

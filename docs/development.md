@@ -78,7 +78,7 @@ This makes public API requests with at most four concurrent point lookups, coale
 The [route-map beta](route-maps.md) has a third locked target in
 `environments/beta`, using HA 2026.10.0b0 and its matching test package. Its PNG
 renderer uses Pillow already provided by HA core; it adds no host dependency.
-The native image and signed-path APIs are also available at the existing minimum.
+The signed-preview and WebSocket subscription APIs are available at the existing minimum.
 
 ## Interactive card
 

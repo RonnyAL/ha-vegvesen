@@ -85,5 +85,7 @@ release **0.7.4** unchanged. Never attach this tag to a different commit later.
 HACS uses its ordinary release-version selector; no separate custom repository,
 update mechanism or manifest URL is needed. Rollback uses **Redownload** to select
 0.7.4, followed by an HA restart. The beta retains the stable config schema and
-existing identities; the added image entity may remain unavailable after rollback.
+existing stable identities; beta-only summary/count entities may remain unavailable
+after rollback. Existing offsets, including 0, are reused by the stable coordinator;
+its older settings form still requires 1–24 hours when editing a route.
 See [route-map validation](route-maps.md) for the disposable rollback check.

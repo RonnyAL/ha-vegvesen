@@ -4,13 +4,13 @@ Bring road weather readings, road-camera still images and route forecasts from S
 
 This is an independent community integration, not an official Statens vegvesen product.
 
-**Route-map beta:** this branch contains experimental maps in **0.8.0b1**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
+**Route-map beta:** this branch contains experimental maps in **0.8.0b5**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
 
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
 | Weather station | Air temperature and observation time | 10 minutes |
 | Road camera | Still image and source availability | 1 minute |
-| Saved route | Forecast road condition, slipperiness, minimum/maximum road temperature, forecast time, segment count and route map | Just after each hour and half-hour |
+| Saved route | Forecast road condition, slipperiness, minimum/maximum road temperature, forecast time, segment count and an optional interactive map | Just after each hour and half-hour |
 
 Setup is available in English and Norwegian Bokmål. No API key or Statens vegvesen account is required.
 
@@ -80,21 +80,34 @@ status have dedicated icons; temperatures and timestamps use HA's standard icons
 Choose **Add route / Legg til rute** on the integration, or **Route forecast / Ruteprognose** during first setup.
 
 1. Choose a **start** and **destination** from your existing Home Assistant zones. Each dropdown also offers **Choose on map / Velg på kart**; you can mix zones and map points. The route name is optional: two zones give a name such as **Hjem → Jobb**. With one zone, its name is combined with the road proposal name; with map points only, the road proposal name is used. Enter a name to override the default.
-2. Set the **corridor** (distance on either side of the route, initially 100 metres) and **forecast hours ahead** (initially 1).
+2. Set the **corridor** (distance on either side of the route, initially 100 metres) and **forecast hours ahead** (initially 0, the current hour).
 3. Choose **Continue / Fortsett**. If you selected map points, set those points on the next screen and choose **Calculate route / Beregn rute**. Maps initially centre on your Home Assistant location. Review the proposed route on the map, along with its road names and distance. **Choose route / Velg ruteforslag** lets you select another proposal if the service offers one.
 4. Choose **Save route / Lagre rute**. You can edit the settings from the overview before saving, or use the route's reconfigure action later.
 
-Each saved route creates one device with six sensors and a **Route map / Rutekart** image. **Road condition** and **Slipperiness** summarize the source categories on matching road segments. A single category is shown when all matched segments agree; differing categories show **Mixed**. If some matched segments lack a category, the summary shows **Incomplete data**; if all lack it, it is **unknown**. Attributes list the original category codes and their counts. Slipperiness comes from the source, without an integration-generated risk score. **No new precipitation** does not mean dry road or safe driving conditions.
+Each saved route creates one device with seven enabled sensors. **Road condition** and **Slipperiness** summarize the source categories on matching road segments. A single category is shown when all matched segments agree; differing categories show **Mixed**. If some matched segments lack a category, the summary shows **Incomplete data**; if all lack it, it is **unknown**. Attributes list the original category codes and their counts. Slipperiness comes from the source, without an integration-generated risk score. **No new precipitation** does not mean dry road or safe driving conditions.
+
+**Highest forecast slipperiness / Høyeste varslede glatthet** shows the highest
+source grade found among matched segments: low, medium or high. It still shows a
+reported high grade when other segments lack data. Attributes count missing and
+unrecognized grades separately; no recognized grade means **unknown**. A low
+grade does not establish complete coverage or safe conditions.
+
+Four optional count sensors expose segments with **ice/frost**, **snow cover**,
+**drifting snow** and **high slipperiness**. Enable them on the route's device
+page if needed for dashboards or automations. They count source records in the
+corridor, not distance or a percentage of the exact route. Counts are unknown
+when no recognized categories are available; missing and unrecognized records
+remain counted in attributes.
 
 The temperature sensors show the lowest and highest available **forecast road-surface temperatures**, preserving unusual source values. These are forecasts, distinct from measured station temperatures. Missing temperatures are omitted from the minimum/maximum and counted in attributes; no available values means **unknown**.
 
-**Forecast valid time / Prognosen gjelder for** is the hour the forecast applies to, not when it was published or fetched. HA may display it as a time in the future; that is expected. With 1 hour ahead selected, a refresh at 14:35 selects the forecast for 15:00. The selected hour advances at the next hourly refresh.
+**Forecast valid time / Prognosen gjelder for** is the hour the forecast applies to, not when it was published or fetched. The default 0-hour setting selects 14:00 when refreshed at 14:35; it is a forecast for the current hour, not a live observation. With 1 hour ahead selected, the same refresh selects 15:00. Existing routes retain their configured offset; reconfigure a route to change it. The selected hour advances at the next hourly refresh.
 
 Forecasts are fetched immediately when the route loads, then just after `:00` and `:30`. For example, with 1 hour ahead selected, the refresh just after 15:00 selects 16:00. Statens vegvesen does not advertise a push feed for these road forecasts, so the integration polls. Unchanged source values stay unchanged after a successful refresh. These refresh times do not guarantee that the source has published new data; request failures and server retry delays can postpone updates.
 
 **Forecast segments** counts the matching segments, including ones with missing values. Zero matching segments gives a count of 0 and unknown condition/temperature/time sensors. A failed or incomplete API request makes that route unavailable until a complete refresh succeeds.
 
-The selectable 1–24-hour range does not guarantee that all those forecasts have
+The selectable 0–24-hour range does not guarantee that all those forecasts have
 been published. Available hours vary with the source forecast; try a nearer hour
 if a distant forecast is unknown. The corridor range of 10–2,000 metres controls
 which nearby roads are included; it is an integration setting, not an API radius
@@ -114,52 +127,25 @@ For individual segment forecasts, use **Statens vegvesen: Get route forecasts** 
 The configuration overview shows the selected road proposal, with **A** at the
 start and **B** at the destination. Choosing another proposal updates the preview.
 
-The **Route map / Rutekart** image on each saved route device shows the selected
-route in dark blue and the actual forecast segments in source-category colors.
-The compact legend lists only conditions drawn in the current image and includes
-the forecast's valid time in UTC. Lines scale with the fitted zoom, and attribution
-appears over the map. Gray means missing data,
-a source error or an unrecognized condition. **No new precipitation** is a source
-category; it does not mean dry or safe roads. Nearby side roads and opposite
-carriageways can appear because matching uses the configured corridor.
+The static preview is used only during configuration. Saved routes use the
+interactive dashboard card below; no image entity is created.
 
-Add the image entity to a dashboard using HA's native **Picture entity** card.
-For example, replace the entity ID below with your route's image:
-
-```yaml
-type: picture-entity
-entity: image.hjem_jobb_rutekart
-show_name: true
-show_state: false
-```
-
-The image entity is a static overview. For panning, zooming and segment details,
-use the optional interactive card below.
-Existing routes gain their image automatically. Forecast images follow the same
-complete snapshots and availability as the route sensors; viewing one makes no
-extra forecast request. With no matching segments, the image shows the selected
-route and reports that no forecast segments are available.
-
-Background maps use [OpenStreetMap](https://www.openstreetmap.org/copyright).
-Tiles are requested only when an image is viewed, shared between previews and
-route images, and cached in bounded memory for up to seven days. Rendering runs
-locally. OpenStreetMap receives the requested tile coordinates and the HA
-server's IP address, not zone names or an uploaded route. If the basemap is
-unavailable, the route and forecast lines still appear on a plain background;
-weather, cameras and forecast polling are unaffected. Reopen the image after
-service recovery to retry the background.
-
-Image labels follow Home Assistant's configured system language (English or
-Bokmål, with English fallback), independently of each user's profile language.
-HA 2026.10's native map changes apply to the endpoint picker. The generated
-images use OSM raster tiles and also work on the supported older HA versions.
+Preview backgrounds use [OpenStreetMap](https://www.openstreetmap.org/copyright)
+raster tiles. Tiles are fetched on demand and shared between previews in a
+bounded memory cache for up to seven days. OSM receives the requested tile areas
+and the HA server's IP address. Rendering stays local. A background outage
+leaves the route visible on a plain background and does not affect forecasts.
 
 ### Interactive dashboard card
 
 The beta includes **Statens vegvesen route map**, an optional custom dashboard
 card with a vector background, touch panning, zoom controls and **Fit route /
 Vis hele ruten**. Tap a colored segment for its source condition, road temperature,
-slipperiness and forecast time. Expand **Conditions / Føreforhold** for the legend.
+slipperiness and forecast time. The card shows the highest source slipperiness
+grade and counts of the conditions present. Switch between **Road condition /
+Føreforhold** and **Slipperiness / Glatthet** for map colours. Tap a category count
+to highlight and fit its segments; tap it again or choose **Fit route** to reset.
+Missing and unrecognized source values are shown explicitly.
 The forecast time uses Home Assistant's configured time zone.
 Route and condition lines become thinner at overview scales and widen as you
 zoom in. Their widths approximate the background roads; forecast geometry and
@@ -169,25 +155,31 @@ After installing the beta and restarting HA:
 
 1. Open **Settings → Dashboards → menu → Resources**. Enable **Advanced mode**
    in your profile if Resources is hidden.
-2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b4` as a
+2. Add `/vegvesen/route-map/vegvesen-route-map.js?v=0.8.0b5` as a
    **JavaScript module**. This is a one-time resource registration for all routes.
 3. Refresh the browser or fully close and reopen the companion app.
 4. Edit a dashboard, choose **Add card → Statens vegvesen route map**, and select
-   the route's existing **Route map / Rutekart** image entity. Save the card.
+   the route's **Highest forecast slipperiness / Høyeste varslede glatthet** sensor.
+   Save the card.
 
 The card files are included in this beta; no files need copying to `www`.
 Resource registration is still manual, once for the whole installation.
 
-No second route configuration or additional entity is needed. The selected image
-entity identifies the saved route; the card draws the geometry and cached
-forecasts itself. HA's ordinary image detail dialog continues to show the static
-overview. Keep the selected image entity enabled.
+The selected sensor identifies the saved route. The card receives cached
+geometry and forecast updates directly from the integration, even when the
+sensor's summary stays unchanged. Keep the selected sensor enabled. An unknown
+summary can still show the route and available segment data.
+
+When upgrading from 0.8.0b1–b4, edit existing map cards to select a route sensor.
+The old experimental image entities are removed automatically; saved routes and
+existing sensor identities are retained. Native picture cards using those images
+should be removed or replaced with the interactive card.
 
 Equivalent card YAML (replace the example entity ID):
 
 ```yaml
 type: custom:vegvesen-route-map
-entity: image.hjem_jobb_rutekart
+entity: sensor.hjem_jobb_hoyeste_varslede_glatthet
 ```
 
 Optional YAML settings are `title` and `height` (240–1,000 pixels; default 400).
@@ -201,10 +193,9 @@ browser and use its HTTP cache. The map provider receives the viewer's IP
 address, the HA site's origin as a referrer, and requested tile areas; route
 names and complete route geometry are not uploaded. Only visible map views are
 requested; there is no offline download. Source forecasts still come from the
-integration's existing cache, without extra Vegvesen polling. Missing geometry
-is counted in the legend; an outage clears forecast lines until data recovers.
+integration's existing cache, without extra Vegvesen polling. An outage clears forecast lines until data recovers.
 
-Interactive maps require WebGL 2 in the browser/app. The static image remains
+Interactive maps require WebGL 2 in the browser/app. Text summaries remain
 available on devices without it. The card uses supported HA dashboard/resource
 and WebSocket APIs; it does not depend on HA's internal map components or tile
 proxy. Map interaction and appearance are separate from the configuration preview.
@@ -213,14 +204,16 @@ proxy. Map interaction and appearance are separate from the configuration previe
 
 1. In HACS, open **Statens vegvesen** → menu → **Update information**.
 2. Choose **Redownload** → **Need a different version?**, then select release
-   **0.8.0b4**. If your HACS version offers a beta filter, enable it.
-3. Restart Home Assistant, then reconfigure a route to see its preview and open
-   the route device's new image entity.
+   **0.8.0b5**. If your HACS version offers a beta filter, enable it.
+3. Restart Home Assistant. Reconfigure an existing route if you want to select
+   0 hours, and follow the card instructions above.
 
 To revert, use the same version selector to download **0.7.4**, then restart HA.
 Saved settings, routes and existing sensor/camera identities remain compatible.
-The beta-only image entity may remain unavailable in the entity registry after
-rollback; it can be removed through HA. Do not delete the route configuration.
+Beta-only summary/count entities may remain unavailable after rollback and can
+be removed through HA. Do not delete the route configuration. A saved 0-hour
+offset still loads on 0.7.4; its older settings form requires 1–24 hours when
+you edit a route.
 Remove the optional map cards and their Dashboard Resource when reverting to
 0.7.4. On card upgrades, update the resource URL's version suffix and refresh
 the frontend after restarting HA.
@@ -240,7 +233,7 @@ To remove one source or route, remove its configuration under the integration in
 
 **Missing labels or old setup text after updating:** restart HA, then refresh the browser. If a fresh browser works but the companion app still shows old text, use **Reset frontend cache** in the app’s settings. See [HA’s cache troubleshooting](https://www.home-assistant.io/faq/).
 
-**A forecast time has passed:** with the default 1-hour offset, it normally advances just after the hour, once the request completes. Longer forecast offsets look further ahead. If the route becomes unavailable, check the logs and allow recovery. A successful refresh can leave condition and temperature values unchanged.
+**A forecast time has passed:** with 0 hours selected, the valid time is the start of the current hour, so a time in the recent past is expected. It advances just after the next hour, once the request completes. Longer forecast offsets look further ahead. If the route becomes unavailable, check the logs and allow recovery. A successful refresh can leave condition and temperature values unchanged.
 
 **A source is missing:** check the appropriate county/municipality, including **Unknown county → Unknown municipality** for unclassified sources. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
 

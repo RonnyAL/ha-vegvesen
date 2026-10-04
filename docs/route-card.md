@@ -1,32 +1,38 @@
 # Interactive route-map card
 
-The **0.8.0b4** experiment remains on `feature/route-maps`. It adds an optional
-dashboard card to the static previews/images introduced in 0.8.0b1. Existing
-route settings, subentry versions, sensor identities and image identities are
-unchanged. Installation instructions are in the [README](../README.md#interactive-dashboard-card).
+The **0.8.0b5** experiment stays on `feature/route-maps`, separate from stable
+**0.7.4**. Installation and upgrade instructions are in the
+[README](../README.md#interactive-dashboard-card).
 
 ## Entity and data model
 
-One `image` entity already belongs to each saved route device. The card's `entity`
-setting selects that existing entity; no artificial location entity or new map
-domain is introduced. The image remains a usable static overview. A native
-custom-card form filters the picker to Vegvesen image entities.
+The card selects a real route forecast sensor, normally **Highest forecast
+slipperiness**. Any registered sensor belonging to that route can identify it;
+the native picker offers Vegvesen enum sensors. The old experimental image
+entities are retired through HA's entity registry on successful entry setup.
+Saved route/subentry identities and the existing six sensor identities remain
+unchanged. Existing cards selecting images require a one-time entity change.
 
-The authenticated `vegvesen/route_map` WebSocket command checks HA's entity-read
-policy, resolves the current entity registry entry/config subentry, and returns
-the saved geometry and complete coordinator snapshot. It works with renamed
-entity IDs and refuses unrelated, disabled, unloaded or unavailable routes.
-Full coordinates/properties stay outside recorder/state attributes. The command
-does not call Statens vegvesen or request an image render.
+`vegvesen/route_map` reads the current cached snapshot.
+`vegvesen/subscribe_route_map` sends an initial snapshot followed by coordinator
+updates, including failure/recovery and changes that leave the selected sensor's
+state/attributes unchanged. Neither command performs source I/O. Entity-read
+permissions and stable registry identity are checked before sending private data.
+Renames, disabled/removed sensors and unloaded entries are handled explicitly.
+An unknown summary still allows access to the route and available source data.
 
-HA supplies state updates to the card through its documented `hass` property.
-The card retrieves a snapshot when its selected image's update timestamp changes,
-when first displayed, or when the connection recovers. Changes to unrelated
-entities do not request another snapshot. Responses from an older request cannot
-overwrite a later failure, route change or disconnected card. Unavailable routes
-clear the overlays. An explicit Retry button retries the HA request, without
-triggering source polling. The integration's coordinators retain their normal
-schedule. Multiple cards can request the same cached snapshot independently.
+Subscriptions rebind to replacement coordinators on entry reload, clear overlays
+on failure/unload, and remove coordinator, registry and entry listeners when
+unsubscribed or disconnected. Frontend generation checks discard late callbacks
+and unsubscribe late acknowledgements after card removal. Reconnection restores
+the subscription. Full coordinates/properties stay outside recorder/state.
+
+The card displays highest source slipperiness, category counts and explicit
+missing/unrecognized counts. Category buttons select and fit matching source
+geometry. A mode switch colours by `ROAD_CONDITION` or `SLIP_RISK`; unknown codes
+are gray and retain their raw labels. No arbitrary severity ordering is assigned
+to road conditions. Counts describe corridor matches, not route length or exact
+carriageway coverage. Filters preserve the full route as subdued context.
 
 ## Rendering and provider
 
@@ -34,7 +40,7 @@ The card bundles **MapLibre GL JS 6.12.0** and uses styles generated offline wit
 **VersaTiles Style 6.1.1**, in muted light/dark palettes. This follows HA's 2026.10
 vector-map approach, while avoiding its internal components, token handling and
 tile proxy. The unchanged minimum HA **2025.12.0** already provides the required
-image, WebSocket, static-path and dashboard APIs. Browser WebGL 2 is required.
+WebSocket, static-path and dashboard APIs. Browser WebGL 2 is required.
 
 The default source is the public OSM Shortbread TileJSON at
 <https://vector.openstreetmap.org/shortbread_v1/tilejson.json>. Label fonts also
@@ -45,7 +51,7 @@ JavaScript resource. The provider sees the viewer's address, HA origin and tile
 areas. Users may choose another provider via the optional `map_style_url`; its
 own style supplies attribution. The default always displays OSM attribution.
 
-Source forecast lines use the same category colors as the static image. Unknown
+Source forecast lines can be coloured by road condition or source slipperiness. Unknown
 codes, source errors and missing conditions remain gray. Since 0.8.0b3, native
 MapLibre zoom expressions scale line widths roughly with the default style's
 main roads, instead of keeping a fixed pixel width. Forecasts do not provide
@@ -107,14 +113,14 @@ including panel views; that report is a reason to test our supported frontends,
 not a verified failure of this card. Do not patch HA's frontend to work around it.
 The intended first-time flow, once verified, would be: install the integration,
 restart HA, configure a route, refresh the frontend, then add the custom card and
-select the route's existing image entity. No manual resource entry would be needed.
-This helper-based loading is not implemented in 0.8.0b4.
+select a route forecast sensor. No manual resource entry would be needed.
+This helper-based loading is not implemented in 0.8.0b5.
 
 With the current bundled distribution, a new user installs the integration in
-HACS, restarts HA, adds Statens vegvesen and configures a route. The native image
-works immediately. To use the optional interactive card, they register the
+HACS, restarts HA, adds Statens vegvesen and configures a route. Route sensors
+work immediately. To use the optional interactive card, they register the
 bundled module once in Dashboard Resources, refresh the frontend, then add a
-Statens vegvesen route map card and select that route's image entity. Additional
+Statens vegvesen route map card and select that route's forecast sensor. Additional
 routes only need additional cards; there is no repeated resource registration.
 
 If automatic HACS resource management is chosen later, the maintained source
@@ -127,24 +133,24 @@ created for this beta.
 
 ## Validation
 
-The mocked suite contains **354 Python tests** and passes on HA **2025.12.0**,
-**2026.9.4** and **2026.10.0b0**, with 97% statement coverage. Six JavaScript tests
-exercise state-driven updates, disconnect/recovery, late responses, configuration,
-source categories, disconnected geometry and large/antimeridian route fitting.
-ESLint, Prettier and the deterministic bundle check use the same commands in CI.
+Run `scripts/check`, `scripts/check-minimum`, `scripts/check-beta` and
+`npm run check`. Python tests cover source grades/counts, missing and unknown
+codes, current-hour settings, image registry cleanup, permissions, unchanged
+summaries with changed segment data, unload/reload, failure/recovery and socket
+cleanup. JavaScript tests cover subscription updates, late acknowledgements,
+disconnect/recovery, source categories and highlight bounds.
 
-The packaged browser scenario checks actual mobile-width vector rendering,
-touch panning, zoom, route fitting, source segment popups (including taps just
-outside a thin painted line), English/Bokmål labels
-and HA's native visual card editor; it passed on all three locked HA targets.
-Street-level screenshots at zoom 16 and 18 supplement the fitted overview.
-HA 2025.12's promoted edit button has a
-tooltip without an accessible label; the test locates that rendered button by
-its tooltip. Its native language-change view transition can report a skipped
-transition. That exact browser notice is recorded; other uncaught errors fail
-the test. No compatibility patch is applied to HA or its frontend.
+`scripts/smoke-ui --beta --route-card` exercises the packaged card in a disposable
+HA, with mobile-width vector rendering, touch pan/zoom, source popups, category
+highlighting, English/Bokmål labels and the native card editor. Use `--minimum`
+instead of `--beta` for the minimum frontend. Logs/screenshots remain ignored
+under `.tools/card-results-*`; temporary HA, credentials and database are removed
+on exit. Companion apps and physical mobile devices remain beta test targets.
 
-The isolated instance uses a temporary recorder database so standard dashboard
-metadata requests behave normally. The instance and database are removed after
-the test. Browser screenshots/results are ignored under `.tools/card-results-*`.
-Physical mobile devices and companion apps still need beta testing.
+For 0.8.0b5, all 357 Python tests pass on HA 2025.12.0, 2026.9.4 and
+2026.10.0b0 (97% statement coverage), alongside seven JavaScript tests. Packaged
+mobile card checks passed on the minimum and beta frontends; native preview,
+0-hour default and Bokmål unit-label checks also passed on those two targets.
+The isolated 0.7.4 rollback retained all 12 stable entities, four subentries and
+saved configuration, including the 0-hour route setting. Beta-only sensors are
+excluded from stable identity comparisons and may remain unavailable on rollback.

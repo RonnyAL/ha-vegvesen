@@ -45,7 +45,7 @@ class RouteFlow:
             self._route_data = {
                 "route_id": uuid4().hex,
                 "corridor_m": 100,
-                "forecast_hours": 1,
+                "forecast_hours": 0,
                 # Required location selectors need explicit initial values in HA's
                 # native form. Match the map widget's normal home-location seed.
                 "start": {
@@ -136,10 +136,11 @@ class RouteFlow:
             ),
             "forecast_hours": NumberSelector(
                 NumberSelectorConfig(
-                    min=1,
+                    min=0,
                     max=24,
                     step=1,
                     mode=NumberSelectorMode.BOX,
+                    translation_key="forecast_hours",
                     unit_of_measurement="h",
                 )
             ),

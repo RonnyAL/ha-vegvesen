@@ -64,7 +64,7 @@ def forecast_clock(
 async def setup_route(
     hass: HomeAssistant, route_data: dict[str, Any], *, disable_polling: bool = False
 ) -> tuple[MockConfigEntry, RouteCoordinator]:
-    """Load the real parent, six sensors and their coordinator subscriptions."""
+    """Load the real parent, route sensors and their coordinator subscriptions."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id="public_service",
@@ -98,6 +98,7 @@ def request_count(mock_http: aioresponses) -> int:
         "2026-10-25T01:00:00+00:00",  # Europe/Oslo daylight-saving transition
     ],
 )
+@pytest.mark.parametrize("offset", [0, 1])
 async def test_aligned_polling_and_recovery(
     hass: HomeAssistant,
     mock_http: aioresponses,
@@ -105,17 +106,19 @@ async def test_aligned_polling_and_recovery(
     forecast_clock: Clock,
     freezer: FrozenDateTimeFactory,
     boundary: str,
+    offset: int,
 ) -> None:
     """Refresh on boundaries, suppress unchanged states and recover after failures."""
     _, respond, advance = forecast_clock
     target = datetime.fromisoformat(boundary)
     freezer.move_to(target - timedelta(minutes=25))
-    respond(target)
+    route_data["forecast_hours"] = offset
+    respond(target + timedelta(hours=offset - 1))
     entry, coordinator = await setup_route(hass, route_data)
     time_id = source_entity(hass, "forecast_time")
     await advance(target - timedelta(milliseconds=1))
     assert request_count(mock_http) == 1
-    next_target = target + timedelta(hours=1)
+    next_target = target + timedelta(hours=offset)
     respond(next_target)
     await advance(target + timedelta(seconds=2))
     assert hass.states.get(time_id).state == next_target.isoformat()
@@ -125,7 +128,7 @@ async def test_aligned_polling_and_recovery(
     await advance(target + timedelta(minutes=30, seconds=2))
     assert request_count(mock_http) == 3
     assert hass.states.get(time_id) is unchanged
-    final_target = target + timedelta(hours=2)
+    final_target = target + timedelta(hours=offset + 1)
     respond(final_target, status=503)
     await advance(target + timedelta(hours=1, seconds=2))
     assert hass.states.get(time_id).state == STATE_UNAVAILABLE

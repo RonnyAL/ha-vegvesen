@@ -12,11 +12,21 @@
       },
       "source_availability": {
         "default": "mdi:cctv"
-      }
-    },
-    "image": {
-      "route_map": {
-        "default": "mdi:map"
+      },
+      "route_highest_slip_risk": {
+        "default": "mdi:car-traction-control"
+      },
+      "route_ice_or_frost_segments": {
+        "default": "mdi:snowflake"
+      },
+      "route_snow_cover_segments": {
+        "default": "mdi:weather-snowy"
+      },
+      "route_drifting_snow_segments": {
+        "default": "mdi:weather-snowy-heavy"
+      },
+      "route_high_slip_risk_segments": {
+        "default": "mdi:car-traction-control"
       }
     }
   }
