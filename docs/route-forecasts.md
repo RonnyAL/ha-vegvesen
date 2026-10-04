@@ -88,12 +88,39 @@ an editable field error, never a silent switch to home coordinates. Existing
 The dropdown and map selectors exist in the minimum HA version; the newer
 choose-selector widget does not, so it is not required.
 
-A route coordinator polls every 30 minutes. This is an integration choice,
-not a verified source publication cadence. Target time is current UTC hour plus
-the selected offset. One route's failure does not stop weather, cameras or other
-routes; when every configured family fails initial loading, HA retries setup.
-Removing a route unloads its polling and entities. Entry reload detects both
-subentry membership and data/title changes.
+From 0.6.2, a route fetches immediately on setup, then just after each UTC hour
+and half-hour. This is an integration choice, not a verified source publication
+cadence. Target time is current UTC hour plus the selected offset. For offset 1,
+a request at 14:35 selects 15:00 and the request just after 15:00 selects 16:00.
+The valid time is neither a fetch timestamp nor a verified issue timestamp.
+Unchanged snapshots suppress redundant entity updates; a new selected hour still
+updates the timestamp. Empty matches retain unknown forecast states.
+
+The coordinator recalculates its next interval when HA schedules a refresh,
+keeping manual refreshes from shifting the clock alignment. A one-second margin
+avoids HA timer rounding firing just before the hour. If a successful request
+straddles an hour boundary, one short catch-up refresh selects the new hour.
+HA's existing timer remains the sole scheduler: `Retry-After` takes precedence,
+disabled polling is respected, and unloading/removing the last listener cancels
+scheduled work. Normal failed requests retry at the next boundary. Initial
+all-family failures still use HA's setup retry. This follows the coordinator
+lifecycle described in [HA's fetching-data guide](https://developers.home-assistant.io/docs/integration_fetching_data/);
+HA's [Tibber coordinator](https://github.com/home-assistant/core/blob/2026.9.4/homeassistant/components/tibber/coordinator.py)
+also adjusts intervals to clock boundaries. Both supported HA versions are tested.
+
+No documented or advertised push/subscription endpoint was found for this
+road-segment feed in the [OGC landing page](https://ogckart-sn1.atlas.vegvesen.no/ogc/features/v1/),
+[conformance declaration](https://ogckart-sn1.atlas.vegvesen.no/ogc/features/v1/conformance)
+or official map-layer documentation on 2026-10-04. The advertised
+[`openapi` endpoint](https://ogckart-sn1.atlas.vegvesen.no/ogc/features/v1/openapi)
+returned HTTP 500, limiting verification of the complete API inventory. The
+separate [weather forecast dataset](https://dataut.vegvesen.no/nb/dataset/vaerdata-prognose)
+describes point forecasts via XML REST, not a verified push replacement for road
+segments. Clock-aligned polling is therefore used; it is not a source event feed.
+
+One route's failure does not stop weather, cameras or other routes. Removing a
+route unloads its polling and entities. Entry reload detects both subentry
+membership and data/title changes.
 
 Geometry work runs in HA's executor using pinned PyProj 3.8.0 and Shapely 2.1.2.
 A local azimuthal equidistant projection constructs the metric buffer; its

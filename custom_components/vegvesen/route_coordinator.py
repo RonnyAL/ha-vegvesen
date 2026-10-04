@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
+from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import VegvesenApiError, VegvesenRateLimitError
@@ -61,6 +62,31 @@ class RouteCoordinator(DataUpdateCoordinator[RouteSnapshot | None]):
         self.corridor: RouteCorridor | None = None
         self.data = None
 
+    def _forecast_target(self, now: datetime) -> datetime:
+        """Select the configured offset from the current UTC hour."""
+        return now.replace(minute=0, second=0, microsecond=0) + timedelta(
+            hours=self.subentry.data["forecast_hours"]
+        )
+
+    @callback
+    def _schedule_refresh(self) -> None:
+        """Align HA's single polling timer while retaining its retry/lifecycle rules."""
+        now = datetime.now(UTC)
+        boundary = now.replace(
+            minute=(now.minute // 30) * 30, second=0, microsecond=0
+        ) + timedelta(minutes=30)
+        # A slow request can finish in a different hour than it started in.
+        if (
+            self.last_update_success
+            and self.data is not None
+            and self.data.forecast_time != self._forecast_target(now)
+        ):
+            boundary = now
+        # HA rounds its monotonic timer; avoid requesting the previous hour just
+        # before the boundary. A server Retry-After still takes precedence.
+        self.update_interval = boundary - now + timedelta(seconds=1)
+        super()._schedule_refresh()
+
     async def _async_setup(self) -> None:
         """Construct the route's metric corridor without blocking HA."""
         self.corridor = await self.hass.async_add_executor_job(
@@ -71,9 +97,7 @@ class RouteCoordinator(DataUpdateCoordinator[RouteSnapshot | None]):
 
     async def _async_update_data(self) -> RouteSnapshot:
         """Publish nothing until fetching and geographic matching both succeed."""
-        target = datetime.now(UTC).replace(
-            minute=0, second=0, microsecond=0
-        ) + timedelta(hours=self.subentry.data["forecast_hours"])
+        target = self._forecast_target(datetime.now(UTC))
         try:
             if self.corridor is None:
                 await self._async_setup()

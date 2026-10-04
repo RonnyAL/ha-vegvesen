@@ -23,6 +23,7 @@ from custom_components.vegvesen.const import (
     SUBENTRY_WEATHER_STATION,
 )
 from custom_components.vegvesen.geography import GEOGRAPHY_URL
+from custom_components.vegvesen.route_api import parse_routes
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -126,3 +127,36 @@ def config_entry(features: list[dict[str, Any]]) -> MockConfigEntry:
             for feature in features[:2]
         ],
     )
+
+
+@pytest.fixture
+def routing() -> dict[str, Any]:
+    """Use a public town-centre route, unrelated to personal locations."""
+    return json.loads(
+        (Path(__file__).parent / "fixtures/route_sample.json").read_text()
+    )
+
+
+@pytest.fixture
+def forecasts() -> list[dict[str, Any]]:
+    """Use source fields captured from a complete public forecast snapshot."""
+    return json.loads(
+        (Path(__file__).parent / "fixtures/road_forecast_sample.json").read_text()
+    )["features"]
+
+
+@pytest.fixture
+def route_data(routing: dict[str, Any]) -> dict[str, Any]:
+    """Define one independent route with a stable local ID."""
+    route = parse_routes(routing)[0]
+    return {
+        "route_id": "example-route",
+        "name": "Public example",
+        "start": {"latitude": 63.43, "longitude": 10.395},
+        "end": {"latitude": 63.305, "longitude": 9.846},
+        "corridor_m": 100,
+        "forecast_hours": 1,
+        "geometry": route.geometry,
+        "road_name": route.name,
+        "length_m": route.length,
+    }

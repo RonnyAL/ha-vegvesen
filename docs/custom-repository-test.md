@@ -1,70 +1,58 @@
 # Test through a HACS custom repository
 
-The next installation target is HACS **Custom repositories**. Inclusion in HACS's default list is deferred. HACS can fetch the integration from a public repository's default branch; a GitHub release is optional. See the official [custom repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/) and [integration packaging requirements](https://www.hacs.xyz/docs/publish/integration/).
+The public repository is available through HACS **Custom repositories**. Default-list submission is deferred. Follow the [README installation instructions](../README.md#install-with-hacs); HACS downloads the default branch, so a GitHub release is optional. See the official [custom repository instructions](https://www.hacs.xyz/docs/faq/custom_repositories/).
 
-## Before installing
-
-- Home Assistant **2025.12.0 or newer**; the primary tested target is **2026.9.4**.
-- HACS **2.0.5 or newer**, already installed by the user.
-- The reviewed code must be available in a publicly accessible GitHub repository. Its default branch must contain `hacs.json` and `custom_components/vegvesen/`, with the old `integration_blueprint` directory removed.
-- Use HA's existing managed Python. The repository's uv, Python, compiler, browser and test dependencies are development tools and are not needed on the installation host.
-
-The repository URL is `https://github.com/RonnyAL/ha-vegvesen`. It must be publicly accessible before adding it in HACS. HACS documents that [private repositories are unsupported](https://www.hacs.xyz/docs/faq/private_repositories/). Committing or pushing code does not change GitHub repository visibility.
-
-## Install and configure
-
-Once the reviewed source is available on the public default branch:
-
-1. Open HACS and choose the menu in the upper-right corner → **Custom repositories**.
-2. Enter the repository URL, choose type **Integration**, and add it.
-3. Find **Statens vegvesen** in HACS and download it. Without a release, HACS uses the default branch.
-4. Restart Home Assistant using your normal UI controls.
-5. Open **Settings → Devices & services → Add integration** and search for **Statens vegvesen**.
-6. Select **Weather station / Værstasjon** or **Road camera / Veikamera**. Use the overview to choose county, municipality, then one or more sources. Each editor returns with **Done**; choose **Add** on the overview to save the batch. Try the visible **Change county** and **Change municipality** actions before saving. Only populated regions appear; labels retain source IDs and camera direction.
-7. Use **Add weather station / Legg til værstasjon** and **Add road camera / Legg til veikamera** on the same parent entry to add other sources.
-
-There is no API credential or integration-wide location setting. Geographic monitors are not implemented. Existing source names and statuses are kept as provided by Statens vegvesen; UI labels have English and Norwegian Bokmål translations.
+Use Home Assistant **2025.12.0 or newer** and HACS **2.0.5 or newer**. The automated HA targets are **2026.9.4** and **2025.12.0**. HA uses its own managed Python; repository development tools are not needed on the installation host.
 
 ## First test session
 
-Record your HA version and integration version **0.6.1**, plus selected source IDs. These are public source identifiers, but your choice of sources can reveal locations of interest; omit them from public reports if needed.
+Record your HA version and installed integration version (currently **0.6.2**). Public station/camera IDs help reproduce problems, but your selections and route coordinates can reveal locations of interest; omit them from public reports if needed.
 
 | Check | Expected result |
 | --- | --- |
-| Source picker | Native county, municipality and source steps; populated regions only; translated labels; change-region choices return to previous selections |
+| Source picker | Editable overview with county, municipality and multiple source selections; populated regions only; translated labels and readable source IDs |
 | One station | One physical device, an air-temperature sensor and an observation-time sensor |
 | One camera | One direction-specific device, a still camera and a raw source-availability sensor |
-| Additional selections | All sources under one parent; an already selected source ID cannot be added twice |
+| One route | Choose existing HA zones or map endpoints; review a road proposal; save one route device with six forecast sensors |
+| Additional selections | All sources/routes under one parent; an already selected physical source ID cannot be added twice |
 | Source null or missing observation | Unknown measurement; zero and unusual numeric values preserved |
-| Healthy mixed entry | Station readings and the camera still load independently |
-| Normal refreshes | Weather nominally every ten minutes; camera metadata/still every minute; source timestamps may remain unchanged |
+| Normal refreshes | Weather nominally every ten minutes; camera metadata/still every minute; routes just after the hour and half-hour |
+| Route hour rollover | With 1 hour ahead selected, a refresh just after 15:00 selects 16:00; condition/temperature values can remain unchanged |
+| Route zone changes | Saved geometry remains in use; edit settings or recalculate to resolve a moved zone and calculate a new road route |
+| Independent failures | One route's failure does not prevent other routes, station readings or camera stills from loading |
 | Camera detail dialog | A source still is displayed; metadata publication/update times are not claimed as image capture times |
-| Restart HA | Selections retained, same device/entity identities, fresh data fetched |
-| Remove one source subentry | Its entities and unowned device removed; other sources remain configured |
+| Restart or reconfigure | Selections retained and device/entity identities stable; fresh data fetched on reload |
+| Remove one subentry | Its entities and unowned device removed; other selections remain configured |
 
-Observe ordinary source failures if they occur; this test does not require disrupting the installation host's network or services. Request/metadata failures produce unavailable entities and recover on subsequent successful polls. A failed JPEG affects only that camera's image; its raw status sensor can still expose source metadata. Incomplete pagination fails the whole affected collection refresh. A missing station/camera in a complete successful snapshot is unavailable individually. These failure paths are covered by mocked tests.
+There is no API credential or integration-wide location setting. Routes have independent geometry/corridors; area monitors and automatic station/camera ownership by monitors are not implemented. UI labels have English and Norwegian Bokmål translations.
+
+Observe ordinary source failures if they occur; testing does not require disrupting the installation host's network or services. Request failures produce unavailable entities and recover on successful polls. A failed JPEG affects only that camera's image; its raw status sensor can still expose source metadata. Incomplete pagination fails the whole affected refresh. A missing station/camera in a complete snapshot is unavailable individually. Empty route matches give zero segments and unknown forecast states. These paths are covered by mocked tests.
 
 ## Troubleshooting
 
-If HACS cannot add the repository, check the public URL and required layout first. A private repository or a default branch still containing the scaffold cannot install this integration correctly. If HA cannot find the integration after download, confirm the installed path is `<HA config>/custom_components/vegvesen/manifest.json`, restart HA, and check the HA logs.
+If HA cannot find the integration after download, confirm the installed path is `<HA config>/custom_components/vegvesen/manifest.json`, restart HA, and check the logs.
 
-If a source is unavailable, inspect its source status and the HA logs. Metadata publication times and camera image overlays can help distinguish an unchanged source image from a local display issue. Missing observations are not filled in. Wait for a later poll before concluding recovery failed; HTTP 429 responses can delay retries beyond the nominal interval.
+For blank labels or old setup text, compare with a fresh browser window. The companion app can retain translations across an HA restart; use **Reset frontend cache** in its settings. Reinstalling configured sources is unnecessary.
 
-Include version numbers, the affected entity type, relevant timestamps and the error text when reporting a problem. Remove credentials, tokens, private hostnames and personal location details from logs or screenshots. No diagnostics download is implemented yet.
+If a source is unavailable, inspect its status and the HA logs. Metadata publication times and camera image overlays can help distinguish an unchanged source image from a local display issue. Missing values are not filled in. HTTP 429 retry delays take precedence over the usual schedule. A successful refresh can leave readings unchanged; forecast valid time describes the forecast hour, not publication time.
+
+Include version numbers, affected entity type, relevant timestamps and error text when reporting a problem. Remove credentials, tokens, private hostnames and personal location details. No integration diagnostics download is implemented yet.
 
 ## Updates and removal
 
-For a later reviewed revision, use HACS's download/redownload or update control, restart HA, then refresh the browser. An app can retain stale frontend translations after restarting HA; compare with a fresh browser window if needed. Record which source revision you tested: without releases, the default-branch revision is the available package. The current manifest version is 0.6.1; a default-branch development update may require redownload rather than an update notification. Confirm selections and registry identities survive the restart. The categorized picker uses unchanged saved source IDs; actual HACS upgrade testing remains the user installation check.
+Use HACS's download/redownload or update control, restart HA, then refresh the frontend. Record the source revision tested: without releases, HACS may show a commit identifier and a default-branch update may require redownload. Confirm the integration reports **0.6.2** and existing selections/identities survive the restart.
 
-To remove the integration, remove its parent entry from **Devices & services**, remove the downloaded package through HACS, and restart HA. Removing an individual station/camera subentry keeps the parent and other sources. Export anything you want to retain before removing the parent; this guide does not ask the development agent to perform removal on your instance.
+To remove everything, remove the parent integration entry from **Devices & services**, remove the downloaded package through HACS, and restart HA. Removing an individual station, camera or route subentry keeps the parent and other selections.
 
 ## Local package verification
+
+For contributors, these optional commands build a runtime archive and exercise it in a disposable HA instance:
 
 ```bash
 scripts/package
 scripts/smoke-ui
 ```
 
-The local archive is `.tools/packages/vegvesen-0.6.1.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including native-flow translations, brand images, the original MIT license and the data-attribution notice. It excludes environments, developer tools, tests, API fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds from the same files deterministic in the pinned environment.
+The archive is `.tools/packages/vegvesen-0.6.2.zip`, with an accompanying SHA256 file. It contains only `custom_components/vegvesen/` runtime files, including translations, brand images, the original MIT license and data attribution. It excludes environments, developer tools, tests, fixtures and conversation exports. Fixed ZIP timestamps and permissions make repeated builds deterministic in the pinned environment.
 
-The smoke runner extracts this package into a disposable HA configuration, then selects sources through the UI and verifies temperature, observation time and camera display. This proves the installed files work independently of a development source-tree link. It is not an actual HACS download test. The archive is a local review artifact; `hacs.json` still uses the ordinary repository layout, without ZIP-release mode.
+The smoke runner extracts the package, configures public stations/cameras and a route through the real frontend, and verifies their states and a camera image. It checks installed files independently of a source-tree link; it is not an actual HACS download test. See [validation evidence and limitations](validation.md). HACS continues to use the ordinary repository layout, without ZIP-release mode.

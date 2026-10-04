@@ -1,4 +1,4 @@
-# Native source selection (0.5.0)
+# Native source selection
 
 Weather stations and cameras use a native Home Assistant menu as an editable
 selection overview. It shows the chosen county, municipality and source count.
@@ -32,8 +32,8 @@ flows cannot insert a duplicate between the final check and persistence.
 
 HA eagerly runs update listeners. The listener yields one event-loop turn before
 reloading, allowing a synchronous batch to finish and coalescing its callbacks.
-If another selection arrives during reload I/O, membership is checked again and
-the entry reloads to include it. Old coordinators are shut down. Weather/camera
+If another selection arrives during reload I/O, membership and saved data/title
+are checked again and the entry reloads to include it. Old coordinators are shut down. Weather/camera
 polling remains independent and physical source identities are unchanged.
 No migration is needed. Future monitor ownership and deduplication remain
 architecture considerations; no monitor framework is introduced.
@@ -104,6 +104,6 @@ to entity polling.
 ## Updating through HACS
 
 Update or redownload the custom repository's latest default branch, restart HA,
-refresh the frontend, and confirm version **0.5.0**. Existing
+refresh the frontend, and confirm the installed version matches the download. Existing
 selections keep working. Use **Add weather stations** or **Add road cameras**
 to try the editable overview.

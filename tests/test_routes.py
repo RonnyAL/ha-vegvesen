@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -37,39 +35,6 @@ from .helpers import menu_action, page
 if TYPE_CHECKING:
     from aioresponses import aioresponses
     from homeassistant.core import HomeAssistant
-
-
-@pytest.fixture
-def routing() -> dict[str, Any]:
-    """Use a public town-centre route, unrelated to personal locations."""
-    return json.loads(
-        (Path(__file__).parent / "fixtures/route_sample.json").read_text()
-    )
-
-
-@pytest.fixture
-def forecasts() -> list[dict[str, Any]]:
-    """Use source fields captured from a complete public forecast snapshot."""
-    return json.loads(
-        (Path(__file__).parent / "fixtures/road_forecast_sample.json").read_text()
-    )["features"]
-
-
-@pytest.fixture
-def route_data(routing: dict[str, Any]) -> dict[str, Any]:
-    """Define one independent route with a stable local ID."""
-    route = parse_routes(routing)[0]
-    return {
-        "route_id": "example-route",
-        "name": "Public example",
-        "start": {"latitude": 63.43, "longitude": 10.395},
-        "end": {"latitude": 63.305, "longitude": 9.846},
-        "corridor_m": 100,
-        "forecast_hours": 1,
-        "geometry": route.geometry,
-        "road_name": route.name,
-        "length_m": route.length,
-    }
 
 
 def routing_url(data: dict[str, Any]) -> str:

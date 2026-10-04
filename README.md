@@ -6,7 +6,7 @@ Bring road weather readings, road-camera still images and route forecasts from S
 | --- | --- | --- |
 | Weather station | Air temperature and observation time | 10 minutes |
 | Road camera | Still image and source availability | 1 minute |
-| Saved route | Forecast road condition, slipperiness, minimum/maximum road temperature, forecast time and segment count | 30 minutes |
+| Saved route | Forecast road condition, slipperiness, minimum/maximum road temperature, forecast time and segment count | Just after each hour and half-hour |
 
 Setup is available in English and Norwegian Bokmål. No API key or Statens vegvesen account is required.
 
@@ -73,7 +73,11 @@ Each saved route creates one device with six sensors. **Road condition** and **S
 
 The temperature sensors show the lowest and highest available **forecast road-surface temperatures**, preserving unusual source values. These are forecasts, distinct from measured station temperatures. Missing temperatures are omitted from the minimum/maximum and counted in attributes; no available values means **unknown**.
 
-**Forecast valid time / Prognosen gjelder for** is the hour the forecast applies to, not when it was published or fetched. HA may display it as a time in the future; that is expected. With 1 hour ahead selected, a refresh at 14:35 selects the forecast for 15:00. The selection rolls forward on each refresh. **Forecast segments** counts the matching segments, including ones with missing values. Zero matching segments gives a count of 0 and unknown condition/temperature/time sensors. A failed or incomplete API request makes that route unavailable until a complete refresh succeeds.
+**Forecast valid time / Prognosen gjelder for** is the hour the forecast applies to, not when it was published or fetched. HA may display it as a time in the future; that is expected. With 1 hour ahead selected, a refresh at 14:35 selects the forecast for 15:00. The selected hour advances at the next hourly refresh.
+
+Forecasts are fetched immediately when the route loads, then just after `:00` and `:30`. For example, with 1 hour ahead selected, the refresh just after 15:00 selects 16:00. Statens vegvesen does not advertise a push feed for these road forecasts, so the integration polls. Unchanged source values stay unchanged after a successful refresh. These refresh times do not guarantee that the source has published new data; request failures and server retry delays can postpone updates.
+
+**Forecast segments** counts the matching segments, including ones with missing values. Zero matching segments gives a count of 0 and unknown condition/temperature/time sensors. A failed or incomplete API request makes that route unavailable until a complete refresh succeeds.
 
 Routes have their own geography, independently of selected counties, stations, cameras or other routes. Overlapping routes do not add duplicate stations or cameras. Saved road geometry is reused during polling; **Recalculate route / Beregn ruten på nytt** explicitly requests a fresh road proposal. Zone centres are copied when calculating a route. If you move a zone, recalculate to use its new position. Deleting a zone does not alter an already saved route; select another endpoint before recalculating. Forecasts for one route can fail without stopping the others.
 
@@ -91,7 +95,9 @@ To remove one source or route, remove its subentry in **Devices & services**. To
 
 **The integration does not appear:** confirm HACS downloaded it, restart Home Assistant, then search again in **Add integration**.
 
-**Blank fields, old setup text or a `MISSING_VALUE` error after updating:** confirm the integration reports **0.5.0 or newer**, restart HA, then refresh the browser. If the companion app shows a lone **+**, blank menu buttons, raw field names or old text while a fresh browser works, use **Reset frontend cache** in the app’s settings. Restarting HA alone does not clear the app’s cached frontend translations. See [HA’s cache troubleshooting](https://www.home-assistant.io/faq/).
+**Blank fields, old setup text or a `MISSING_VALUE` error after updating:** confirm HACS has downloaded the latest revision, restart HA, then refresh the browser. If the companion app shows a lone **+**, blank menu buttons, raw field names or old text while a fresh browser works, use **Reset frontend cache** in the app’s settings. Restarting HA alone does not clear the app’s cached frontend translations. See [HA’s cache troubleshooting](https://www.home-assistant.io/faq/).
+
+**A forecast time has passed:** with the default 1-hour offset, it normally advances just after the hour, once the request completes. Longer forecast offsets look further ahead. If the route becomes unavailable, check the logs and allow recovery. A successful refresh can leave condition and temperature values unchanged.
 
 **A source is missing:** check the appropriate county/municipality, including **Unknown county → Unknown municipality** for unclassified sources. Newly added sources can take up to 15 minutes to appear in a reused discovery list.
 

@@ -24,7 +24,7 @@ The [official CCTV dataset catalogue](https://dataut.vegvesen.no/en/dataset/webk
 
 ## Implemented behavior
 
-The singleton parent can start with either a station or camera. Further `camera` and `weather_station` subentries are added under that parent, with duplicate rejection within each source type. Source ownership remains one physical subentry/device; overlapping future monitors must reference it, as described in the [weather ownership notes](weather-milestone.md).
+The singleton parent can start with a station, camera or route forecast. Further `camera`, `weather_station` and `route` subentries are added under that parent, with duplicate rejection within each source type. Source ownership remains one physical subentry/device; overlapping future monitors must reference it, as described in the [weather ownership notes](weather-milestone.md).
 
 A camera subentry owns one still-camera entity and one **Source availability** sensor on the same device. The status sensor is necessary because HA hides extra attributes on unavailable camera entities. It preserves fault/unknown status and metadata when image retrieval fails. Null status is unknown; absent records or failed metadata snapshots make both entities unavailable. Metadata timestamps and image-request errors appear as attributes; no image capture timestamp, stream, camera controls, or risk score is invented.
 
@@ -42,4 +42,4 @@ The integration declares `camera` in `after_dependencies`, so HA installs that b
 
 HA's 2025.12.0 camera source already provides the `Camera` initializer and `async_camera_image(width, height)` interface used here; no newer runtime API was introduced. The supported HA minimum stays 2025.12.0 and now passes the complete test suite, including camera behavior. Local/CI checks include `scripts/check-minimum`, `scripts/validate-hassfest`, and `scripts/validate-hacs`; see [validation details](validation.md).
 
-No numerical quota, image capture-time field, or atomic multi-page snapshot guarantee was verified. A successful GET cannot establish freshness; no stale-image threshold is invented. The integration currently supports still JPEGs at the verified image endpoint, not video streaming. HACS/Hassfest execution, branding, and isolated UI testing remain release preparation tasks.
+No numerical quota, image capture-time field, or atomic multi-page snapshot guarantee was verified. A successful GET cannot establish freshness; no stale-image threshold is invented. The integration currently supports still JPEGs at the verified image endpoint, not video streaming. HACS/Hassfest validation, local branding and isolated primary-version UI testing are completed; see [validation evidence and remaining limitations](validation.md). Default HACS listing remains deferred.
