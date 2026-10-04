@@ -25,6 +25,7 @@ from custom_components.vegvesen.route_api import (
     FORECAST_URL,
     ROUTING_URL,
     RouteApiClient,
+    RoutePointError,
     parse_forecast,
     parse_routes,
 )
@@ -542,18 +543,24 @@ async def test_routes_weather_isolation_and_removal(
     assert identities == {e.unique_id: e.entity_id for e in registry.entities.values()}
 
 
-@pytest.mark.parametrize("code", [9005, 9200, 9299, 9008, 9009, None])
+@pytest.mark.parametrize("code", [9005, 9200, 9201, 9299, 9008, 9009, 9999, None])
+@pytest.mark.parametrize("key", ["code", "Code"])
 async def test_routing_error_codes(
     hass: HomeAssistant,
     mock_http: aioresponses,
     route_data: dict[str, Any],
     code: int | None,
+    key: str,
 ) -> None:
     """A routing overload is a failed request, not an absent road connection."""
-    mock_http.get(routing_url(route_data), status=404, payload={"code": code})
+    mock_http.get(routing_url(route_data), status=404, payload={key: code})
     client = RouteApiClient(async_get_clientsession(hass))
     stops = [route_data["start"], route_data["end"]]
-    if code in {9005, 9200, 9299}:
+    if code in {9200, 9201}:
+        with pytest.raises(RoutePointError) as error:
+            await client.async_routes(stops)
+        assert error.value.endpoint == ("start" if code == 9200 else "end")
+    elif code in {9005, 9299}:
         assert await client.async_routes(stops) == []
     else:
         with pytest.raises(VegvesenApiError):
@@ -747,6 +754,11 @@ async def test_route_labels(hass: HomeAssistant, language: str, category: str) -
             assert labels[f"{prefix}.step.{step}.data.{field}"]
     for action in ("route_settings", "route_choice", "route_recalculate", "route_save"):
         assert labels[f"{prefix}.step.route_overview.menu_options.{action}"]
+    assert labels[f"{prefix}.error.off_road_network"] == (
+        "Velg et punkt nærmere en vei som støttes av rutetjenesten."
+        if language == "nb"
+        else "Choose a point closer to a road supported by the routing service."
+    )
     selectors = await async_get_translations(hass, language, "selector", {DOMAIN})
     assert selectors[f"component.{DOMAIN}.selector.route_endpoint.options.map"] == (
         "Velg på kart" if language == "nb" else "Choose on map"

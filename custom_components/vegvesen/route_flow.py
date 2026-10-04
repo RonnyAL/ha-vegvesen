@@ -22,7 +22,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import VegvesenApiError
-from .route_api import RoadRoute, RouteApiClient
+from .route_api import RoadRoute, RouteApiClient, RoutePointError
 
 if TYPE_CHECKING:
     import asyncio
@@ -212,7 +212,10 @@ class RouteFlow:
         self._calculation_task = None
         if not errors:
             return await self.async_step_route_overview()
-        if "zone_unavailable" in errors.values() or not self._manual_endpoints():
+        if (
+            errors.keys() & {"start_source", "end_source"}
+            or not self._manual_endpoints()
+        ):
             return self._route_settings_form(errors)
         return self._route_locations_form(errors)
 
@@ -243,6 +246,11 @@ class RouteFlow:
                 ).async_routes(stops)
                 self._route_choice = 0
                 self._route_stops = deepcopy(stops)
+        except RoutePointError as err:
+            field = err.endpoint
+            if self._route_data.get(f"{field}_source", "map") != "map":
+                field = f"{field}_source"
+            return {field: "off_road_network"}
         except VegvesenApiError:
             return {"base": "cannot_connect"}
         return {} if self._route_choices else {"base": "no_route"}

@@ -79,6 +79,13 @@ Forecasts are fetched immediately when the route loads, then just after `:00` an
 
 **Forecast segments** counts the matching segments, including ones with missing values. Zero matching segments gives a count of 0 and unknown condition/temperature/time sensors. A failed or incomplete API request makes that route unavailable until a complete refresh succeeds.
 
+The selectable 1–24-hour range does not guarantee that all those forecasts have
+been published. Available hours vary with the source forecast; try a nearer hour
+if a distant forecast is unknown. The corridor range of 10–2,000 metres controls
+which nearby roads are included; it is an integration setting, not an API radius
+limit. If the routing service cannot match an endpoint to its road network, the
+relevant map or zone field asks you to choose a point closer to a supported road.
+
 Routes have their own geography, independently of selected counties, stations, cameras or other routes. Overlapping routes do not add duplicate stations or cameras. Saved road geometry is reused during polling; **Recalculate route / Beregn ruten på nytt** explicitly requests a fresh road proposal. Zone centres are copied when calculating a route. If you move a zone, recalculate to use its new position. Deleting a zone does not alter an already saved route; select another endpoint before recalculating. Forecasts for one route can fail without stopping the others.
 
 This first version supports two endpoints, without intermediate stops, imported tracks or a route-line map preview. Matching is geographic: nearby side roads, crossing roads and opposite carriageways may be included in the corridor. Forecast coverage is not guaranteed along the entire route. Large routes can exceed the request deadline and become unavailable; partial results are never presented as complete. This version does not include traffic incidents or closures.

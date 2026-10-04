@@ -83,7 +83,7 @@
         },
         "data_description": {
           "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
-          "forecast_hours": "Antall hele timer etter starten av inneværende time."
+          "forecast_hours": "Hele timer etter starten av inneværende time. Manglende prognoser for valgt tidspunkt vises som ukjent."
         },
         "submit": "Fortsett"
       },
@@ -126,7 +126,8 @@
       "no_route": "Ingen kjørbar rute funnet mellom punktene.",
       "zone_unavailable": "Sonen mangler gyldige koordinater. Velg en annen sone eller et punkt på kartet.",
       "invalid_forecast_hours": "Velg et helt antall timer fra 1 til 24.",
-      "invalid_corridor": "Velg en gyldig avstand fra 10 til 2000 meter."
+      "invalid_corridor": "Velg en gyldig avstand fra 10 til 2000 meter.",
+      "off_road_network": "Velg et punkt nærmere en vei som støttes av rutetjenesten."
     },
     "abort": {
       "already_configured": "Statens vegvesen er allerede konfigurert. Legg til datakilder eller ruter i den eksisterende integrasjonen."
@@ -278,7 +279,7 @@
           },
           "data_description": {
             "corridor_m": "Veier innenfor denne avstanden på hver side inngår, også sideveier.",
-            "forecast_hours": "Antall hele timer etter starten av inneværende time."
+            "forecast_hours": "Hele timer etter starten av inneværende time. Manglende prognoser for valgt tidspunkt vises som ukjent."
           },
           "submit": "Fortsett"
         },
@@ -314,7 +315,8 @@
         "cannot_connect": "Kunne ikke beregne ruten. Prøv igjen.",
         "zone_unavailable": "Sonen mangler gyldige koordinater. Velg en annen sone eller et punkt på kartet.",
         "invalid_forecast_hours": "Velg et helt antall timer fra 1 til 24.",
-        "invalid_corridor": "Velg en gyldig avstand fra 10 til 2000 meter."
+        "invalid_corridor": "Velg en gyldig avstand fra 10 til 2000 meter.",
+        "off_road_network": "Velg et punkt nærmere en vei som støttes av rutetjenesten."
       },
       "abort": {
         "reconfigure_successful": "Ruten er oppdatert."

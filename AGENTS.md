@@ -11,6 +11,9 @@ User-facing name: Statens vegvesen.
 - Handle missing data and API failures explicitly using appropriate
   Home Assistant unknown/unavailable behavior.
 - Prefer documented public APIs over scraping.
+- Validate configuration against verified constraints of the specific endpoint.
+  Distinguish API requirements, current data availability and integration UI
+  limits; do not transfer constraints from a related but different dataset.
 - Verify current Home Assistant conventions against official documentation.
 - Use asynchronous I/O and DataUpdateCoordinator where appropriate.
 - Add meaningful tests for parsing, config flow, and entity behavior.

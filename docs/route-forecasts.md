@@ -50,6 +50,48 @@ The collection's `queryables` endpoint returned HTTP 500 during investigation;
 provided the field schema. Source categories were cross-checked against official
 [WMS styles](https://ogckart-sn1.atlas.vegvesen.no/vegvar_1_0/wms?service=WMS&version=1.1.1&request=GetStyles&layers=vv_road_prognosis_V2&styles=forecast_road_condition).
 
+## API constraint review — 0.6.4
+
+Rechecked on 2026-10-04 using routing OpenAPI version 3.5.17, its official
+[error documentation](https://www.vegvesen.no/ws/no/vegvesen/ruteplan/routingservice_v3_0/open/routingService/openapi/index.html),
+forecast collection metadata, WMS GetCapabilities and bounded live requests.
+
+| Input/request | Verified constraint or limitation | Handling |
+| --- | --- | --- |
+| Route endpoints | `Stops` uses coordinates in the selected `InputSRS`; WGS84 is supported. The service describes Norwegian, Swedish and Finnish road networks. | Send longitude,latitude with explicit `EPSG_4326` input/output. Validate finite geographic coordinates; let the service decide road-network reachability rather than imposing a country or area boundary. |
+| Endpoint road matching | HTTP 404 codes 9200/9201 identify an unmatched start/end. No numeric snap-distance limit was found in the inspected v3 contract. | From 0.6.4, show an editable error on that map or zone field. Do not invent a snapping radius. Accept both documented `Code` and observed `code`. Other no-route codes remain distinct from overload, timeout and internal errors. |
+| Forecast time | The endpoint accepts a timezone-aware timestamp filter. No fixed rolling horizon is advertised by the collection or WMS metadata. | Whole-hour offsets match observed source timestamps. The 1–24-hour selector range is an integration choice, not a guarantee that each target is published. A complete empty response remains unknown; no nearer-time substitution. |
+| Corridor | The routing API receives no corridor parameter. Forecast retrieval receives the locally calculated geographic bounding box. | 10–2,000 metres is a UI/performance choice for local geometry matching, not an upstream radius requirement. No separate geographic restriction or undocumented route-length limit is added. |
+| Pagination/size | Actual OGC responses accept `limit=500` and supply continuation metadata. The inspected material does not establish a maximum route area or a guaranteed response size. | Keep the complete-pagination checks and bounded request deadline. An oversized/incomplete request fails instead of publishing partial data. |
+| Usage | The routing catalogue states 2,500 calls/day, alongside credential instructions that differ from the working open endpoint. | Calculate only during explicit configuration/recalculation and reuse unchanged geometry. Respect HTTP 429; do not assert a verified open-endpoint quota scope or apply the routing quota to the separate forecast API. |
+
+At 10:14 UTC, a bounded query for public road segment `97463` returned 25 hourly
+records from 2026-10-04 09:00 UTC through 2026-10-05 09:00 UTC. Its latest target
+was therefore 23 hours after the current UTC hour. A separate query for that
+segment at +24 hours returned HTTP 200 with zero matched/returned records. This
+establishes current availability for one segment, not a permanent horizon or
+nationwide coverage. The query was `ROAD_SEGMENT_ID = 97463`, `limit=100`, with
+all 25 records returned and no next page; no nationwide unfiltered scan was used.
+
+SVV's [March 2025 announcement](https://www.vegvesen.no/om-oss/presse/aktuelt/2025/032/glatt-vei-og-trafikkflyt/)
+mentions 22 hours in its heading and one day in its body. It is product guidance,
+not a precise contract for this collection. The separate DATEX **point** forecast
+documentation describes a 24-hour horizon; that is not evidence for this road-
+segment endpoint. The OGC OpenAPI request still returned HTTP 500, and collection
+metadata had no temporal extent, so a guaranteed upper bound remains unverified.
+Current availability must not become a permanent validation rule, nor should an
+empty forecast prevent saving a route that may receive data later.
+
+Live routing probes with public example points and an off-network `(0, 0)`
+endpoint returned `{"code":9200}` for start and `{"code":9201}` for end (messages
+omitted here). Mocked tests cover both JSON key spellings, all parent/subentry
+map/zone correction paths, retained drafts, successful retry and empty forecasts.
+Only coordinates are sent to routing; forecast hours do not set its optional
+`StartTime`. These sensors describe one forecast hour along saved geometry, not
+conditions at a calculated arrival time for each road segment.
+
+## Forecast fields
+
 | Source field | Meaning/use |
 | --- | --- |
 | `ROAD_SEGMENT_ID` | Integer source segment identifier; zero is valid |

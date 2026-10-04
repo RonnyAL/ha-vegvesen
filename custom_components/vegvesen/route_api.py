@@ -27,6 +27,15 @@ ROUTING_URL = "https://www.vegvesen.no/ws/no/vegvesen/ruteplan/routingservice_v3
 FORECAST_URL = "https://ogckart-sn1.atlas.vegvesen.no/ogc/features/v1/collections/vegvar_1_0:vv_road_prognosis_V2/items"
 
 
+class RoutePointError(VegvesenApiError):
+    """The routing service cannot match an endpoint to its road network."""
+
+    def __init__(self, endpoint: str) -> None:
+        """Retain which input needs correction without inventing a snap radius."""
+        super().__init__("Route endpoint is outside the supported road network")
+        self.endpoint = endpoint
+
+
 @dataclass(frozen=True, slots=True)
 class RoadRoute:
     """A routing proposal; its transient API routeId is never an entity identity."""
@@ -137,7 +146,16 @@ class RouteApiClient:
                         )
                     if response.status == HTTPStatus.NOT_FOUND:
                         error = await response.json()
-                        code = error.get("code") if isinstance(error, dict) else None
+                        # Live responses use code; the official documentation
+                        # also describes Code. Neither form contains user input
+                        # that should be copied into an HA error message.
+                        code = (
+                            error.get("code", error.get("Code"))
+                            if isinstance(error, dict)
+                            else None
+                        )
+                        if type(code) is int and code in {9200, 9201}:
+                            raise RoutePointError("start" if code == 9200 else "end")  # noqa: PLR2004
                         if code == 9005 or (type(code) is int and 9200 <= code <= 9299):  # noqa: PLR2004
                             return []
                         raise VegvesenApiError("Routing service returned an error")

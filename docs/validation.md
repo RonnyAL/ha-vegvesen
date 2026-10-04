@@ -7,11 +7,17 @@
 | Primary development | 2026.9.4 | 3.14.8 | 0.13.367 | `uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-Both run the same 266 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+Both run the same 285 mocked tests with 96% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
 The route scheduler tests advance HA’s actual timer with mocked HTTP responses. They cover hour/half-hour boundaries, midnight and the UTC hour of Oslo’s daylight-saving transition, manual refresh alignment, a request crossing an hour, unchanged states, failure/recovery, Retry-After spanning a boundary, disabled polling and unloading. No live half-hour wait or household HA is needed.
 
 The [0.6.3 config-flow review](config-flow-review.md) records native API choices and fixes. New mocked tests cover pending-flow cancellation, progress revisits, cleared optional selectors, numeric validation and translated progress/errors on both supported targets.
+
+The [0.6.4 API constraint review](route-forecasts.md#api-constraint-review--064)
+distinguishes documented request requirements, observed forecast availability
+and integration UI limits. Additional tests cover documented/live routing error
+formats, correcting off-network map/zone endpoints in parent/subentry flows,
+retained drafts and successful retry, and an unpublished forecast without fallback.
 
 The Bokmål test configures HA with language `nb`, checks translated temperature and observation names, resolves both translated subentry actions through HA's translation loader, and verifies source-based entity identity remains intact.
 
@@ -45,10 +51,10 @@ The separate remote HACS action runs for public repositories with `comment: fals
 
 ## UI smoke test
 
-The packaged 0.6.3 check passed on 2026-10-04, including native progress,
+The packaged 0.6.4 check passed on 2026-10-04, including native progress,
 cached discovery, English/Bokmål source and route forms, zone/map endpoints,
 reconfiguration and live entities. Initial weather/camera lists opened in about
-0.6 seconds and cached weather discovery in 0.07 seconds in this run; these are
+0.6/0.8 seconds respectively and cached weather discovery in 0.07 seconds in this run; these are
 observations, not API or UI performance guarantees. The runner waits for HA's
 parent reload before opening the next subentry flow, since HA disables its parent
 chooser during that reload.
@@ -115,7 +121,7 @@ reason to remove configured sources or reinstall the integration.
 
 ## Remaining distribution work
 
-The immediate target is user testing through a HACS custom repository, described in the [installation guide](custom-repository-test.md). Default-list submission is deferred. Numbered GitHub releases now provide the normal user update path; `main` remains available for development testing. See [release and lifecycle guidance](releases.md). The repository is now public and the user reports the initial HACS installation working. The user reports 0.6.0 route operation working on HA 2026.10.0b0; that beta is not an automated test target. Actual HACS 0.6.3 upgrade/removal testing remains pending. The route schedule is covered by mocked timer tests on both targets. Longer-running live recovery observations and a minimum-version frontend smoke test remain future work. Saved route forecasts are implemented; area monitors and automatic physical-source ownership/deduplication remain future work. See [route details](route-forecasts.md).
+The immediate target is user testing through a HACS custom repository, described in the [installation guide](custom-repository-test.md). Default-list submission is deferred. Numbered GitHub releases now provide the normal user update path; `main` remains available for development testing. See [release and lifecycle guidance](releases.md). The repository is now public and the user reports the initial HACS installation working. The user reports 0.6.0 route operation working on HA 2026.10.0b0; that beta is not an automated test target. Actual HACS 0.6.4 upgrade/removal testing remains pending. The route schedule is covered by mocked timer tests on both targets. Longer-running live recovery observations and a minimum-version frontend smoke test remain future work. Saved route forecasts are implemented; area monitors and automatic physical-source ownership/deduplication remain future work. See [route details](route-forecasts.md).
 
 The native picker tests cover all four parent/subentry source paths, actual HA form serialization, populated region filtering, invalid/out-of-region source IDs, missing/malformed index data, and new, moved or coordinate-free sources. Cache tests cover TTL expiry, shared flow reuse, copied snapshots, simultaneous flows, cancellation, independent families and failed/incomplete pagination without publishing partial data. Geography never runs during setup or entity polling. [Source and behavior details](geographic-selection.md).
 
