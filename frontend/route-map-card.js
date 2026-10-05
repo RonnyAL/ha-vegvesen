@@ -70,7 +70,7 @@ export class VegvesenRouteMap extends HTMLElement {
     this._time = node("div", "", "time");
     this._header.append(this._title);
     this._fit = node("button");
-    this._fit.append(icon("mdi:fit-to-screen-outline"));
+    this._fit.append(icon("mdi:image-filter-center-focus"));
     this._fit.onclick = () => this._fitRoute();
     this._mode = "condition";
     this._headline = node("button", "", "headline");

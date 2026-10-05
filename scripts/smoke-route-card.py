@@ -33,9 +33,15 @@ def select_setting(dialog: Locator, label: str, option: str) -> None:
     )
     if mode.locator("ha-picker-field").count():
         mode.locator("ha-picker-field").click()
+        mode.get_by_text(option, exact=True).click()
     else:
         mode.get_by_role("combobox").click()
-    mode.get_by_text(option, exact=True).click()
+        # Older Material menus can overlap while focus/close animations settle.
+        # Exercise their native keyboard selection instead of forcing a click
+        # through another menu or changing selector state from JavaScript.
+        choice = mode.get_by_role("option", name=option, exact=True)
+        expect(choice).to_be_visible()
+        choice.press("Enter")
     if not mode.locator("ha-picker-field").count():
         # Older HA menus can retain focus during their close animation. Blur
         # through the dialog header before opening the next overlapping menu.
@@ -60,6 +66,33 @@ def presentation_settings(dialog: Locator) -> None:
     dialog.locator("ha-selector-boolean").get_by_role("switch").press("Space")
     dialog.get_by_role("button", name="Save", exact=True).click()
     expect(dialog).not_to_be_visible()
+
+
+def map_controls(card: Locator, *, dark: bool) -> None:
+    """Match the native map's boxed zoom and transparent action buttons."""
+    zoom = card.get_by_role("button", name="Zoom in", exact=True)
+    assert zoom.bounding_box()["width"] == 29
+    assert zoom.evaluate("e => getComputedStyle(e.parentElement).backgroundColor") == (
+        "rgb(28, 28, 28)" if dark else "rgb(255, 255, 255)"
+    )
+    for name in ("Fit route", "Expand map", "Map layers and legend"):
+        button = card.get_by_role("button", name=name, exact=True)
+        assert button.bounding_box()["width"] == 48
+        assert button.bounding_box()["height"] == 48
+        assert button.evaluate("e => getComputedStyle(e).color") == (
+            "rgb(255, 255, 255)" if dark else "rgb(0, 0, 0)"
+        )
+        assert (
+            button.evaluate("e => getComputedStyle(e.parentElement).backgroundColor")
+            == "rgba(0, 0, 0, 0)"
+        )
+        assert button.evaluate("e => getComputedStyle(e).backgroundColor") == (
+            "rgba(0, 0, 0, 0)"
+        )
+        assert (
+            button.evaluate("e => getComputedStyle(e.parentElement).boxShadow")
+            == "none"
+        )
 
 
 def map_appearance(page: Page, card: Locator, results: Path) -> None:
@@ -87,6 +120,7 @@ def map_appearance(page: Page, card: Locator, results: Path) -> None:
             assert card.evaluate(
                 "c => getComputedStyle(c._inspector).backgroundColor"
             ) == ("rgb(28, 28, 28)" if mode == "dark" else "rgb(255, 255, 255)")
+            map_controls(card, dark=mode == "dark")
             # HA leaves the library's attribution light in both map themes.
             assert (
                 card.locator(".maplibregl-ctrl-attrib").evaluate(
@@ -114,6 +148,7 @@ def map_appearance(page: Page, card: Locator, results: Path) -> None:
         assert card.evaluate("c => getComputedStyle(c._inspector).backgroundColor") == (
             "rgb(28, 28, 28)" if mode == "dark" else "rgb(255, 255, 255)"
         )
+        map_controls(card, dark=mode == "dark")
         page.screenshot(path=str(results / f"auto-{mode}.png"))
     card.evaluate("(c, config) => c.setConfig(config)", {**config, "height": 240})
     expect(card.get_by_role("button", name="Close segment details")).to_be_in_viewport()
@@ -644,7 +679,14 @@ def run(instance: SmokeInstance) -> None:
                 "button", name="Fit route", exact=True
             ).bounding_box()
             assert fit["x"] - canvas.bounding_box()["x"] < 16
-            assert fit["width"] == 32
+            assert fit["width"] == 48
+            assert fit["y"] - canvas.bounding_box()["y"] == 75
+            # A dashboard's card surface color must not recolor the zoom group.
+            card.evaluate(
+                "c => c._card.style.setProperty('--ha-card-background', '#abc')"
+            )
+            map_controls(card, dark=False)
+            card.evaluate("c => c._card.style.removeProperty('--ha-card-background')")
             expect(card.locator(".legend")).not_to_be_visible()
             card.get_by_role("button", name="Map layers and legend").click()
             card.locator(".modes").get_by_role(

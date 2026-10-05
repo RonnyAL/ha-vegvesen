@@ -143,6 +143,18 @@ physical-device testing.
 
 Fit bounds leave a margin for the left control column.
 
+From 0.8.1, map controls follow the
+[native map card's buttons](https://github.com/home-assistant/frontend/blob/20260930.0/src/panels/lovelace/cards/hui-map-card.ts):
+MapLibre's boxed 29-pixel zoom controls sit above transparent action buttons with
+48-pixel touch targets and 24-pixel icons. Actions use black in light map mode and
+white in dark map mode, with a subtle circular hover state. Zoom uses MapLibre's
+white surface or HA's fixed `#1c1c1c` dark surface; dashboard card backgrounds no
+longer recolor it. Fit uses HA's reset-focus icon. The existing HTML buttons retain
+their labels, keyboard activation and expanded-state semantics, and MapLibre's
+public fullscreen control retains its lifecycle and CSS fallback. This is CSS
+styling of the existing controls; the card does not import or patch HA's internal
+map components.
+
 ## Supported extension points
 
 - [HA custom cards and graphical editors](https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/)
@@ -289,3 +301,14 @@ below segment details at the minimum map height. The older frontend's selector
 test now blurs its closing menu through the dialog header before opening the
 next dropdown; runtime selectors are unchanged. Existing expected skipped-view-
 transition notices remain confined to the minimum frontend.
+
+For 0.8.1, the packaged browser scenario passes on HA 2025.12.0 and 2026.10.0b0.
+It checks native zoom dimensions/colors, transparent action surfaces, 48-pixel
+targets, spacing and icon colors across all styles and Auto/Light/Dark modes,
+including a custom dashboard card background. Existing interaction, fullscreen,
+attribution and lifecycle checks pass. The older selector test uses native
+keyboard activation to avoid overlapping Material menu animations. One run
+encountered the previously documented minimum-frontend null-config error during
+reload; a rerun passed without suppressing it or changing runtime code. The
+364 Python tests, 14 JavaScript tests, lint/formatting and local packaging checks
+also pass; no dependency versions changed.

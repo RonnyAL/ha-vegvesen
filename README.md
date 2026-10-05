@@ -232,12 +232,12 @@ available on devices without it. The card uses supported HA dashboard/resource
 and WebSocket APIs; it does not depend on HA's internal map components or tile
 proxy. Map interaction and appearance are separate from the configuration preview.
 
-### Upgrade to 0.8.0
+### Upgrade to 0.8.1
 
-Install **0.8.0** using HACS's update control, then restart Home Assistant and
+Install **0.8.1** using HACS's update control, then restart Home Assistant and
 refresh the browser/app. If the release is not offered, open the repository menu
 and choose **Update information**, then **Redownload → Need a different version?**
-and select **0.8.0**. Existing routes keep their forecast offset; reconfigure a
+and select **0.8.1**. Existing routes keep their forecast offset; reconfigure a
 route to select 0 hours if desired. Follow the card instructions above to add a map.
 
 To revert to the version before route maps, use the same version selector to

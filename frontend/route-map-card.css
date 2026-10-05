@@ -13,6 +13,7 @@ ha-card {
   --map-ui-secondary: var(--secondary-text-color, #666);
   --map-ui-divider: var(--divider-color, #ddd);
   --map-ui-active: var(--primary-color, #03a9f4);
+  --map-control-color: #000;
   overflow: hidden;
   color: var(--map-ui-text);
   background: var(--map-ui-background);
@@ -30,6 +31,9 @@ ha-card[data-mode="dark"] {
   --map-ui-secondary: #aaa;
   --map-ui-divider: #454545;
   --map-ui-active: #03a9f4;
+}
+ha-card[data-theme="dark"] {
+  --map-control-color: #fff;
 }
 header {
   padding: 16px;
@@ -241,32 +245,63 @@ button[aria-pressed="true"] {
   border: 0;
   min-height: 32px;
 }
-.maplibregl-ctrl-top-left .maplibregl-ctrl {
-  margin: 4px 0 0 8px;
+/* HA keeps MapLibre's default 29px zoom buttons and fixed map-mode colors. */
+ha-card[data-theme="dark"]
+  .maplibregl-ctrl-group:has(.maplibregl-ctrl-zoom-in) {
+  background-color: #1c1c1c;
 }
-.maplibregl-ctrl-top-left .maplibregl-ctrl:first-child {
-  margin-top: 8px;
-}
-.maplibregl-ctrl.maplibregl-ctrl-group {
-  background: var(--map-ui-background);
-}
-.maplibregl-ctrl-group button {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  color: var(--map-ui-text);
-}
-.maplibregl-ctrl-group button + button {
-  border-top-color: var(--map-ui-divider);
-}
-.maplibregl-ctrl-group button[aria-expanded="true"] {
-  color: var(--map-ui-active);
-}
-.maplibregl-ctrl-group ha-icon {
-  --mdc-icon-size: 20px;
+ha-card[data-theme="dark"] .maplibregl-ctrl-group button + button {
+  border-top-color: #313131;
 }
 ha-card[data-theme="dark"] .maplibregl-ctrl-icon {
   filter: invert(1);
+}
+/* Like HA's map actions: transparent 48px targets with 24px black/white icons.
+   Keep MapLibre's fullscreen button/lifecycle and our native button semantics. */
+.maplibregl-ctrl-top-left
+  .maplibregl-ctrl-group:not(:has(.maplibregl-ctrl-zoom-in)) {
+  margin: 0 0 0 3px;
+  background: transparent;
+  box-shadow: none;
+}
+.maplibregl-ctrl-top-left
+  .maplibregl-ctrl-group:has(.maplibregl-ctrl-zoom-in)
+  + .maplibregl-ctrl-group {
+  margin-top: 7px;
+}
+.maplibregl-ctrl-group:not(:has(.maplibregl-ctrl-zoom-in)) button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: var(--map-control-color);
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+.maplibregl-ctrl-group:not(:has(.maplibregl-ctrl-zoom-in))
+  button:focus-visible {
+  outline-offset: -4px;
+}
+.maplibregl-ctrl-group:not(:has(.maplibregl-ctrl-zoom-in)) button:focus {
+  box-shadow: none;
+}
+@media (hover: hover) {
+  .maplibregl-ctrl-group:not(:has(.maplibregl-ctrl-zoom-in)) button:hover {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+  }
+}
+.maplibregl-ctrl-group ha-icon {
+  --mdc-icon-size: 24px;
+}
+.maplibregl-ctrl-group:not(:has(.maplibregl-ctrl-zoom-in))
+  .maplibregl-ctrl-icon {
+  background-size: 24px;
+  filter: brightness(0);
+}
+ha-card[data-theme="dark"]
+  .maplibregl-ctrl-group:not(:has(.maplibregl-ctrl-zoom-in))
+  .maplibregl-ctrl-icon {
+  filter: brightness(0) invert(1);
 }
 .maplibregl-ctrl.maplibregl-ctrl-attrib {
   /* Keep MapLibre's translucent credit and information button, as HA does.

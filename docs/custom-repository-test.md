@@ -42,7 +42,7 @@ Include version numbers, affected entity type, relevant timestamps and error tex
 
 ## Updates and removal
 
-Use HACS's update control or redownload a numbered release, restart Home Assistant (not the host), then refresh the frontend. For an existing `main` installation, use **Update information**, then **Redownload** and select **0.8.0** if the release is not offered automatically. The first transition may show a commit-to-version change; subsequent release updates show version numbers. Integration reload alone does not load upgraded Python code. Confirm the installed version and that selections/identities survive the restart. See [release and lifecycle details](releases.md).
+Use HACS's update control or redownload a numbered release, restart Home Assistant (not the host), then refresh the frontend. For an existing `main` installation, use **Update information**, then **Redownload** and select **0.8.1** if the release is not offered automatically. The first transition may show a commit-to-version change; subsequent release updates show version numbers. Integration reload alone does not load upgraded Python code. Confirm the installed version and that selections/identities survive the restart. See [release and lifecycle details](releases.md).
 
 To remove everything, remove the parent integration entry from **Devices & services**, remove the downloaded package through HACS, and restart HA. Removing an individual station, camera or route subentry keeps the parent and other selections.
 
