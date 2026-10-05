@@ -77,19 +77,19 @@ cache refresh). Themes and other repository categories also have different
 lifecycles. That distinction can explain apparently restart-free HACS updates;
 without inspecting a specific other integration, do not assume its mechanism.
 
-## Route-map development and prereleases
+## Route-map release and rollback
 
-Route-map development is on `main`. The latest stable release remains **0.7.4**;
-merging development work does not publish or promote a release. Published
-versions retain their existing tags and commits.
+**0.8.0** is the first stable release including configuration map previews and
+the interactive route card. The 0.8.0b1–b9 releases remain prereleases at their
+original tags and commits. Merging development work does not publish a release.
 
-Until a stable release is prepared, publish route-map beta versions from an
+For future beta versions, publish from an
 exact validated commit as a GitHub **prerelease**, with `make_latest=false`.
 Never attach an existing release tag to a different commit later.
 HACS uses its ordinary release-version selector; no separate custom repository,
 update mechanism or manifest URL is needed. Rollback uses **Redownload** to select
-0.7.4, followed by an HA restart. The beta retains the stable config schema and
-existing stable identities; beta-only summary/count entities may remain unavailable
-after rollback. Existing offsets, including 0, are reused by the stable coordinator;
+0.7.4, followed by an HA restart. Version 0.8.0 retains its config schema and
+existing identities; additional summary/count entities may remain unavailable
+after rollback. Existing offsets, including 0, are reused by the 0.7.4 coordinator;
 its older settings form still requires 1–24 hours when editing a route.
 See [route-map validation](route-maps.md) for the disposable rollback check.

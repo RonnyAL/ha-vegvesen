@@ -1,8 +1,8 @@
 # Route configuration previews
 
-The route-map beta retains a static preview during configuration. Saved-route
+Route maps in **0.8.0** include a static preview during configuration. Saved-route
 images were removed in **0.8.0b5**; the [interactive card](route-card.md) uses
-cached forecasts independently of entity images. The stable release is 0.7.4.
+cached forecasts independently of entity images.
 
 ## Native configuration flow
 

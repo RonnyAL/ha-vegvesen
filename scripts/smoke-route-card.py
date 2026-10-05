@@ -37,6 +37,12 @@ def select_setting(dialog: Locator, label: str, option: str) -> None:
         mode.get_by_role("combobox").click()
     mode.get_by_text(option, exact=True).click()
     if not mode.locator("ha-picker-field").count():
+        # Older HA menus can retain focus during their close animation. Blur
+        # through the dialog header before opening the next overlapping menu.
+        dialog.get_by_text(
+            "Statens vegvesen route map card configuration", exact=True
+        ).first.click()
+        expect(mode.get_by_role("combobox")).to_have_attribute("aria-expanded", "false")
         expect(mode.get_by_role("listbox")).not_to_be_visible()
 
 
@@ -81,6 +87,19 @@ def map_appearance(page: Page, card: Locator, results: Path) -> None:
             assert card.evaluate(
                 "c => getComputedStyle(c._inspector).backgroundColor"
             ) == ("rgb(28, 28, 28)" if mode == "dark" else "rgb(255, 255, 255)")
+            # HA leaves the library's attribution light in both map themes.
+            assert (
+                card.locator(".maplibregl-ctrl-attrib").evaluate(
+                    "e => getComputedStyle(e).backgroundColor"
+                )
+                == "rgb(255, 255, 255)"
+            )
+            assert (
+                card.locator(".maplibregl-ctrl-attrib").evaluate(
+                    "e => getComputedStyle(e).color"
+                )
+                == "rgb(0, 0, 0)"
+            )
             if preset == "default":
                 page.screenshot(path=str(results / f"default-{mode}.png"))
     card.evaluate(
@@ -95,12 +114,17 @@ def map_appearance(page: Page, card: Locator, results: Path) -> None:
         assert card.evaluate("c => getComputedStyle(c._inspector).backgroundColor") == (
             "rgb(28, 28, 28)" if mode == "dark" else "rgb(255, 255, 255)"
         )
-        assert card.locator(".maplibregl-ctrl-attrib").evaluate(
-            "e => getComputedStyle(e).backgroundColor"
-        ) == ("rgb(28, 28, 28)" if mode == "dark" else "rgb(255, 255, 255)")
         page.screenshot(path=str(results / f"auto-{mode}.png"))
     card.evaluate("(c, config) => c.setConfig(config)", {**config, "height": 240})
     expect(card.get_by_role("button", name="Close segment details")).to_be_in_viewport()
+    attribution = card.locator(".maplibregl-ctrl-attrib")
+    toggle = attribution.locator("summary")
+    if not attribution.locator(".maplibregl-ctrl-attrib-inner").is_visible():
+        toggle.click()
+    credit_box = attribution.bounding_box()
+    panel_box = card.locator(".inspector").bounding_box()
+    assert panel_box["y"] + panel_box["height"] <= credit_box["y"]
+    expect(attribution.get_by_role("link", name="OpenStreetMap")).to_be_in_viewport()
     page.screenshot(path=str(results / "compact-240.png"))
     card.evaluate("(c, config) => c.setConfig(config)", config)
     card.evaluate("c => delete c._testedMap")
@@ -108,6 +132,7 @@ def map_appearance(page: Page, card: Locator, results: Path) -> None:
 
 def expanded_map(page: Page, card: Locator, results: Path) -> None:
     """Exercise native fullscreen and the library's mobile CSS fallback."""
+    viewport = page.viewport_size
     for fallback in (False, True):
         if fallback:
             # Emulate a browser without native fullscreen APIs in this test.
@@ -117,6 +142,9 @@ def expanded_map(page: Page, card: Locator, results: Path) -> None:
                 document.exitFullscreen = undefined;
                 document.webkitCancelFullScreen = undefined;
             }""")
+        else:
+            # Chromium cannot resize its window while native fullscreen is open.
+            page.set_viewport_size({"width": 1000, "height": 800})
         card.get_by_role("button", name="Expand map", exact=True).click()
         expect(card.get_by_role("button", name="Close expanded map")).to_be_visible()
         page.wait_for_timeout(300)
@@ -129,6 +157,19 @@ def expanded_map(page: Page, card: Locator, results: Path) -> None:
             assert card.evaluate(
                 "c => c._card.classList.contains('maplibregl-pseudo-fullscreen')"
             )
+        else:
+            # Wide maps show inline credit; narrowing restores its toggle.
+            attribution = card.locator(".maplibregl-ctrl-attrib")
+            expect(attribution).not_to_have_class(re.compile(r"maplibregl-compact"))
+            expect(attribution.locator("summary")).not_to_be_visible()
+            assert (
+                attribution.evaluate("e => getComputedStyle(e).backgroundColor")
+                == "rgba(255, 255, 255, 0.5)"
+            )
+            expect(
+                attribution.get_by_role("link", name="OpenStreetMap")
+            ).to_be_visible()
+            page.screenshot(path=str(results / "attribution-wide.png"))
         page.screenshot(
             path=str(
                 results / ("expanded-fallback.png" if fallback else "expanded.png")
@@ -138,6 +179,9 @@ def expanded_map(page: Page, card: Locator, results: Path) -> None:
         expect(
             card.get_by_role("button", name="Expand map", exact=True)
         ).to_be_visible()
+        if not fallback:
+            page.set_viewport_size(viewport)
+            expect(attribution).to_have_class(re.compile(r"maplibregl-compact"))
         if fallback:
             card.evaluate("""c => {
                 delete c._card.requestFullscreen;
@@ -544,6 +588,17 @@ def run(instance: SmokeInstance) -> None:
                 )
                 == "vector"
             )
+            attribution = card.locator(".maplibregl-ctrl-attrib")
+            credit = attribution.get_by_role("link", name="OpenStreetMap")
+            expect(credit).to_be_visible()
+            expect(credit).to_have_attribute(
+                "href", "https://www.openstreetmap.org/copyright"
+            )
+            assert attribution.evaluate("e => getComputedStyle(e).fontSize") == "12px"
+            toggle = attribution.locator("summary")
+            expect(toggle).to_have_attribute("title", "Map attribution")
+            assert toggle.bounding_box()["width"] == 24
+            assert toggle.bounding_box()["height"] == 24
             zoom = card.evaluate("c => c._map.getZoom()")
             card.get_by_role("button", name="Zoom in", exact=True).click()
             page.wait_for_timeout(500)
@@ -571,6 +626,14 @@ def run(instance: SmokeInstance) -> None:
                 )
                 page.wait_for_timeout(60)
             assert card.evaluate("c => c._map.getCenter().toArray()") != before
+            expect(credit).not_to_be_visible()
+            toggle.click()
+            expect(credit).to_be_visible()
+            toggle.press("Enter")
+            expect(credit).not_to_be_visible()
+            toggle.press("Enter")
+            expect(credit).to_be_visible()
+            page.screenshot(path=str(instance.results / "attribution-mobile.png"))
             card.get_by_role("button", name="Fit route", exact=True).click()
             page.wait_for_timeout(1000)
             assert abs(card.evaluate("c => c._map.getZoom()") - zoom) < 0.01
@@ -732,6 +795,9 @@ def run(instance: SmokeInstance) -> None:
                 }));
             }""")
             expect(selector).to_have_js_property("label", "Rute")
+            expect(
+                dialog.locator("vegvesen-route-map .maplibregl-ctrl-attrib summary")
+            ).to_have_attribute("title", "Kartkilder")
             dialog.get_by_text("Utseende", exact=True).click()
             expect(dialog.locator("ha-selector-number")).to_have_js_property(
                 "label", "Karthøyde"

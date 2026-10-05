@@ -1,7 +1,6 @@
 # Interactive route-map card
 
-Route-map development is now on `main`. The latest published beta is **0.8.0b9**;
-the stable release remains **0.7.4**. Installation and upgrade instructions are in the
+The interactive card ships with the **0.8.0** stable release. Installation and upgrade instructions are in the
 [README](../README.md#interactive-dashboard-card).
 
 ## Route selection and data model
@@ -79,8 +78,8 @@ twelve local JSON assets; only the selected style is fetched, using the module's
 version parameter. No runtime builder, HA-internal style imports or map proxy
 is required. Source condition colors retain their meaning across all styles.
 
-Auto follows `hass.themes.darkMode`. Forced modes change map controls, panels and
-attribution along with the basemap, even when the HA page uses the opposite mode.
+Auto follows `hass.themes.darkMode`. Forced modes change map controls and panels
+along with the basemap, even when the HA page uses the opposite mode.
 Style changes use MapLibre's public `setStyle` and `style.load` lifecycle,
 restoring forecast layers from the current snapshot while keeping the map camera
 and selected source. This does not implement HA's advanced per-feature map
@@ -95,7 +94,14 @@ browser's identity/referrer and omit credentials. Nothing prefetches tiles for
 offline use, uploads private route geometry, or places private data in the public
 JavaScript resource. The provider sees the viewer's address, HA origin and tile
 areas. Users may choose another provider via the optional `map_style_url`; its
-own style supplies attribution. The default always displays OSM attribution.
+own style supplies attribution. The default provides OSM attribution through
+MapLibre's public attribution control. From 0.8.0 this follows HA's
+[`attributionControl: {}`](https://github.com/home-assistant/frontend/blob/20260930.0/src/common/map/engines/maplibre-map-engine.ts)
+configuration: inline above 640 pixels; collapsible and initially open on narrower
+maps, minimizing on drag. The library handles resizing and keyboard interaction.
+Its light credit (translucent when inline) and 12-pixel type match HA's native
+vector map, including in dark mode. The copyright text stays dark for contrast and the
+information button has English/Bokmål labels. In-map panels reserve room for it.
 
 Source forecast lines can be coloured by road condition or source slipperiness. Unknown
 codes, source errors and missing conditions remain gray. Since 0.8.0b3, native
@@ -219,7 +225,7 @@ checks English/Bokmål labels, the native route picker, saving a legacy card wit
 a device selection and retaining presentation settings after reload. Use `--minimum`
 instead of `--beta` for the minimum frontend. Logs/screenshots remain ignored
 under `.tools/card-results-*`; temporary HA, credentials and database are removed
-on exit. Companion apps and physical mobile devices remain beta test targets.
+on exit. Companion apps and physical mobile devices require separate manual testing.
 
 For 0.8.0b5, all 357 Python tests passed on HA 2025.12.0, 2026.9.4 and
 2026.10.0b0 (97% statement coverage), alongside seven JavaScript tests. Packaged
@@ -273,3 +279,13 @@ native Appearance settings saved across reloads, and failed-style fallback/recov
 Existing fullscreen, language, source-data and registration lifecycle checks also
 pass. Screenshots include 390-pixel mobile width and the minimum 240-pixel map
 height; physical companion-app testing remains necessary.
+
+For stable 0.8.0, the 364 Python tests and 14 JavaScript tests remain passing.
+Packaged browser checks pass on all three targets: HA 2025.12.0, 2026.9.4 and
+2026.10.0b0. New checks cover the native responsive attribution: initial credits,
+collapse on touch pan, click/keyboard reopening, inline credits in a wide
+fullscreen view, English/Bokmål toggle labels, theme contrast and clearance
+below segment details at the minimum map height. The older frontend's selector
+test now blurs its closing menu through the dialog header before opening the
+next dropdown; runtime selectors are unchanged. Existing expected skipped-view-
+transition notices remain confined to the minimum frontend.

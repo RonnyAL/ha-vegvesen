@@ -265,7 +265,8 @@ export class VegvesenRouteMap extends HTMLElement {
         bounds: bounds(this._snapshot.geometry),
         fitBoundsOptions: { padding: fitPadding, maxZoom: 15 },
         maxZoom: 20,
-        attributionControl: false,
+        // Match HA's vector map: responsive attribution, open initially.
+        attributionControl: {},
         // Send no HA credentials to map providers. Let the browser cache tiles.
         transformRequest: (url) => ({
           url,
@@ -282,6 +283,7 @@ export class VegvesenRouteMap extends HTMLElement {
             this._lang === "nb" ? "Zoom ut" : "Zoom out",
           "FullscreenControl.Enter": this._labels.expand,
           "FullscreenControl.Exit": this._labels.collapse,
+          "AttributionControl.ToggleAttribution": this._labels.attribution,
         },
       }));
       map.touchZoomRotate.disableRotation();
@@ -322,10 +324,6 @@ export class VegvesenRouteMap extends HTMLElement {
           onRemove: () => this._legendToggle.parentNode?.remove(),
         },
         "top-left",
-      );
-      map.addControl(
-        new maplibregl.AttributionControl({ compact: false }),
-        "bottom-right",
       );
       map.on("style.load", () => {
         if (this._map !== map) return;
@@ -729,5 +727,5 @@ if (!window.customCards.some((card) => card.type === "vegvesen-route-map"))
     name: "Statens vegvesen route map",
     preview: true,
     description: "Interactive route and road-condition forecasts",
-    documentationURL: "https://github.com/RonnyAL/ha-vegvesen#route-maps-beta",
+    documentationURL: "https://github.com/RonnyAL/ha-vegvesen#route-maps",
   });

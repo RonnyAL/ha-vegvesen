@@ -4,7 +4,8 @@ Bring road weather readings, road-camera still images and route forecasts from S
 
 This is an independent community integration, not an official Statens vegvesen product.
 
-**Route-map beta:** the development branch (`main`) includes the maps published in **0.8.0b9**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
+**New in 0.8.0:** preview routes during configuration and explore their forecasts
+with the included interactive map card. See [route maps](#route-maps).
 
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
@@ -122,7 +123,7 @@ Route calculation sends the selected endpoint coordinates to Statens vegvesen. F
 
 For individual segment forecasts, use **Statens vegvesen: Get route forecasts** in **Developer tools → Actions**, selecting the route device. The response contains geometry and unchanged source properties from the latest successful refresh. It makes no extra network request; it reports an error while the route is unavailable or unloaded. The action remains listed during integration reloads. Full segment geometry is kept out of entity attributes and recorder history.
 
-## Route maps (beta)
+## Route maps
 
 The configuration overview shows the selected road proposal, with **A** at the
 start and **B** at the destination. Choosing another proposal updates the preview.
@@ -138,7 +139,7 @@ leaves the route visible on a plain background and does not affect forecasts.
 
 ### Interactive dashboard card
 
-The beta includes **Statens vegvesen route map**, an optional custom dashboard
+The integration includes **Statens vegvesen route map**, an optional custom dashboard
 card with a vector background, touch panning, zoom controls and **Fit route /
 Vis hele ruten**. Use **Expand map / Utvid kartet** for a larger view, including
 the legend and segment details. Tap a colored segment to highlight it and show
@@ -157,7 +158,7 @@ Route and condition lines become thinner at overview scales and widen as you
 zoom in. Their widths approximate the background roads; forecast geometry and
 OpenStreetMap roads come from different datasets.
 
-After installing the beta and restarting HA:
+After installing the integration and restarting HA:
 
 1. Configure a route in **Settings → Devices & services → Statens vegvesen**.
 2. Refresh the browser or fully close and reopen the companion app.
@@ -206,6 +207,11 @@ Under **Appearance / Utseende**, choose:
 The default style uses HA's map palette. Opening the legend or segment details
 does not make the card taller. Existing explicit titles, heights and legend
 preferences are retained. Visual settings do not change route forecasts.
+
+Map attribution follows HA's native vector map: inline on wide maps and
+expandable on narrow ones. On a narrow map it starts open, collapses when you pan,
+and can be reopened with the information button in the bottom-right corner.
+
 Equivalent YAML settings are `title`, `height`, `map_style` (`default`, `colorful`,
 `natural`, `muted`, `gray` or `toner`), `theme_mode` (`auto`, `light` or `dark`),
 `default_mode` (`condition` or `slip`) and `legend_expanded` (`true` or `false`).
@@ -226,17 +232,18 @@ available on devices without it. The card uses supported HA dashboard/resource
 and WebSocket APIs; it does not depend on HA's internal map components or tile
 proxy. Map interaction and appearance are separate from the configuration preview.
 
-### Try the route-map beta
+### Upgrade to 0.8.0
 
-1. In HACS, open **Statens vegvesen** → menu → **Update information**.
-2. Choose **Redownload** → **Need a different version?**, then select release
-   **0.8.0b9**. If your HACS version offers a beta filter, enable it.
-3. Restart Home Assistant. Reconfigure an existing route if you want to select
-   0 hours, and follow the card instructions above.
+Install **0.8.0** using HACS's update control, then restart Home Assistant and
+refresh the browser/app. If the release is not offered, open the repository menu
+and choose **Update information**, then **Redownload → Need a different version?**
+and select **0.8.0**. Existing routes keep their forecast offset; reconfigure a
+route to select 0 hours if desired. Follow the card instructions above to add a map.
 
-To revert, use the same version selector to download **0.7.4**, then restart HA.
+To revert to the version before route maps, use the same version selector to
+download **0.7.4**, then restart HA.
 Saved settings, routes and existing sensor/camera identities remain compatible.
-Beta-only summary/count entities may remain unavailable after rollback and can
+The additional summary/count entities may remain unavailable after rollback and can
 be removed through HA. Do not delete the route configuration. A saved 0-hour
 offset still loads on 0.7.4; its older settings form requires 1–24 hours when
 you edit a route.

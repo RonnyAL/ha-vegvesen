@@ -1,4 +1,36 @@
-# Public release review — 0.7.3 and 0.7.4
+# Public release reviews
+
+## 0.8.0 stable route-map release
+
+Version 0.8.0 promotes the route-map work tested in 0.8.0b1–b9 to stable. It
+includes configuration previews, the bundled interactive vector card, highest
+source slipperiness and optional category counts, and a current-hour default for
+new routes. Existing routes retain their settings and identities. The final
+attribution change uses the same responsive MapLibre control as HA 2026.10.0b0;
+it leaves enough room beneath the segment panel for the copyright and toggle.
+
+The release retains the minimum HA 2025.12.0 and locked primary/beta targets.
+No new dependency or backend schema migration is introduced by the final
+attribution change. The README and custom-repository guide describe stable
+installation, automatic card loading, upgrade/rollback and provider behavior.
+Historical beta validation is recorded in [route-card.md](route-card.md#validation).
+
+Local release checks on 2026-10-05 passed: 364 mocked Python tests (97%
+statement coverage), 14 JavaScript tests, Ruff, ESLint, formatting, generated
+asset verification, pinned Hassfest and local HACS packaging validation.
+Packaged browser scenarios passed on HA 2025.12.0, 2026.9.4 and 2026.10.0b0,
+including responsive attribution, touch/keyboard toggling, translated labels,
+light/dark contrast and non-overlapping credits at the minimum map height.
+The existing map, editor, failure/recovery and registration lifecycle checks
+also passed. Temporary HA processes were stopped and their configurations removed.
+The release commit must also pass both GitHub workflows before publication.
+
+The earlier interactive HACS install/upgrade/removal evidence below covers
+0.7.2–0.7.3; it was not repeated as an authorization-based HACS test for 0.8.0.
+Browser emulation does not verify every companion WebView or physical device.
+The source licensing, coverage and platform limits below continue to apply.
+
+## 0.7.3 review and 0.7.4 follow-up
 
 Reviewed on 2026-10-04. The code and package are technically ready for public
 distribution through a HACS custom repository. No blocking runtime defect was

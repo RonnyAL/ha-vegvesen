@@ -10,6 +10,7 @@ export const labels = {
     data_gaps: "Incomplete data",
     appearance: "Appearance",
     layers: "Map layers and legend",
+    attribution: "Map attribution",
     theme_modes: { auto: "Auto", light: "Light", dark: "Dark" },
     map_styles: {
       default: "Default",
@@ -71,6 +72,7 @@ export const labels = {
     data_gaps: "Ufullstendige data",
     appearance: "Utseende",
     layers: "Kartlag og tegnforklaring",
+    attribution: "Kartkilder",
     theme_modes: { auto: "Automatisk", light: "Lys", dark: "Mørk" },
     map_styles: {
       default: "Standard",

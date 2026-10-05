@@ -55,7 +55,7 @@ button {
   cursor: pointer;
 }
 button:focus-visible,
-summary:focus-visible {
+.data-quality summary:focus-visible {
   outline: 2px solid var(--map-ui-active);
   outline-offset: -2px;
 }
@@ -76,7 +76,7 @@ summary:focus-visible {
 }
 .information {
   top: 8px;
-  max-height: calc(100% - 36px);
+  max-height: calc(100% - 52px);
   padding: 6px 8px;
 }
 .time {
@@ -123,11 +123,11 @@ button[aria-pressed="true"] {
   color: var(--map-ui-active);
 }
 .legend-title,
-summary {
+.data-quality summary {
   font-size: 11px;
   padding: 4px 0;
 }
-summary {
+.data-quality summary {
   cursor: pointer;
   min-height: 24px;
   align-content: center;
@@ -178,9 +178,9 @@ summary {
   box-sizing: border-box;
 }
 .inspector {
-  bottom: 28px;
+  bottom: 44px;
   width: 292px;
-  max-height: calc(100% - 40px);
+  max-height: calc(100% - 56px);
   padding: 6px 10px;
 }
 .inspector-heading {
@@ -223,7 +223,7 @@ summary {
 }
 .status,
 .basemap {
-  bottom: 28px;
+  bottom: 44px;
   padding: 8px;
   font-size: 12px;
   display: flex;
@@ -269,12 +269,9 @@ ha-card[data-theme="dark"] .maplibregl-ctrl-icon {
   filter: invert(1);
 }
 .maplibregl-ctrl.maplibregl-ctrl-attrib {
-  background: var(--map-ui-background);
-  color: var(--map-ui-text);
-  font-size: 10px;
-}
-.maplibregl-ctrl-attrib a {
-  color: inherit;
+  /* Keep MapLibre's translucent credit and information button, as HA does.
+     Prevent the card's dark text theme from leaking onto the light credit. */
+  color: #000;
 }
 ha-card:fullscreen,
 ha-card.maplibregl-pseudo-fullscreen {

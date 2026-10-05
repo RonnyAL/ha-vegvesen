@@ -85,9 +85,9 @@ The separate remote HACS action runs for public repositories with `comment: fals
 
 ## UI smoke test
 
-The route-map beta extends this scenario with rendered preview/image checks and
+The route-map scenario extends this with rendered preview checks and
 an optional stable rollback. See [route-maps.md](route-maps.md) for the separate
-beta target, isolation, current test coverage and limitations. Historical release
+HA beta target, isolation, current test coverage and limitations. Historical release
 evidence below retains the versions and entity counts actually tested.
 
 The packaged 0.7.3 check passed on both HA 2026.9.4 and HA 2025.12.0 on
@@ -238,7 +238,7 @@ reason to remove configured sources or reinstall the integration.
 
 ## Distribution and validation limits
 
-Numbered GitHub releases are distributed through a HACS custom repository; see the [installation guide](custom-repository-test.md) and [release guidance](releases.md). HACS default-list submission is separate. Automated checks cover the two targets above, not every intervening or beta HA version. Both frontend targets have passed the live smoke scenario. The interactive HACS lifecycle scenario and long-running live recovery remain outside the deterministic CI suite. Route scheduling and entry unload/reload are covered by mocked tests on both targets. Area monitors and automatic physical-source ownership remain future work; see [route details](route-forecasts.md).
+Numbered GitHub releases are distributed through a HACS custom repository; see the [installation guide](custom-repository-test.md) and [release guidance](releases.md). HACS default-list submission is separate. Automated checks cover the three locked targets above, not every intervening or beta HA version. The interactive HACS lifecycle scenario and long-running live recovery remain outside the deterministic CI suite. Route scheduling and entry unload/reload are covered by mocked tests on all three targets. Area monitors and automatic physical-source ownership remain future work; see [route details](route-forecasts.md).
 
 The native picker tests cover all four parent/subentry source paths, actual HA form serialization, populated region filtering, invalid/out-of-region source IDs, missing/malformed index data, and new, moved or coordinate-free sources. Cache tests cover TTL expiry, shared flow reuse, copied snapshots, simultaneous flows, cancellation, independent families and failed/incomplete pagination without publishing partial data. Geography never runs during setup or entity polling. [Source and behavior details](geographic-selection.md).
 
