@@ -95,6 +95,62 @@ def map_controls(card: Locator, *, dark: bool) -> None:
         )
 
 
+def compare_layers(page: Page, card: Locator, results: Path) -> None:
+    """Switch forecast layers at a chosen camera, including after filtering."""
+    card.get_by_role("button", name="Zoom in", exact=True).click()
+    card.evaluate("""async c => {
+        if (c._map.isMoving()) await new Promise(resolve =>
+            c._map.once('moveend', resolve));
+    }""")
+    camera = """c => ({center: c._map.getCenter().toArray(),
+        zoom: c._map.getZoom(), bearing: c._map.getBearing(),
+        pitch: c._map.getPitch()})"""
+    before = card.evaluate(camera)
+    initial_colors = card.evaluate(
+        "c => c._map.getStyle().sources.forecasts.data.features"
+        ".map(f => f.properties._color)"
+    )
+    modes = card.get_by_role("group", name="Forecast layer", exact=True)
+    for label in ("Slipperiness", "Road condition", "Slipperiness"):
+        button = modes.get_by_role("button", name=label, exact=True)
+        button.press("Enter")
+        expect(button).to_have_attribute("aria-pressed", "true")
+        expect(button).to_be_focused()
+        after = card.evaluate(camera)
+        assert after == before, (label, before, after)
+    assert (
+        card.evaluate(
+            "c => c._map.getStyle().sources.forecasts.data.features"
+            ".map(f => f.properties._color)"
+        )
+        != initial_colors
+    )
+    category = card.locator(".legend button:not([disabled])").first
+    category.click()
+    selected_camera = card.evaluate(camera)
+    modes.get_by_role("button", name="Slipperiness", exact=True).click()
+    expect(category).to_have_attribute("aria-pressed", "true")
+    assert card.evaluate(camera) == selected_camera
+    modes.get_by_role("button", name="Road condition", exact=True).click()
+    assert card.evaluate(camera) == selected_camera
+    assert card.evaluate("c => c._selection === undefined")
+    assert card.evaluate(
+        "c => c._map.getStyle().sources.forecasts.data.features.length"
+        " === c._snapshot.segments.filter(f => f.geometry).length"
+    )
+    for button in card.locator(".modes button, .legend button, .panel-close").all():
+        if button.is_visible():
+            assert button.bounding_box()["height"] >= 44
+    assert card.locator(".information").evaluate("e => e.scrollWidth <= e.clientWidth")
+    page.screenshot(path=str(results / "forecast-layers.png"))
+    card.get_by_role("button", name="Close map layers", exact=True).click()
+    expect(card.locator(".legend")).not_to_be_visible()
+    expect(card.get_by_role("button", name="Map layers and legend")).to_be_focused()
+    assert card.evaluate(camera) == selected_camera
+    card.get_by_role("button", name="Fit route", exact=True).click()
+    card.get_by_role("button", name="Map layers and legend").click()
+
+
 def map_appearance(page: Page, card: Locator, results: Path) -> None:
     """Check every palette, UI contrast and style swaps with a selected segment."""
     config = card.evaluate("c => c._config")
@@ -689,6 +745,7 @@ def run(instance: SmokeInstance) -> None:
             card.evaluate("c => c._card.style.removeProperty('--ha-card-background')")
             expect(card.locator(".legend")).not_to_be_visible()
             card.get_by_role("button", name="Map layers and legend").click()
+            compare_layers(page, card, instance.results)
             card.locator(".modes").get_by_role(
                 "button", name="Slipperiness", exact=True
             ).click()

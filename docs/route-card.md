@@ -155,6 +155,27 @@ public fullscreen control retains its lifecycle and CSS fallback. This is CSS
 styling of the existing controls; the card does not import or patch HA's internal
 map components.
 
+## Layer switching and panels
+
+From 0.8.2, switching between Road condition and Slipperiness preserves the
+map's position, zoom, bearing and pitch. A category filter belongs to its layer
+and is cleared when changing layers; pressing the already active layer keeps
+the filter. Category selection and Fit route remain explicit fit actions.
+
+The in-map panels use a grouped layer selector, list rows with aligned category
+counts, 44-pixel button targets and readable label/value rows for segment
+details. Both panels have labeled close buttons; closing the layer panel
+returns keyboard focus to its map control. Missing-data details remain
+expandable, with each count on its own line. Panels stay inside the fixed map
+height, scroll when necessary, and retain light/dark theme behavior.
+
+These presentation choices follow the grouping and selected-state treatment in
+HA's [control selector](https://github.com/home-assistant/frontend/blob/20260930.0/src/components/ha-control-select.ts),
+using ordinary HTML controls and existing theme variables. HA's
+[custom-component guidance](https://developers.home-assistant.io/blog/2026/03/25/frontend-component-updates-2026.4/)
+does not promise stable internal frontend component APIs; the card does not
+import the selector or add an internal dialog dependency.
+
 ## Supported extension points
 
 - [HA custom cards and graphical editors](https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/)
@@ -312,3 +333,15 @@ encountered the previously documented minimum-frontend null-config error during
 reload; a rerun passed without suppressing it or changing runtime code. The
 364 Python tests, 14 JavaScript tests, lint/formatting and local packaging checks
 also pass; no dependency versions changed.
+
+For 0.8.2, packaged browser checks pass on HA 2025.12.0 and 2026.10.0b0.
+The layer-switch regression uses the real buttons after zooming, waits for
+MapLibre's zoom animation to finish, and verifies unchanged position, zoom,
+bearing and pitch while the forecast colors change. It also covers clearing a
+previous layer's category filter, retaining a filter when pressing the active
+layer, keyboard focus, the panel close button, touch-target sizes and horizontal
+overflow. Existing mobile, minimum-height, light/dark, source-value and lifecycle
+checks continue to pass. The minimum frontend retains its previously documented
+native view-transition notices. All 364 Python tests pass on the three locked
+targets, alongside 14 JavaScript tests, lint/formatting, reproducible bundle,
+Hassfest and local HACS packaging checks. No dependency versions changed.

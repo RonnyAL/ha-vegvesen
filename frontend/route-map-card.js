@@ -83,6 +83,7 @@ export class VegvesenRouteMap extends HTMLElement {
     this._qualitySummary = node("summary");
     this._qualityDetails.append(this._qualitySummary, this._quality);
     this._modes = node("div", "", "modes");
+    this._modes.setAttribute("role", "group");
     this._legendToggle = node("button");
     this._legendToggle.append(icon("mdi:layers-triple-outline"));
     this._legendToggle.setAttribute("aria-controls", "route-legend");
@@ -105,9 +106,9 @@ export class VegvesenRouteMap extends HTMLElement {
     this._inspector = node("section", undefined, "inspector");
     this._inspector.hidden = true;
     this._inspector.setAttribute("aria-live", "polite");
-    const inspectorHeading = node("div", undefined, "inspector-heading");
-    this._segmentTitle = node("strong");
-    this._closeSegment = node("button");
+    const inspectorHeading = node("div", undefined, "panel-heading");
+    this._segmentTitle = node("h3");
+    this._closeSegment = node("button", undefined, "panel-close");
     this._closeSegment.append(icon("mdi:close"));
     this._closeSegment.onclick = () => {
       this._segmentId = undefined;
@@ -125,6 +126,16 @@ export class VegvesenRouteMap extends HTMLElement {
     );
     this._legendBody = node("div", "", "legend-body");
     this._legendBody.id = "route-legend";
+    this._legendHeading = node("div", undefined, "panel-heading");
+    this._legendTitle = node("h3");
+    this._closeLegend = node("button", undefined, "panel-close");
+    this._closeLegend.append(icon("mdi:close"));
+    this._closeLegend.onclick = () => {
+      this._legendOpen = false;
+      this._renderText();
+      this._legendToggle.focus({ preventScroll: true });
+    };
+    this._legendHeading.append(this._legendTitle, this._closeLegend);
     this._summary = node("div", "", "legend-title");
     this._legend = node("div", "", "legend");
     this._legendBody.append(
@@ -135,6 +146,7 @@ export class VegvesenRouteMap extends HTMLElement {
     );
     this._information = node("div", undefined, "information");
     this._information.append(
+      this._legendHeading,
       this._time,
       this._headline,
       this._dataHint,
@@ -524,6 +536,16 @@ export class VegvesenRouteMap extends HTMLElement {
     else if (repeated) this._fitRoute();
   }
 
+  _setMode(mode) {
+    if (mode === this._mode) return;
+    this._mode = mode;
+    // Category filters belong to one layer. Clear them without changing the
+    // map camera so users can compare both forecasts in the same area.
+    this._selection = undefined;
+    this._renderText();
+    this._draw();
+  }
+
   _formatTime(value) {
     const date = new Date(value);
     return Number.isNaN(date.valueOf())
@@ -597,6 +619,12 @@ export class VegvesenRouteMap extends HTMLElement {
     this._fit.setAttribute("aria-label", l.fit);
     this._fit.disabled = !this._snapshot || this._webglFailed;
     this._summary.textContent = l.legend;
+    this._legendTitle.textContent = l.forecast_layer;
+    this._modes.setAttribute("aria-label", l.forecast_layer);
+    this._legendHeading.hidden = !this._legendOpen && !this._webglFailed;
+    this._closeLegend.hidden = !!this._webglFailed;
+    this._closeLegend.title = l.close_layers;
+    this._closeLegend.setAttribute("aria-label", l.close_layers);
     this._legendToggle.title = l.layers;
     this._legendToggle.setAttribute("aria-label", l.layers);
     this._legendToggle.setAttribute(
@@ -650,17 +678,14 @@ export class VegvesenRouteMap extends HTMLElement {
           `${label} — ${l.unrecognized}: ${value.unrecognized_segments}`,
         );
     }
-    this._quality.textContent = warnings.join(" · ");
+    this._quality.replaceChildren(...warnings.map((text) => node("div", text)));
     this._qualityDetails.hidden = !warnings.length;
     this._dataHint.hidden = !warnings.length || !!this._legendOpen;
     for (const mode of ["condition", "slip"]) {
       const button = node("button", l[mode]);
       button.dataset.focusKey = mode;
       button.setAttribute("aria-pressed", String(this._mode === mode));
-      button.onclick = () => {
-        this._mode = mode;
-        this._fitRoute();
-      };
+      button.onclick = () => this._setMode(mode);
       this._modes.append(button);
     }
     const values =
@@ -674,11 +699,15 @@ export class VegvesenRouteMap extends HTMLElement {
       item.dataset.focusKey = JSON.stringify([this._mode, code]);
       const swatch = node("i", "", "swatch");
       swatch.style.background = color(code, this._mode);
+      swatch.setAttribute("aria-hidden", "true");
       item.append(
         swatch,
-        document.createTextNode(
-          `${sourceLabel(l, code, this._mode)} · ${count}`,
-        ),
+        node("span", sourceLabel(l, code, this._mode), "category-name"),
+        node("span", String(count), "category-count"),
+      );
+      item.setAttribute(
+        "aria-label",
+        `${sourceLabel(l, code, this._mode)}: ${count}`,
       );
       item.setAttribute(
         "aria-pressed",

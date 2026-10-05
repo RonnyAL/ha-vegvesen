@@ -81,10 +81,11 @@ button:focus-visible,
 .information {
   top: 8px;
   max-height: calc(100% - 52px);
-  padding: 6px 8px;
+  padding: 8px 12px;
 }
 .time {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 20px;
   color: var(--map-ui-secondary);
 }
 .headline,
@@ -94,77 +95,102 @@ button:focus-visible,
   border: 0;
   color: var(--map-ui-active);
   background: transparent;
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
-  min-height: 28px;
+  min-height: 40px;
 }
 .headline:disabled {
   color: var(--map-ui-secondary);
   cursor: default;
 }
 .legend-body {
-  width: 276px;
+  width: 288px;
   max-width: 100%;
-  padding-top: 4px;
+  padding-top: 8px;
 }
 .modes {
   display: flex;
   gap: 4px;
   margin: 0 0 8px;
+  padding: 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--map-ui-text) 8%, transparent);
 }
 .modes button,
 .legend button {
   color: var(--map-ui-text);
   background: transparent;
-  border: 1px solid var(--map-ui-divider);
-  border-radius: 6px;
-  padding: 4px 8px;
-  min-height: 32px;
-  font-size: 12px;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px;
+  min-height: 44px;
+  font-size: 14px;
+  line-height: 20px;
 }
-button[aria-pressed="true"] {
-  border-color: var(--map-ui-active);
-  color: var(--map-ui-active);
+.modes button {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.modes button[aria-pressed="true"] {
+  background: var(--map-ui-background);
+  box-shadow: 0 1px 3px #0003;
+  font-weight: var(--ha-font-weight-medium, 500);
+}
+.legend button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--map-ui-active) 15%, transparent);
+  box-shadow: inset 3px 0 var(--map-ui-active);
 }
 .legend-title,
 .data-quality summary {
-  font-size: 11px;
-  padding: 4px 0;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--map-ui-secondary);
+  padding: 8px 0;
 }
 .data-quality summary {
   cursor: pointer;
-  min-height: 24px;
+  min-height: 44px;
+  box-sizing: border-box;
   align-content: center;
 }
 .legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 4px 0;
+  display: grid;
+  gap: 2px;
+  padding-bottom: 8px;
 }
-.legend button,
-.legend span {
-  display: inline-flex;
-  gap: 6px;
+.legend button {
+  display: flex;
+  width: 100%;
+  gap: 10px;
   align-items: center;
   text-align: left;
+}
+.category-name {
+  flex: 1;
+  min-width: 0;
   overflow-wrap: anywhere;
-  max-width: 100%;
+}
+.category-count {
+  color: var(--map-ui-secondary);
+  font-variant-numeric: tabular-nums;
 }
 .legend button:disabled {
   cursor: default;
 }
 .swatch {
-  flex: 0 0 14px;
-  height: 5px;
+  flex: 0 0 16px;
+  height: 6px;
+  border-radius: 3px;
   border: 1px solid var(--map-ui-secondary);
 }
 .data-quality {
   border-top: 1px solid var(--map-ui-divider);
 }
 .quality {
-  font-size: 11px;
-  padding: 0 0 4px;
+  font-size: 12px;
+  line-height: 20px;
+  padding-bottom: 8px;
 }
 .marker {
   border: 2px solid white;
@@ -185,45 +211,67 @@ button[aria-pressed="true"] {
   bottom: 44px;
   width: 292px;
   max-height: calc(100% - 56px);
-  padding: 6px 10px;
+  padding: 8px 12px;
 }
-.inspector-heading {
+.panel-heading {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
 }
-.inspector-heading strong {
+.panel-heading h3 {
   flex: 1;
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: var(--ha-font-weight-medium, 500);
   overflow-wrap: anywhere;
 }
-.inspector-heading button {
+.panel-close {
   border: 0;
+  border-radius: 50%;
   color: var(--map-ui-text);
   background: transparent;
-  width: 32px;
-  height: 32px;
-  padding: 4px;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
   flex-shrink: 0;
+  display: grid;
+  place-items: center;
 }
 .inspector dl {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 10px;
-  margin: 4px 0 6px;
+  margin: 0;
 }
-.inspector dl > div:last-child {
-  grid-column: 1 / -1;
+.inspector dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--map-ui-divider);
 }
 .inspector dt,
 .segment-id {
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 20px;
   color: var(--map-ui-secondary);
+  overflow-wrap: anywhere;
+}
+.segment-id {
+  padding-top: 8px;
 }
 .inspector dd {
-  margin: 2px 0 0;
-  font-size: 12px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: right;
   overflow-wrap: anywhere;
+}
+@media (hover: hover) {
+  .panel-close:hover,
+  .legend button:not(:disabled):hover,
+  .modes button:not([aria-pressed="true"]):hover {
+    background: color-mix(in srgb, var(--map-ui-text) 8%, transparent);
+  }
 }
 .status,
 .basemap {

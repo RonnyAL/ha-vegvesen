@@ -157,7 +157,8 @@ There are no JavaScript files or dashboard resources to install manually.
 Pan and zoom, tap a colored segment for its forecast details, or expand the map
 for a larger view. The controls on the left let you fit the whole route and open
 the layers and legend panel. Switch between **Road condition** and
-**Slipperiness**, or select a category to highlight and fit its segments.
+**Slipperiness** while keeping the same position and zoom, or select a category
+to highlight and fit its segments.
 Missing and unrecognized data are shown explicitly. Forecast times use Home
 Assistant's configured time zone.
 
