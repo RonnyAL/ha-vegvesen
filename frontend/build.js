@@ -77,6 +77,10 @@ const licenses = [
     "VersaTiles Style 6.1.1 (generated map styles)",
     "node_modules/@versatiles/style/LICENSE.md",
   ],
+  [
+    "Turf point-to-line-distance 7.4.0",
+    "node_modules/@turf/point-to-line-distance/LICENSE",
+  ],
 ];
 const worker = await build({
   entryPoints: ["node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs"],
@@ -112,6 +116,7 @@ async function dependencyLicenses(name) {
   }
 }
 await dependencyLicenses("maplibre-gl");
+await dependencyLicenses("@turf/point-to-line-distance");
 const outputs = [
   ...Object.entries(styles).map(([name, style]) => [
     resolve(directory, "styles", `${name}.json`),
@@ -121,7 +126,10 @@ const outputs = [
     file.path,
     file.contents,
   ]),
-  [resolve(directory, "LICENSES.md"), Buffer.from(notice.trimEnd() + "\n")],
+  [
+    resolve(directory, "LICENSES.md"),
+    Buffer.from(notice.replaceAll("\r\n", "\n").trimEnd() + "\n"),
+  ],
 ];
 if (!process.argv.includes("--check"))
   await mkdir(`${directory}/styles`, { recursive: true });

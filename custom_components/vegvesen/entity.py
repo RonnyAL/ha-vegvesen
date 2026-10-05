@@ -66,6 +66,8 @@ class CameraEntity(CoordinatorEntity[CameraCoordinator]):
         source = snapshot.camera
         return {
             "source_id": source.source_id,
+            "latitude": source.latitude,
+            "longitude": source.longitude,
             "orientation": source.orientation,
             "road_number": source.road_number,
             "source_availability": source.availability,

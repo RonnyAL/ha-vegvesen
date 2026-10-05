@@ -54,15 +54,18 @@ def select_setting(dialog: Locator, label: str, option: str) -> None:
 def presentation_settings(dialog: Locator) -> None:
     """Change each setting using the supported frontend's native controls."""
     dialog.locator("ha-selector-text").get_by_role("textbox").fill("Route overview")
-    if not dialog.locator("ha-selector-number input").is_visible():
+    if not dialog.locator("ha-selector-number input").first.is_visible():
         dialog.get_by_text("Appearance", exact=True).click()
-    dialog.locator("ha-selector-number input").fill("480")
+    dialog.locator("ha-selector-number input").first.fill("480")
     select_setting(dialog, "Initial layer", "Slipperiness")
     select_setting(dialog, "Map style", "Natural")
     select_setting(dialog, "Theme mode", "Dark")
     # Native switches can paint a control above their input. Exercise
     # normal keyboard activation instead of clicking through that layer.
-    dialog.locator("ha-selector-boolean").get_by_role("switch").press("Space")
+    dialog.locator("ha-selector-boolean").first.get_by_role("switch").press("Space")
+    dialog.get_by_text("Road cameras", exact=True).click()
+    dialog.locator("ha-selector-boolean").nth(1).get_by_role("switch").press("Space")
+    dialog.locator("ha-selector-number input").nth(1).fill("350")
     dialog.get_by_role("button", name="Save", exact=True).click()
     expect(dialog).not_to_be_visible()
 
@@ -393,6 +396,122 @@ def inspector_updates(page: Page, card: Locator, results: Path) -> None:
     card.evaluate("(c, data) => c._data.onData(data)", original)
 
 
+def camera_layer(page: Page, card: Locator, results: Path) -> None:
+    """Exercise camera UI with explicit synthetic states and a mocked HA proxy."""
+    requests = []
+    image_failure = False
+
+    def image_request(route: Route) -> None:
+        requests.append(route.request.url)
+        if image_failure:
+            route.fulfill(status=503, body="Image unavailable")
+        else:
+            route.fulfill(
+                content_type="image/jpeg",
+                body=(ROOT / "tests/fixtures/camera.jpg").read_bytes(),
+            )
+
+    page.route("**/api/camera_proxy/camera.map_fixture_*?*", image_request)
+    original_config = card.evaluate("c => c._config")
+    card.evaluate("""c => {
+        c._cameraTestHass = c._hass;
+        const g = c._snapshot.geometry;
+        const line = g.type === 'LineString' ? g.coordinates : g.coordinates[0];
+        const [longitude, latitude] = line[Math.floor(line.length / 2)];
+        c._cameraTestStates = {};
+        for (const direction of ['north', 'south']) {
+            const id = 'camera.map_fixture_' + direction;
+            c._cameraTestStates[id] = {
+                entity_id: id, state: 'idle', last_updated: new Date().toISOString(),
+                attributes: { source_id: 'map_fixture_' + direction,
+                    friendly_name: 'Test road camera ' + direction,
+                    orientation: direction === 'north' ? 'North' : 'South',
+                    longitude, latitude, source_availability: 'videoOrImagesAvailable',
+                    entity_picture: '/api/camera_proxy/' + id + '?token=fixture'
+                }
+            };
+        }
+        c._cameraTestUpdate = (states) => {
+            const h = c._cameraTestHass;
+            c.hass = {...h, states: {...h.states, ...states}, entities: {...h.entities,
+                ...Object.fromEntries(Object.keys(states).map(
+                    id => [id, {platform: 'vegvesen'}]))}};
+        };
+        c._cameraTestUpdate(c._cameraTestStates);
+        c._map.jumpTo({center: [longitude, latitude], zoom: 12});
+    }""")
+    expect(card.locator(".camera-marker")).to_have_count(0)
+    assert not requests
+    card.get_by_role("button", name="Map layers and legend").click()
+    toggle = card.get_by_role("checkbox", name="Road cameras (2)")
+    toggle.check()
+    expect(card.locator(".camera-marker")).to_have_count(1)
+    card.get_by_role("button", name="Close map layers").click()
+    marker = card.locator(".camera-marker")
+    assert marker.bounding_box()["width"] == 44
+    camera = card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]")
+    marker.press("Enter")
+    panel = card.locator(".camera-panel")
+    expect(panel).to_be_visible()
+    expect(panel.locator(".camera-image")).to_be_visible()
+    expect(panel).to_contain_text("Images available")
+    assert requests[-1].split("?")[0].endswith("camera.map_fixture_north")
+    assert (
+        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
+    )
+    panel.get_by_role("button", name="South", exact=True).click()
+    expect(panel.locator(".camera-image")).to_be_visible()
+    expect(panel.locator("h3")).to_have_text("Test road camera south")
+    assert requests[-1].split("?")[0].endswith("camera.map_fixture_south")
+    page.screenshot(path=str(results / "camera-layer-mobile.png"))
+    image_failure = True
+    card.evaluate("c => c._cameraTestUpdate(structuredClone(c._cameraTestStates))")
+    expect(panel).to_contain_text("Image unavailable")
+    expect(panel.locator(".camera-image")).not_to_be_visible()
+    image_failure = False
+    card.evaluate("c => c._cameraTestUpdate(c._cameraTestStates)")
+    expect(panel.locator(".camera-image")).to_be_visible()
+    # A failed image has HA's normal unavailable attributes (no coordinates).
+    card.evaluate("""c => {
+        const states = structuredClone(c._cameraTestStates);
+        states['camera.map_fixture_south'] = {entity_id: 'camera.map_fixture_south',
+            state: 'unavailable',
+            attributes: {friendly_name: 'Test road camera south'}};
+        c._cameraTestUpdate(states);
+    }""")
+    expect(panel.locator(".camera-image")).not_to_be_visible()
+    expect(panel).to_contain_text("Image unavailable")
+    assert panel.locator(".camera-image").get_attribute("src") is None
+    assert card.evaluate("c => !!c._snapshot && !c._error")
+    card.evaluate("c => c._cameraTestUpdate(c._cameraTestStates)")
+    expect(panel.locator(".camera-image")).to_be_visible()
+    card.evaluate("""c => {
+        const states = structuredClone(c._cameraTestStates);
+        states['camera.map_fixture_south'].attributes.source_availability =
+            'futureStatus';
+        c._cameraTestUpdate(states);
+    }""")
+    expect(panel).to_contain_text("futureStatus")
+    # Permission loss/removal clears the frame and its refresh timer immediately.
+    card.evaluate("c => c._cameraTestUpdate({})")
+    expect(panel).not_to_be_visible()
+    expect(marker).to_have_count(0)
+    assert card.evaluate("c => c._cameras.timer === undefined")
+    card.evaluate(
+        """(c, config) => {
+        c.hass = c._cameraTestHass;
+        c._camerasVisible = false;
+        c.setConfig(config);
+        delete c._cameraTestStates;
+        delete c._cameraTestUpdate;
+        delete c._cameraTestHass;
+        c._fitRoute();
+    }""",
+        original_config,
+    )
+    page.unroute("**/api/camera_proxy/camera.map_fixture_*?*", image_request)
+
+
 def cold_views(browser: Browser, base: str, tokens: dict, results: Path) -> None:
     """Cold storage dashboards must find the automatically registered card."""
     for view, path in (
@@ -483,7 +602,7 @@ def card_picker(page: Page, device_id: str) -> None:
     dialog = page.locator("hui-dialog-create-card")
     dialog.get_by_role("tab", name="By card", exact=True).click()
     picker = dialog.locator("hui-card-picker")
-    picker.locator("input").fill("Statens vegvesen")
+    picker.locator("input[type='text']").fill("Statens vegvesen")
     # HA places a click-capturing overlay above each live preview.
     picker.locator(".card").filter(has_text="Statens vegvesen route map").locator(
         ".overlay"
@@ -808,6 +927,7 @@ def run(instance: SmokeInstance) -> None:
             page.screenshot(path=str(instance.results / "segment-inspector.png"))
             map_appearance(page, card, instance.results)
             inspector_updates(page, card, instance.results)
+            camera_layer(page, card, instance.results)
             # A touch just outside a narrow painted line still opens its data.
             near_line = card.evaluate("""c => {
                 const map = c._map;
@@ -904,7 +1024,7 @@ def run(instance: SmokeInstance) -> None:
                 dialog.locator("vegvesen-route-map .maplibregl-ctrl-attrib summary")
             ).to_have_attribute("title", "Kartkilder")
             dialog.get_by_text("Utseende", exact=True).click()
-            expect(dialog.locator("ha-selector-number")).to_have_js_property(
+            expect(dialog.locator("ha-selector-number").first).to_have_js_property(
                 "label", "Karthøyde"
             )
             expect(dialog.locator("ha-selector-select").nth(2)).to_have_js_property(
@@ -933,6 +1053,8 @@ def run(instance: SmokeInstance) -> None:
             assert saved_card["legend_expanded"] is True
             assert saved_card["theme_mode"] == "dark"
             assert saved_card["map_style"] == "natural"
+            assert saved_card["show_cameras"] is True
+            assert saved_card["camera_distance_m"] == 350
             for _ in range(3):
                 page.reload()
                 expect(card.locator("canvas")).to_be_visible(timeout=30000)
@@ -971,6 +1093,8 @@ def run(instance: SmokeInstance) -> None:
                         "touch_pan": True,
                         "segment_touch_target": True,
                         "visual_editor": True,
+                        "configured_camera_layer": True,
+                        "camera_failure_recovery": True,
                         "category_highlight": True,
                         "layers_panel_on_demand": True,
                         "expanded_map": True,

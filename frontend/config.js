@@ -78,6 +78,27 @@ export const routeSchema = (labels) => [
       },
     ],
   },
+  {
+    name: "",
+    type: "expandable",
+    title: labels.road_cameras,
+    icon: "mdi:camera",
+    schema: [
+      { name: "show_cameras", selector: { boolean: {} } },
+      {
+        name: "camera_distance_m",
+        selector: {
+          number: {
+            min: 1,
+            max: 2000,
+            step: 1,
+            mode: "box",
+            unit_of_measurement: "m",
+          },
+        },
+      },
+    ],
+  },
 ];
 
 export function editorConfig(config, hass) {
@@ -87,6 +108,8 @@ export function editorConfig(config, hass) {
     legend_expanded: false,
     map_style: "default",
     theme_mode: "auto",
+    show_cameras: false,
+    camera_distance_m: 250,
   };
   const device_id =
     config.device_id || hass?.entities?.[config.entity]?.device_id;
@@ -107,6 +130,8 @@ export function changedConfig(config, values) {
     "legend_expanded",
     "theme_mode",
     "map_style",
+    "show_cameras",
+    "camera_distance_m",
   ]) {
     if (result[key] == null || result[key] === "") delete result[key];
   }

@@ -126,6 +126,18 @@ export function validateConfig(config) {
     throw Error("Height must be between 240 and 1000 pixels");
   if (config.map_style_url && !/^https?:\/\//.test(config.map_style_url))
     throw Error("map_style_url must be an HTTP(S) MapLibre style URL");
+  if (
+    config.show_cameras !== undefined &&
+    typeof config.show_cameras !== "boolean"
+  )
+    throw Error("Show cameras must be true or false");
+  if (
+    config.camera_distance_m !== undefined &&
+    (!Number.isInteger(config.camera_distance_m) ||
+      config.camera_distance_m < 1 ||
+      config.camera_distance_m > 2000)
+  )
+    throw Error("Camera distance must be between 1 and 2000 meters");
   const result = { ...config };
   if (result.device_id) delete result.entity;
   return result;

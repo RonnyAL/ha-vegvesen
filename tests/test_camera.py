@@ -102,6 +102,12 @@ async def test_camera_cache_identity_and_unload(
         state = hass.states.get(entity_id)
         assert state.state != STATE_UNAVAILABLE
         assert state.attributes["source_availability"] == "videoOrImagesAvailable"
+        feature = next(
+            f for f in camera_features if f["properties"]["CAMERA_ID"] == source_id
+        )
+        longitude, latitude = feature["geometry"]["coordinates"]
+        assert state.attributes["latitude"] == latitude
+        assert state.attributes["longitude"] == longitude
         assert "capture_time" not in state.attributes
         for _ in range(3):
             assert (await async_get_image(hass, entity_id)).content == jpeg
@@ -116,6 +122,26 @@ async def test_camera_cache_identity_and_unload(
     async_fire_time_changed(hass, datetime.now(UTC))
     await hass.async_block_till_done(wait_background_tasks=True)
     assert sum(len(items) for items in mock_http.requests.values()) == requests
+
+
+@pytest.mark.parametrize("geometry", [None, {"type": "Point", "coordinates": [0, 0]}])
+async def test_camera_coordinates_do_not_determine_image_availability(
+    hass: HomeAssistant,
+    camera_entry: MockConfigEntry,
+    mock_http: aioresponses,
+    camera_features: list[dict[str, Any]],
+    jpeg: bytes,
+    geometry: dict[str, Any] | None,
+) -> None:
+    """Missing positions stay null; zero coordinates survive without losing images."""
+    camera_features[0]["geometry"] = geometry
+    await setup_cameras(hass, camera_entry, mock_http, camera_features, jpeg)
+    entity_id = camera_entity_id(hass, "3000047_2")
+    state = hass.states.get(entity_id)
+    assert state.state != STATE_UNAVAILABLE
+    assert state.attributes["longitude"] == (0 if geometry else None)
+    assert state.attributes["latitude"] == (0 if geometry else None)
+    assert (await async_get_image(hass, entity_id)).content == jpeg
 
 
 async def test_image_failure_isolation_and_recovery(
@@ -137,6 +163,10 @@ async def test_image_failure_isolation_and_recovery(
         hass.states.get(camera_entity_id(hass, "3000047_2")).state == STATE_UNAVAILABLE
     )
     assert (
+        "latitude"
+        not in hass.states.get(camera_entity_id(hass, "3000047_2")).attributes
+    )
+    assert (
         hass.states.get(camera_entity_id(hass, "3000063_1")).state != STATE_UNAVAILABLE
     )
     mock_camera_poll(mock_http, camera_features, jpeg)
@@ -145,6 +175,10 @@ async def test_image_failure_isolation_and_recovery(
     assert (
         await async_get_image(hass, camera_entity_id(hass, "3000047_2"))
     ).content == jpeg
+    assert (
+        hass.states.get(camera_entity_id(hass, "3000047_2")).attributes["latitude"]
+        == camera_features[0]["geometry"]["coordinates"][1]
+    )
 
 
 async def test_image_backoff_and_polling(

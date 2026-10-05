@@ -56,6 +56,46 @@ carriageway coverage. Filters preserve the full route as subdued context.
 
 ## Rendering and provider
 
+### Optional configured-camera layer
+
+The native editor's **Road cameras** expander exposes `show_cameras` (default
+false) and `camera_distance_m` (default 250, allowed 1–2,000). The layers panel
+can temporarily toggle the layer. Camera proximity is independent of the
+forecast corridor, current forecast category, and map zoom.
+
+The card uses readable HA camera states registered to `vegvesen`, identified by
+their existing `source_id`. Camera entities expose the source's latitude and
+longitude unchanged. The bundled, locked Turf `point-to-line-distance` 7.4.0
+computes geodesic distance to each route part separately; disconnected parts
+are never bridged. Its [public API](https://turfjs.org/docs/api/pointToLineDistance)
+is used instead of a new geometry algorithm. Matching is reused until positions,
+the route geometry or the distance setting changes. Coincident cameras share a
+marker, retaining individual source identities and direction choices.
+
+Only opening a marker requests its native `/api/camera_proxy/` image. An open
+panel refreshes that cached HA image every minute, except while the page is
+hidden, and reacts to entity updates. Closing, removing or disconnecting the
+card clears the image and timer. Neither the card nor the proxy adds upstream
+image requests: the existing camera coordinator owns source polling. The card
+does not call external image URLs or infer capture times. Camera failures do
+not change route forecasts.
+
+Unavailable entities normally have no source-coordinate attributes in HA; they
+are omitted from the layer, and an already open panel shows image unavailable.
+Missing coordinates, removal and permission loss clear the corresponding
+markers. No new subscriptions, entities, source discovery or ownership rules
+are introduced. Cameras must be configured separately; routes sharing them use
+the same physical camera devices. Automatic source ownership remains future
+work.
+
+Browser checks inject explicitly synthetic camera states into a real packaged
+card and mock only their HA image-proxy responses. They cover marker grouping,
+direction selection, image failure/recovery, removal, mobile layout and native
+editor persistence. Python tests cover unchanged source coordinates and cached
+HA camera retrieval with mocked public API fixtures.
+
+### Vector map
+
 The card bundles **MapLibre GL JS 6.12.0** and uses styles generated offline with
 **VersaTiles Style 6.1.1**, with six light/dark style pairs. This follows HA's 2026.10
 vector-map approach, while avoiding its internal components, token handling and

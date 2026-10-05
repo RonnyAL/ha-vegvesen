@@ -17,6 +17,7 @@ import {
 } from "./data.js";
 import { labels, language } from "./labels.js";
 import { darkMode, stubConfig } from "./config.js";
+import { CameraOverlay } from "./camera-overlay.js";
 import "./editor.js";
 
 maplibregl.setWorkerUrl(
@@ -84,7 +85,10 @@ export class VegvesenRouteMap extends HTMLElement {
     this._legendToggle.setAttribute("aria-controls", "route-legend");
     this._legendToggle.onclick = () => {
       this._legendOpen = !this._legendOpen;
-      if (this._legendOpen) this._segmentId = undefined;
+      if (this._legendOpen) {
+        this._segmentId = undefined;
+        this._cameras.close();
+      }
       this._renderText();
       this._draw();
     };
@@ -126,11 +130,23 @@ export class VegvesenRouteMap extends HTMLElement {
     this._legendHeading.append(this._legendTitle, this._closeLegend);
     this._summary = node("div", "", "legend-title");
     this._legend = node("div", "", "legend");
+    this._cameraLayer = node("label", undefined, "camera-layer");
+    this._cameraToggle = node("input");
+    this._cameraToggle.type = "checkbox";
+    this._cameraToggle.onchange = () => {
+      this._camerasVisible = this._cameraToggle.checked;
+      this._updateCameras();
+    };
+    this._cameraLabel = node("span");
+    this._cameraLayer.append(this._cameraToggle, this._cameraLabel);
+    this._cameraEmpty = node("div", undefined, "camera-empty");
     this._legendBody.append(
       this._modes,
       this._summary,
       this._legend,
       this._qualityDetails,
+      this._cameraLayer,
+      this._cameraEmpty,
     );
     this._information = node("div", undefined, "information");
     this._information.id = "route-legend";
@@ -143,6 +159,12 @@ export class VegvesenRouteMap extends HTMLElement {
       this._status,
       this._basemap,
     );
+    this._cameras = new CameraOverlay(this._frame, () => {
+      this._segmentId = undefined;
+      this._legendOpen = false;
+      this._renderText();
+      this._draw();
+    });
     card.append(this._header, this._frame);
     this.shadowRoot.append(css, card);
     this._data = new RouteData(
@@ -168,6 +190,7 @@ export class VegvesenRouteMap extends HTMLElement {
       },
       () => {
         this._snapshot = undefined;
+        this._cameras.close();
         this._segmentId = undefined;
         this._renderInspector();
         this._draw();
@@ -186,9 +209,12 @@ export class VegvesenRouteMap extends HTMLElement {
     }
     if (!this._config || this._config.legend_expanded !== next.legend_expanded)
       this._legendOpen = next.legend_expanded ?? false;
+    if (!this._config || this._config.show_cameras !== next.show_cameras)
+      this._camerasVisible = next.show_cameras ?? false;
     this._config = next;
     this.style.setProperty("--map-height", `${next.height ?? 400}px`);
     if (changed) {
+      this._cameras.close();
       this._data.stop();
       this._snapshot = undefined;
       this._selection = undefined;
@@ -210,6 +236,7 @@ export class VegvesenRouteMap extends HTMLElement {
   }
   disconnectedCallback() {
     this._data.stop();
+    this._cameras.close();
     this._destroyMap();
   }
 
@@ -239,6 +266,23 @@ export class VegvesenRouteMap extends HTMLElement {
     this._timeZone = timeZone;
     if (!this._map && !this._webglFailed && this._snapshot) this._createMap();
     this._data.update(this._hass, this._config);
+    this._updateCameras();
+  }
+
+  _updateCameras() {
+    const l = this._labels ?? labels.en;
+    this._cameras.update(
+      this._hass,
+      this._snapshot?.geometry,
+      this._config?.camera_distance_m ?? 250,
+      this._camerasVisible,
+      l,
+      this._map,
+    );
+    this._cameraToggle.checked = !!this._camerasVisible;
+    this._cameraLabel.textContent = `${l.road_cameras} (${this._cameras.count})`;
+    this._cameraEmpty.textContent = l.cameras_empty;
+    this._cameraEmpty.hidden = !this._camerasVisible || !!this._cameras.count;
   }
 
   _styleUrl() {
@@ -359,6 +403,7 @@ export class VegvesenRouteMap extends HTMLElement {
 
   _destroyMap() {
     this._observer?.disconnect();
+    this._cameras.removeMarkers();
     this._markers?.forEach((marker) => marker.remove());
     this._markers = [];
     this._map?.remove();
@@ -376,6 +421,7 @@ export class VegvesenRouteMap extends HTMLElement {
   }
 
   _draw() {
+    this._updateCameras();
     const map = this._map;
     if (!map || !this._ready) return;
     this._markers?.forEach((marker) => marker.remove());
@@ -486,6 +532,7 @@ export class VegvesenRouteMap extends HTMLElement {
   }
 
   _fitRoute() {
+    this._cameras.close();
     this._selection = undefined;
     this._segmentId = undefined;
     this._renderText();
@@ -549,6 +596,7 @@ export class VegvesenRouteMap extends HTMLElement {
       (segment) => segment.id === id,
     );
     if (!feature) return;
+    this._cameras.close();
     this._segmentId = feature.id;
     this._legendOpen = false;
     this._draw();

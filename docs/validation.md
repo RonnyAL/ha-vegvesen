@@ -8,12 +8,22 @@
 | Beta compatibility | 2026.10.0b0 | 3.14.8 | 0.13.368 | `environments/beta/uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-All three run the same 364 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+All three run the same 375 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
 The [public release review and 0.7.4 follow-up](release-readiness.md) record the code,
 documentation and package assessment. Six additional action-error tests exercise
 native exception translation for missing/wrong devices and unloaded routes in
 English and Bokmål. All translation keys and placeholders match across languages.
+
+The 0.9.0 route regressions cover bounded timeout, unexpected calculation failure,
+retry, retained drafts and cancellation through HA's native flow manager, plus
+one-metre corridor matching. Camera tests verify source coordinates, null/zero
+positions and independent cached-image failure/recovery. The frontend suite has
+20 tests, including geodesic camera matching, disconnected route parts, source
+identity and native proxy selection. Packaged-card browser runs on minimum and
+beta HA cover camera markers, direction selection, failed image requests,
+recovery/removal and native editor saving at mobile and desktop sizes. Camera UI
+fixtures are synthetic; backend tests use mocked public source responses.
 
 The 0.7.4 regression verifies that weather refreshes update only devices owned
 by their config entry. Recovery tests also check that device-name updates emit

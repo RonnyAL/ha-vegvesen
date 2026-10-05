@@ -65,6 +65,7 @@ button:focus-visible,
 }
 .information,
 .inspector,
+.camera-panel,
 .status,
 .basemap {
   position: absolute;
@@ -197,6 +198,78 @@ button:focus-visible,
   width: 292px;
   max-height: calc(100% - 56px);
   padding: 8px 12px;
+}
+.camera-panel {
+  bottom: 44px;
+  width: 320px;
+  max-height: calc(100% - 56px);
+  padding: 8px 12px;
+}
+.camera-marker {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--map-ui-text);
+}
+.camera-marker ha-icon {
+  --mdc-icon-size: 20px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--map-ui-divider);
+  background: var(--map-ui-background);
+  box-shadow: 0 1px 4px #0004;
+}
+.camera-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.camera-source,
+.camera-message,
+.camera-empty {
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  color: var(--map-ui-secondary);
+}
+.camera-source {
+  padding-top: 8px;
+}
+.camera-layer {
+  border-top: 1px solid var(--map-ui-divider);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.camera-layer input {
+  accent-color: var(--map-ui-active);
+}
+.camera-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.camera-choices button {
+  min-height: 44px;
+  padding: 8px;
+  font-size: 14px;
+  color: var(--map-ui-text);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+}
+.camera-choices button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--map-ui-active) 15%, transparent);
 }
 .panel-heading {
   display: flex;

@@ -124,6 +124,9 @@ requests make the route unavailable; partial results are never shown as a
 complete refresh.
 
 The corridor can include side roads, crossing roads and opposite carriageways.
+It can be set from **1 to 2,000 metres**, in one-metre steps. A narrower corridor
+can exclude nearby roads, but can also miss forecast segments where their
+geometry differs from the calculated route. The default remains 100 metres.
 Segment counts describe source records, not distance or a percentage of route
 coverage. A low slipperiness grade or **No new precipitation** does not establish
 safe conditions or complete coverage. The integration presents source forecasts
@@ -174,6 +177,18 @@ these **Appearance** settings:
 | Initial forecast layer | Road condition or slipperiness                          |
 | Legend expanded        | Off by default                                          |
 
+Under **Road cameras**, enable **Show configured road cameras** to add camera
+markers. Only cameras already added to this integration and within the selected
+distance of the route appear. The default is **250 metres**, independently of
+the forecast corridor. Change it from 1 to 2,000 metres in the card editor.
+
+Tap a marker for its image and source status. Cameras at the same location share
+a marker with separate direction buttons. The map keeps its position and zoom.
+The open image refreshes from HA's cache once a minute; this does not add source
+requests. Use the layers panel to temporarily show or hide the markers.
+Unavailable cameras or cameras without coordinates are omitted; an already open
+camera shows **Image unavailable** if it fails. Forecasts continue independently.
+
 The card shares the route's forecast data; adding cards does not increase
 forecast polling. If the background map cannot load, route geometry remains
 usable. If the forecast becomes unavailable, its colored segments are cleared
@@ -192,6 +207,8 @@ theme_mode: auto
 height: 400
 default_mode: condition
 legend_expanded: false
+show_cameras: false
+camera_distance_m: 250
 ```
 
 Only `type` and `device_id` are required. Optional `title` sets a card heading.
@@ -229,6 +246,7 @@ download in HACS, and restart Home Assistant.
 | Station or camera missing from selection | Check **Unknown county → Unknown municipality** for unclassified sources. Cached lists can take up to 15 minutes to reflect changes. |
 | Forecast time is in the recent past      | With 0 hours ahead, this is the start of the current hour. It advances after the next successful hourly refresh.                     |
 | Unavailable data or rate-limit message   | Check **Settings → System → Logs** and allow another refresh. Server retry delays are respected.                                     |
+| Route calculation times out              | Retry or edit the endpoints. The routing request has a 30-second timeout; entered settings are retained.                              |
 
 [Report a problem](https://github.com/RonnyAL/ha-vegvesen/issues) with the Home
 Assistant and integration versions, affected feature, and relevant error

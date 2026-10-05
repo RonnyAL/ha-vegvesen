@@ -45,6 +45,8 @@ test("route defaults and legacy editor selections use stable devices, without ch
     legend_expanded: false,
     map_style: "default",
     theme_mode: "auto",
+    show_cameras: false,
+    camera_distance_m: 250,
   });
   assert.equal(legacy.entity, "sensor.renamed");
   assert.deepEqual(editorConfig(legacy, {}), {
@@ -53,6 +55,8 @@ test("route defaults and legacy editor selections use stable devices, without ch
     legend_expanded: false,
     map_style: "default",
     theme_mode: "auto",
+    show_cameras: false,
+    camera_distance_m: 250,
   });
   assert.deepEqual(
     editorConfig({ device_id: "chosen", entity: "sensor.renamed" }, hass),
@@ -63,6 +67,8 @@ test("route defaults and legacy editor selections use stable devices, without ch
       legend_expanded: false,
       map_style: "default",
       theme_mode: "auto",
+      show_cameras: false,
+      camera_distance_m: 250,
     },
   );
   hass.devices.two = { id: "two", model: "Route forecast" };
