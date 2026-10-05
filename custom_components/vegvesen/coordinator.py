@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from time import monotonic
 from typing import TYPE_CHECKING
 
 from homeassistant.helpers import device_registry as dr
@@ -106,10 +107,18 @@ class CameraCoordinator(DataUpdateCoordinator[dict[str, CameraSnapshot]]):
         )
         self.client = client
         self.camera_ids = frozenset(camera_ids)
+        self.refreshed_at = 0.0
         self.data = {}
         self._image_semaphore = asyncio.Semaphore(4)
 
     async def _async_update_data(self) -> dict[str, CameraSnapshot]:
+        """Track cache age even when all entity listeners are later disabled."""
+        try:
+            return await self._async_fetch_data()
+        finally:
+            self.refreshed_at = monotonic()
+
+    async def _async_fetch_data(self) -> dict[str, CameraSnapshot]:
         """Complete metadata pagination before issuing any image requests."""
         try:
             cameras = await self.client.async_get_cameras(self.camera_ids)

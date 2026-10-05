@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 from functools import partial
 from pathlib import Path
+from time import monotonic
 from typing import TYPE_CHECKING, Any, cast
 
 import voluptuous as vol
@@ -17,8 +19,9 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 
-from .const import DOMAIN
+from .const import CAMERA_UPDATE_INTERVAL, DOMAIN
 from .route_sensor import ROUTE_SENSORS
+from .route_sources import CameraFrame, SourceWatch, matching_sources, source_record
 from .route_summary import category_summary, highest_slip_risk
 
 if TYPE_CHECKING:
@@ -41,6 +44,8 @@ async def async_setup_route_card(hass: HomeAssistant) -> None:
     )
     websocket_api.async_register_command(hass, websocket_route_map)
     websocket_api.async_register_command(hass, websocket_subscribe_route_map)
+    websocket_api.async_register_command(hass, websocket_subscribe_route_sources)
+    websocket_api.async_register_command(hass, websocket_route_camera)
 
 
 async def async_register_route_card(
@@ -182,6 +187,13 @@ def _current_coordinator(
     return coordinator, None, entity_ids
 
 
+def _source_distance(value: Any) -> int:
+    """Accept integer map proximity settings without coercion."""
+    if type(value) is not int:
+        raise vol.Invalid("Expected an integer distance")
+    return value
+
+
 _TARGET_SCHEMA = {
     vol.Exclusive("device_id", "route", msg="Select a device or a legacy entity"): str,
     vol.Exclusive("entity_id", "route", msg="Select a device or a legacy entity"): (
@@ -257,6 +269,41 @@ def websocket_route_map(
 def websocket_subscribe_route_map(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
+    """Subscribe to complete forecast snapshots."""
+    _subscribe_route(hass, connection, msg)
+
+
+@websocket_api.websocket_command(
+    vol.All(
+        vol.Schema(
+            {
+                **_TARGET_SCHEMA,
+                vol.Required("type"): "vegvesen/subscribe_route_sources",
+                vol.Optional("show_cameras", default=False): bool,
+                vol.Optional("show_weather", default=False): bool,
+                vol.Optional("camera_distance_m", default=250): vol.All(
+                    _source_distance, vol.Range(min=1, max=2000)
+                ),
+                vol.Optional("weather_distance_m", default=250): vol.All(
+                    _source_distance, vol.Range(min=1, max=2000)
+                ),
+            }
+        ),
+        cv.has_at_least_one_key("device_id", "entity_id"),
+    )
+)
+@callback
+def websocket_subscribe_route_sources(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Discover route sources independently of forecast polling and availability."""
+    _subscribe_route(hass, connection, msg)
+
+
+@callback
+def _subscribe_route(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
     """Push changes even when sensor summaries stay equal; rebind after entry reload."""
     if (selection := _selection(hass, connection, msg)) is None:
         return
@@ -270,6 +317,11 @@ def websocket_subscribe_route_map(
         return
     coordinator = None
     remove_coordinator = None
+    source_watch = None
+
+    @callback
+    def send(payload: dict[str, Any]) -> None:
+        connection.send_message(websocket_api.event_message(msg["id"], payload))
 
     @callback
     def publish() -> None:
@@ -284,8 +336,13 @@ def websocket_subscribe_route_map(
             remove_coordinator = (
                 coordinator.async_add_listener(publish) if coordinator else None
             )
-        payload = {"error": error} if error else _payload(coordinator)
-        connection.send_message(websocket_api.event_message(msg["id"], payload))
+        if source_watch:
+            source_watch.update(coordinator, error)
+        else:
+            send({"error": error} if error else _payload(coordinator))
+
+    if msg["type"] == "vegvesen/subscribe_route_sources":
+        source_watch = SourceWatch(hass, entry, msg, publish, send)
 
     @callback
     def registry_changed(event: Event) -> None:
@@ -315,6 +372,8 @@ def websocket_subscribe_route_map(
 
     @callback
     def unsubscribe() -> None:
+        if source_watch:
+            source_watch.close()
         if remove_coordinator:
             remove_coordinator()
         remove_state()
@@ -324,3 +383,76 @@ def websocket_subscribe_route_map(
     connection.subscriptions[msg["id"]] = unsubscribe
     connection.send_result(msg["id"])
     publish()
+
+
+@websocket_api.websocket_command(
+    vol.All(
+        vol.Schema(
+            {
+                **_TARGET_SCHEMA,
+                vol.Required("type"): "vegvesen/route_camera",
+                vol.Required("source_id"): str,
+                vol.Optional("camera_distance_m", default=250): vol.All(
+                    _source_distance, vol.Range(min=1, max=2000)
+                ),
+            }
+        ),
+        cv.has_at_least_one_key("device_id", "entity_id"),
+    )
+)
+@websocket_api.async_response
+async def websocket_route_camera(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Read one discovered still through HA's authenticated thumbnail pattern."""
+    if (selection := _selection(hass, connection, msg)) is None:
+        return
+    route, error, _ = _current_coordinator(hass, connection, msg, *selection)
+    if error or route is None:
+        connection.send_error(msg["id"], error or "unavailable", "Route unavailable")
+        return
+    entry, _ = selection
+    catalogue = entry.runtime_data.sources["cameras"]
+    camera = (catalogue.data or {}).get(msg["source_id"])
+    if not catalogue.last_update_success or camera is None:
+        connection.send_error(msg["id"], "unavailable", "Camera unavailable")
+        return
+    matches = await hass.async_add_executor_job(
+        matching_sources,
+        route.subentry.data["geometry"],
+        msg["camera_distance_m"],
+        {camera.source_id: camera},
+    )
+    if not matches:
+        connection.send_error(msg["id"], "invalid_source", "Camera outside route")
+        return
+    # A manually configured camera already has polling and an in-memory image.
+    manual = entry.runtime_data.cameras
+    if (
+        camera.source_id in manual.camera_ids
+        and monotonic() - manual.refreshed_at < CAMERA_UPDATE_INTERVAL.total_seconds()
+    ):
+        snapshot = (
+            manual.data.get(camera.source_id) if manual.last_update_success else None
+        )
+        frame = (
+            CameraFrame(snapshot.camera, snapshot.image)
+            if snapshot
+            else CameraFrame(None, None)
+        )
+    else:
+        frame = await entry.runtime_data.camera_frames.async_get(camera.source_id)
+    current, error, _ = _current_coordinator(hass, connection, msg, *selection)
+    if error or current is not route:
+        connection.send_error(msg["id"], error or "unavailable", "Route unavailable")
+        return
+    connection.send_result(
+        msg["id"],
+        {
+            "camera": source_record(frame.camera) if frame.camera else None,
+            "content": base64.b64encode(frame.image).decode("ascii")
+            if frame.image
+            else None,
+            "content_type": "image/jpeg",
+        },
+    )

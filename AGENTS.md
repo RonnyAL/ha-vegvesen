@@ -48,6 +48,8 @@ See [release and lifecycle guidance](docs/releases.md) for verified behavior.
 - CctvSimple_v2 road cameras.
 - UI configuration with manual station/camera selection.
 - Saved road routes with source road-condition forecasts.
+- Optional automatic camera/weather discovery for route-card display, without
+  automatic physical devices or entities.
 - Stable source IDs for device and entity identity.
 - HACS-compatible packaging.
 

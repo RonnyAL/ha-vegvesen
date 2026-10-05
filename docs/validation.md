@@ -8,7 +8,7 @@
 | Beta compatibility | 2026.10.0b0 | 3.14.8 | 0.13.368 | `environments/beta/uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-All three run the same 375 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+All three run the same 388 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
 The [public release review and 0.7.4 follow-up](release-readiness.md) record the code,
 documentation and package assessment. Six additional action-error tests exercise
@@ -32,6 +32,17 @@ keyboard/touch selection, focus retention, eight-second idle collapse, rapid tap
 without map zoom, larger scrollable groups in dark mode and cleanup when hidden
 or removed. Source visibility remains available through the native card editor;
 there is no source toggle or count row in the map's forecast panel.
+
+For 0.10.0, automatic discovery adds mocked network tests for shared catalogue
+requests, complete pagination, empty results, route proximity, independent feed
+failures, Retry-After, permission changes, reload/unload and on-demand image
+sharing. The 22 frontend tests replace browser-side proximity tests with source
+payload, setting-change, unit/null/zero and late-event tests; proximity is now
+covered in Python. Packaged-card checks use live public discovery without manual
+source entities, then synthetic camera/weather events for deterministic mixed
+groups, observation details, failure recovery and native editor persistence.
+The compatibility floor stays HA 2025.12.0: the new transport uses its supported
+WebSocket extension API and existing config-entry/coordinator lifecycle hooks.
 
 The 0.7.4 regression verifies that weather refreshes update only devices owned
 by their config entry. Recovery tests also check that device-name updates emit

@@ -78,15 +78,23 @@ export const routeSchema = (labels) => [
       },
     ],
   },
-  {
+  ...[
+    ["cameras", "camera", labels.road_cameras, "mdi:camera"],
+    [
+      "weather",
+      "weather",
+      labels.weather_stations,
+      "mdi:weather-partly-cloudy",
+    ],
+  ].map(([kind, prefix, title, icon]) => ({
     name: "",
     type: "expandable",
-    title: labels.road_cameras,
-    icon: "mdi:camera",
+    title,
+    icon,
     schema: [
-      { name: "show_cameras", selector: { boolean: {} } },
+      { name: `show_${kind}`, selector: { boolean: {} } },
       {
-        name: "camera_distance_m",
+        name: `${prefix}_distance_m`,
         selector: {
           number: {
             min: 1,
@@ -98,7 +106,7 @@ export const routeSchema = (labels) => [
         },
       },
     ],
-  },
+  })),
 ];
 
 export function editorConfig(config, hass) {
@@ -110,6 +118,8 @@ export function editorConfig(config, hass) {
     theme_mode: "auto",
     show_cameras: false,
     camera_distance_m: 250,
+    show_weather: false,
+    weather_distance_m: 250,
   };
   const device_id =
     config.device_id || hass?.entities?.[config.entity]?.device_id;
@@ -132,6 +142,8 @@ export function changedConfig(config, values) {
     "map_style",
     "show_cameras",
     "camera_distance_m",
+    "show_weather",
+    "weather_distance_m",
   ]) {
     if (result[key] == null || result[key] === "") delete result[key];
   }

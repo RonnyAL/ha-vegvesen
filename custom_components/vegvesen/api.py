@@ -21,6 +21,7 @@ from .const import (
 )
 
 MAX_PAGES = 1000
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection
@@ -286,12 +287,16 @@ class VegvesenApiClient:
                         or response.content_type != "image/jpeg"
                     ):
                         raise VegvesenApiError("Camera did not return a JPEG response")
-                    body = await response.read()
+                    body = bytearray()
+                    async for chunk in response.content.iter_chunked(64 * 1024):
+                        body.extend(chunk)
+                        if len(body) > MAX_IMAGE_BYTES:
+                            raise VegvesenApiError("Camera JPEG exceeds size limit")
                     if not body.startswith(b"\xff\xd8\xff") or not body.endswith(
                         b"\xff\xd9"
                     ):
                         raise VegvesenApiError("Empty or truncated camera JPEG")
-                    return body
+                    return bytes(body)
         except (aiohttp.ClientError, TimeoutError) as err:
             raise VegvesenApiError(f"Cannot fetch camera image: {err}") from err
 

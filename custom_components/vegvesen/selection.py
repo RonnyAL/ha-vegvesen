@@ -42,7 +42,7 @@ class SourcePicker:
             return
         discovery = async_get_discovery(hass)
         cache = discovery.weather if family == "weather_station" else discovery.cameras
-        sources = await cache.async_get()
+        sources = await cache.async_get(refresh_empty=True)
         locations = await discovery.async_geography()
         for source in sources.values():
             location = locations.get(f"{family}:{source.source_id}")

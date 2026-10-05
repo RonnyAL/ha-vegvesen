@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from .api import VegvesenApiClient
     from .coordinator import CameraCoordinator, WeatherCoordinator
     from .route_coordinator import RouteCoordinator
+    from .route_sources import CameraFrames, SourceCoordinator
 
 type VegvesenConfigEntry = ConfigEntry[VegvesenData]
 
@@ -23,4 +24,6 @@ class VegvesenData:
     weather: WeatherCoordinator
     cameras: CameraCoordinator
     routes: dict[str, RouteCoordinator] = field(default_factory=dict)
+    sources: dict[str, SourceCoordinator] = field(default_factory=dict)
+    camera_frames: CameraFrames | None = None
     reload_pending: bool = False

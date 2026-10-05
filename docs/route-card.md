@@ -56,67 +56,79 @@ carriageway coverage. Filters preserve the full route as subdued context.
 
 ## Rendering and provider
 
-### Optional configured-camera layer
+### Automatic cameras and weather stations
 
-The native editor's **Road cameras** expander exposes `show_cameras` (default
-false) and `camera_distance_m` (default 250, allowed 1–2,000). Visibility is set
-only in the card editor, keeping the map panel focused on forecasts. Camera
-proximity is independent of the forecast corridor, current forecast category,
-and map zoom.
+From 0.10.0 the editor's **Road cameras** and **Weather stations** expanders expose
+`show_cameras` and `show_weather` (both default false), plus `camera_distance_m`
+and `weather_distance_m` (default 250, allowed 1–2,000 metres). Visibility stays
+in card configuration. These are integration UI limits, not provider constraints.
+Discovery is independent of forecast health, categories, corridor and map zoom.
 
-The card uses readable HA camera states registered to `vegvesen`, identified by
-their existing `source_id`. Camera entities expose the source's latitude and
-longitude unchanged. The bundled, locked Turf `point-to-line-distance` 7.4.0
-computes geodesic distance to each route part separately; disconnected parts
-are never bridged. Its [public API](https://turfjs.org/docs/api/pointToLineDistance)
-is used instead of a new geometry algorithm. Matching is reused until positions,
-the route geometry or the distance setting changes.
+The authenticated `vegvesen/subscribe_route_sources` command accepts the same
+route target and access checks as forecast subscriptions. It rebinds on entry
+reload and drops listeners on disconnect, layer changes or card removal. Two
+entry-scoped `DataUpdateCoordinator`s read shared complete catalogues only while
+subscribers need them: weather every ten minutes, cameras every fifteen. The
+catalogue cache is also used by config flows. It coalesces concurrent requests,
+caches successful empty results, and never replaces a snapshot with partial
+pages. Configuration can explicitly retry an empty source list. Small expiry
+slack accommodates HA's sub-second scheduling jitter without skipping a poll.
+Failures clear only the affected family, and subsequent healthy updates recover
+it. The saved geometry remains available when forecasts fail.
 
-From 0.9.1, markers within 40 screen pixels form a collapsed group with a count.
-Tapping the group opens a compact bubble of named source buttons without zooming
-or opening an image. This follows the screen-distance grouping and rounded
-member bubbles in HA 2026.10.0b0's
+On 2026-10-06 the public OGC catalogue contained 468 stations and 896 cameras.
+Full catalogue snapshots use the existing limit-500 pagination, bounded by the
+client's total 30-second deadline. Live bbox queries also worked for both
+collections. A shared full snapshot avoids one discovery request per route and
+keeps overlapping routes consistent; only matching records go to each browser.
+If catalogue sizes grow substantially, review this tradeoff. No numerical quota
+or atomic server snapshot guarantee was verified.
+
+Matching uses the existing Shapely/pyproj route corridor in HA's executor,
+including each disconnected part separately. It compares source point positions
+to the saved route, rather than to forecast segments. Invalid/missing coordinates
+cannot be drawn; measurements are never screened or corrected. The browser no
+longer needs Turf or a second proximity algorithm. Cameras retain their direction
+suffixes and weather/camera namespaces stay distinct. Faulted cameras remain
+visible with their source status; weather nulls remain missing and zero/unusual
+values are retained. Observation times are source times, displayed in HA's time
+zone; temperature display respects the configured Celsius/Fahrenheit unit.
+
+Choosing a camera calls `vegvesen/route_camera`, following HA's documented
+[authenticated thumbnail pattern](https://developers.home-assistant.io/docs/frontend/extending/websocket-api/).
+The server verifies route access and camera proximity before I/O and route
+identity/access again after I/O. Image URLs are never supplied by the browser or
+exposed in map metadata. Manually configured cameras reuse a recent coordinator
+snapshot. If entity polling is disabled and the snapshot has expired, map viewers
+use the on-demand cache instead. Others refresh selected metadata and JPEGs on demand, coalescing
+concurrent viewers and caching success/failure for 60 seconds. Four concurrent
+requests and a 16-frame memory cache bound demand. JPEG transport is capped at
+5 MiB per image; existing endpoint restrictions, redirect rejection, source
+availability checks and Retry-After handling apply. Closing an image cancels its
+frontend timer and rejects late results; no discovered image is polled in the
+background. No capture timestamp is inferred.
+
+Source markers within 40 screen pixels form collapsed groups. A tap opens a
+compact list without changing the camera; mixed camera/weather groups use the
+same mechanism. A second tap chooses a source. Groups return after details close,
+then collapse after eight idle seconds unless hovered or focused. Escape, map
+movement and closing dismiss them. Zoom separates nearby positions, while exact
+coincidences remain grouped. Controls use public MapLibre markers/popups/events,
+not HA internal components. The design follows HA 2026.10.0b0's
 [`ha-map`](https://github.com/home-assistant/frontend/blob/20260930.0/src/components/map/ha-map.ts)
-and [MapLibre engine](https://github.com/home-assistant/frontend/blob/20260930.0/src/common/map/engines/maplibre-map-engine.ts),
-with groups collapsed initially. The implementation uses public MapLibre markers,
-popups and map events; it imports no HA internal component or clustering engine.
+and [MapLibre engine](https://github.com/home-assistant/frontend/blob/20260930.0/src/common/map/engines/maplibre-map-engine.ts).
 
-The bubble hides while a camera image is open and returns when the image closes.
-It collapses after eight idle seconds, with keyboard focus and pointer hover
-preventing collapse. Escape, the close button, a map tap or movement dismisses
-the group immediately. Zooming regroups nearby points; coincident points remain
-grouped. Source updates preserve stable member identities and focus; removal,
-hidden layers and disconnect remove markers, popups, timers and map listeners.
-Source coordinates remain unchanged; the group position is a display position.
+Discovery creates no subentries, devices, entities or recorder states. Manual
+sources keep their existing ownership and identity. Overlapping routes reference
+the same source IDs and caches; removing a card does not remove a manual source.
+Area monitors and automatic physical-entity ownership remain future work.
 
-The `SourceMarkers` presentation component and pure `sourceGroups` helper
-accept named, typed source IDs, coordinates, icons and selection callbacks.
-Future weather-station markers can use these same controls, with visibility in
-card configuration too. Weather discovery, automatic route ownership and fetching
-all nearby sources are not implemented here.
-
-Only choosing an individual camera requests its native `/api/camera_proxy/`
-image. An open panel refreshes that cached HA image every minute, except while the page is
-hidden, and reacts to entity updates. Closing, removing or disconnecting the
-card clears the image and timer. Neither the card nor the proxy adds upstream
-image requests: the existing camera coordinator owns source polling. The card
-does not call external image URLs or infer capture times. Camera failures do
-not change route forecasts.
-
-Unavailable entities normally have no source-coordinate attributes in HA; they
-are omitted from the layer, and an already open panel shows image unavailable.
-Missing coordinates, removal and permission loss clear the corresponding
-markers. No new subscriptions, entities, source discovery or ownership rules
-are introduced. Cameras must be configured separately; routes sharing them use
-the same physical camera devices. Automatic source ownership remains future
-work.
-
-Browser checks inject explicitly synthetic camera states into a real packaged
-card and mock only their HA image-proxy responses. They cover counted groups,
-overlap at identical and nearby coordinates, zoom separation, rapid taps, keyboard
-focus, idle collapse, dark-mode scrolling, image failure/recovery, removal and native
-editor persistence. Python tests cover unchanged source coordinates and cached
-HA camera retrieval with mocked public API fixtures.
+Python tests mock the network boundary to cover atomic pagination, sharing,
+independent failures, empty catalogues, recovery, access, unloading, proximity
+and on-demand images. Browser smoke checks first exercise real public discovery
+on the disposable route, then inject clearly synthetic source events/image
+responses to test deterministic grouped-camera/weather interactions and failure
+states. No synthetic state is deployed to an existing HA installation.
 
 ### Vector map
 

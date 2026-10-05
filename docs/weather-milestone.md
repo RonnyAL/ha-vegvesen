@@ -17,7 +17,7 @@ Discovery uses `GET /ogc/features/v1/collections/datex_3_1:WeatherSimple_v2/item
 
 `numberMatched`, `numberReturned`, `features`, and `links[rel=next]` describe pagination. Follow the server links, including an observed extra empty terminal page. A refresh is accepted only after all pages succeed, counts agree, and source IDs are unique. Changed totals, missing pages, invalid JSON/schema, cycles, changed endpoint/filter, duplicate IDs, or failed requests fail the entire refresh. No partial accumulated result escapes the client. A complete response may legitimately omit a previously selected station; only that station becomes unavailable.
 
-The coordinator polls selected IDs every ten minutes, matching the documented [weather publication cadence](https://www.vegvesen.no/en/fag/technology/open-data/a-selection-of-open-data/what-is-datex/publications/). Discovery snapshots are shared across configuration flows for up to 15 minutes, independently per source family; saving a selection still validates it with a fresh filtered request. See [discovery and geography](geographic-selection.md). Each refresh has a 30-second deadline for its whole request chain. HTTP 429 uses numeric or HTTP-date `Retry-After`, with a 60-second fallback for invalid/missing values; this is request backoff, not alteration of source observations. HA controls retries during initial setup. Other failures use the normal coordinator schedule.
+The coordinator polls selected IDs every ten minutes, matching the documented [weather publication cadence](https://www.vegvesen.no/en/fag/technology/open-data/a-selection-of-open-data/what-is-datex/publications/). Discovery snapshots are shared across configuration flows for up to ten minutes for weather and fifteen minutes for cameras, independently per source family; saving a selection still validates it with a fresh filtered request. See [discovery and geography](geographic-selection.md). Each refresh has a 30-second deadline for its whole request chain. HTTP 429 uses numeric or HTTP-date `Retry-After`, with a 60-second fallback for invalid/missing values; this is request backoff, not alteration of source observations. HA controls retries during initial setup. Other failures use the normal coordinator schedule.
 
 The official [data catalogue](https://dataut.vegvesen.no/nb/dataservice/vaerdata-malinger-api) identifies NLOD licensing for weather data. Sensors expose the attribution **Data provided by Statens vegvesen**. The registered DATEX XML service and this credential-free OGC endpoint are different representations; the catalogue's license reference covers the underlying dataset, without a separately verified OGC-specific terms page.
 
@@ -41,7 +41,13 @@ Each future area must own its point/radius. Implemented [route forecasts](route-
 
 Overlapping monitors must reference a canonical physical source record keyed by `(source type, source ID)`, reusing its device/entities. They must not create another physical device or another copy of its measurements. HA [restricts a device to one config entry and at most one subentry](https://developers.home-assistant.io/blog/2026/07/21/device-registry-single-config-entry/); a device cannot be jointly owned by several monitor subentries.
 
-Before implementing automatic discovery, define canonical ownership for automatically discovered sources and retention when manual selections/monitors disappear. The current manual station subentry is the sole owner. Future monitor references must not move that ownership on overlap. Explicit selections and monitor references may eventually need separate retention rules, with migration when required. Route forecasts do not automatically add physical stations or cameras. No reference-counting or automatic physical-source ownership framework is implemented; the route geometry engine only matches forecast road segments.
+Route cards now discover sources for display without creating entities or
+changing physical-device ownership; see [map discovery](route-card.md#automatic-cameras-and-weather-stations).
+They share catalogue snapshots and on-demand image caches across routes. Manual
+subentries remain the sole owners of physical devices/entities, and deleting a
+route or card does not remove them. Automatically creating persistent physical
+entities would still require explicit retention and ownership rules. No monitor
+ownership or reference-counting framework is implemented.
 
 ## Compatibility boundary
 

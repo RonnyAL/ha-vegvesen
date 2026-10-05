@@ -177,22 +177,34 @@ these **Appearance** settings:
 | Initial forecast layer | Road condition or slipperiness                          |
 | Legend expanded        | Off by default                                          |
 
-Under **Road cameras**, enable **Show configured road cameras** to add camera
-markers. Only cameras already added to this integration and within the selected
-distance of the route appear. The default is **250 metres**, independently of
-the forecast corridor. Change it from 1 to 2,000 metres in the card editor.
+Under **Road cameras** and **Weather stations**, enable the sources you want to
+see. The card discovers them automatically; you do not need to add each camera
+or station to the integration first. Both layers are off by default, with
+visibility controlled only in the card editor.
 
-Tap a camera marker for its image and source status. Overlapping cameras share
-a marker with a count: tap it to reveal the individual cameras, then choose one.
-Neither action changes the map's position or zoom. After closing an image, the
-choices return for eight seconds; pointing at them or keeping keyboard focus
-inside keeps them open. Tap elsewhere or close the group to collapse it sooner.
-Nearby cameras separate as you zoom in; cameras at the same position stay grouped.
-Camera visibility is controlled only in the card editor.
-The open image refreshes from HA's cache once a minute; this does not add source
-requests.
-Unavailable cameras or cameras without coordinates are omitted; an already open
-camera shows **Image unavailable** if it fails. Forecasts continue independently.
+Each layer has its own maximum distance from the saved route: **250 metres** by
+default, adjustable from 1 to 2,000 metres. This is independent of the forecast
+corridor and map zoom. Nearby side roads can fall within that distance too.
+
+Tap a camera for its still image and source status, or a weather station for its
+measured air temperature and observation time. Overlapping sources share a
+counted marker: tap it to reveal the individual sources, then choose one. Neither
+action changes the map's position or zoom. After closing the details, the choices
+return for eight seconds; hovering or keeping keyboard focus inside keeps them
+open. Nearby sources separate as you zoom in; coincident sources stay grouped.
+
+Cards share discovery caches. While a layer is shown, weather observations
+refresh every ten minutes and the camera catalogue every fifteen minutes.
+Only an open camera requests an image, at most once a minute while its page is
+visible. Multiple viewers share a short-lived image cache; manually added
+cameras reuse their existing HA cache. The source image may remain unchanged
+between requests, and its capture time is not supplied.
+
+An unavailable source feed clears its layer and shows a message; other layers
+continue independently. A failed still shows **Image unavailable**. Missing
+coordinates prevent a source from appearing on the map. Automatically discovered
+sources do not create devices, entities or recorder history. Add a source
+manually if you also want its entities for dashboards or automations.
 
 The card shares the route's forecast data; adding cards does not increase
 forecast polling. If the background map cannot load, route geometry remains
@@ -214,6 +226,8 @@ default_mode: condition
 legend_expanded: false
 show_cameras: false
 camera_distance_m: 250
+show_weather: false
+weather_distance_m: 250
 ```
 
 Only `type` and `device_id` are required. Optional `title` sets a card heading.

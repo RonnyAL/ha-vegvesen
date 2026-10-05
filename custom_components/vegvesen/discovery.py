@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import RoadCamera, VegvesenApiClient, WeatherStation
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, LOGGER, WEATHER_UPDATE_INTERVAL
 from .route_api import RouteApiClient
 
 if TYPE_CHECKING:
@@ -76,20 +76,28 @@ def _read_source_geography() -> dict[str, SourceLocation]:
 class CatalogueCache[T: WeatherStation | RoadCamera]:
     """Coalesce simultaneous flows without caching failures or partial pages."""
 
-    def __init__(self, fetch: Callable[[], Awaitable[dict[str, T]]]) -> None:
+    def __init__(
+        self, fetch: Callable[[], Awaitable[dict[str, T]]], ttl: float = CATALOGUE_TTL
+    ) -> None:
         """Keep one family independent from the other."""
         self._fetch = fetch
         self._lock = asyncio.Lock()
         self._snapshot: dict[str, T] = {}
         self._expires = 0.0
+        self._ttl = ttl
 
-    async def async_get(self) -> dict[str, T]:
-        """Return a flow-owned copy; expired refresh failures propagate normally."""
+    @property
+    def fresh(self) -> bool:
+        """Allow HA's sub-second poll jitter without skipping a full interval."""
+        return monotonic() < self._expires - 1
+
+    async def async_get(self, *, refresh_empty: bool = False) -> dict[str, T]:
+        """Return a copy; allow configuration to retry an empty catalogue."""
         async with self._lock:
-            if not self._snapshot or monotonic() >= self._expires:
+            if not self.fresh or (refresh_empty and not self._snapshot):
                 snapshot = await self._fetch()
                 self._snapshot = snapshot
-                self._expires = monotonic() + CATALOGUE_TTL
+                self._expires = monotonic() + self._ttl
             return dict(self._snapshot)
 
 
@@ -102,7 +110,9 @@ class DiscoveryCache:
         session = async_get_clientsession(hass)
         self.client = VegvesenApiClient(session)
         self.route_client = RouteApiClient(session, self.client)
-        self.weather = CatalogueCache(self.client.async_get_weather)
+        self.weather = CatalogueCache(
+            self.client.async_get_weather, ttl=WEATHER_UPDATE_INTERVAL.total_seconds()
+        )
         self.cameras = CatalogueCache(self.client.async_get_cameras)
         self._geography: dict[str, SourceLocation] | None = None
         self._geography_lock = asyncio.Lock()

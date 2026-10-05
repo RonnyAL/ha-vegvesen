@@ -17,7 +17,7 @@ import {
 } from "./data.js";
 import { labels, language } from "./labels.js";
 import { darkMode, stubConfig } from "./config.js";
-import { CameraOverlay } from "./camera-overlay.js";
+import { SourceOverlay } from "./source-overlay.js";
 import "./editor.js";
 
 maplibregl.setWorkerUrl(
@@ -147,12 +147,21 @@ export class VegvesenRouteMap extends HTMLElement {
       this._status,
       this._basemap,
     );
-    this._cameras = new CameraOverlay(this._frame, () => {
-      this._segmentId = undefined;
-      this._legendOpen = false;
-      this._renderText();
-      this._draw();
-    });
+    this._cameras = new SourceOverlay(
+      this._frame,
+      () => {
+        this._segmentId = undefined;
+        this._legendOpen = false;
+        this._renderText();
+        this._draw();
+      },
+      () => {
+        if (!this._map && !this._webglFailed && this._routeGeometry)
+          this._createMap();
+        this._draw();
+        this._renderText();
+      },
+    );
     card.append(this._header, this._frame);
     this.shadowRoot.append(css, card);
     this._data = new RouteData(
@@ -178,7 +187,6 @@ export class VegvesenRouteMap extends HTMLElement {
       },
       () => {
         this._snapshot = undefined;
-        this._cameras.close();
         this._segmentId = undefined;
         this._renderInspector();
         this._draw();
@@ -200,7 +208,7 @@ export class VegvesenRouteMap extends HTMLElement {
     this._config = next;
     this.style.setProperty("--map-height", `${next.height ?? 400}px`);
     if (changed) {
-      this._cameras.close();
+      this._cameras.stop();
       this._data.stop();
       this._snapshot = undefined;
       this._selection = undefined;
@@ -222,7 +230,7 @@ export class VegvesenRouteMap extends HTMLElement {
   }
   disconnectedCallback() {
     this._data.stop();
-    this._cameras.close();
+    this._cameras.stop();
     this._destroyMap();
   }
 
@@ -250,21 +258,19 @@ export class VegvesenRouteMap extends HTMLElement {
     if (previousLanguage !== this._lang || this._timeZone !== timeZone)
       this._renderText();
     this._timeZone = timeZone;
-    if (!this._map && !this._webglFailed && this._snapshot) this._createMap();
+    if (!this._map && !this._webglFailed && this._routeGeometry)
+      this._createMap();
     this._data.update(this._hass, this._config);
     this._updateCameras();
   }
 
   _updateCameras() {
     const l = this._labels ?? labels.en;
-    this._cameras.update(
-      this._hass,
-      this._snapshot?.geometry,
-      this._config?.camera_distance_m ?? 250,
-      this._config?.show_cameras ?? false,
-      l,
-      this._map,
-    );
+    this._cameras.update(this._hass, this._config, l, this._map);
+  }
+
+  get _routeGeometry() {
+    return this._snapshot?.geometry ?? this._cameras.snapshot?.geometry;
   }
 
   _styleUrl() {
@@ -278,12 +284,12 @@ export class VegvesenRouteMap extends HTMLElement {
   }
 
   _createMap() {
-    if (!this._snapshot || !this.isConnected) return;
+    if (!this._routeGeometry || !this.isConnected) return;
     try {
       const map = (this._map = new maplibregl.Map({
         container: this._container,
         style: (this._styleKey = this._styleUrl()),
-        bounds: bounds(this._snapshot.geometry),
+        bounds: bounds(this._routeGeometry),
         fitBoundsOptions: { padding: fitPadding, maxZoom: 15 },
         maxZoom: 20,
         // Match HA's vector map: responsive attribution, open initially.
@@ -458,16 +464,17 @@ export class VegvesenRouteMap extends HTMLElement {
       });
     }
     const data = this._snapshot;
+    const geometry = this._routeGeometry;
     for (const id of ["segment-outline", "segment-highlight"])
       map.setFilter(id, ["==", ["get", "_id"], this._segmentId ?? null]);
     map.setPaintProperty("route", "line-opacity", this._selection ? 0.35 : 1);
     map.getSource("route").setData(
       collection(
-        data
+        geometry
           ? [
               {
                 type: "Feature",
-                geometry: displayGeometry(data.geometry),
+                geometry: displayGeometry(geometry),
                 properties: {},
               },
             ]
@@ -494,8 +501,8 @@ export class VegvesenRouteMap extends HTMLElement {
           })) ?? [],
       ),
     );
-    if (!data) return;
-    const routeLines = lines(displayGeometry(data.geometry));
+    if (!geometry) return;
+    const routeLines = lines(displayGeometry(geometry));
     const points = [routeLines[0]?.[0], routeLines.at(-1)?.at(-1)];
     points.forEach((point, index) => {
       if (!point) return;
@@ -505,7 +512,7 @@ export class VegvesenRouteMap extends HTMLElement {
         new maplibregl.Marker({ element }).setLngLat(point).addTo(map),
       );
     });
-    const geometryKey = JSON.stringify(data.geometry);
+    const geometryKey = JSON.stringify(geometry);
     if (!this._fitted || this._geometryKey !== geometryKey) {
       this._fitted = true;
       this._geometryKey = geometryKey;
@@ -519,7 +526,7 @@ export class VegvesenRouteMap extends HTMLElement {
     this._segmentId = undefined;
     this._renderText();
     if (this._ready && this._fitted) this._draw();
-    const extent = this._snapshot && bounds(this._snapshot.geometry);
+    const extent = this._routeGeometry && bounds(this._routeGeometry);
     if (extent)
       this._map?.fitBounds(extent, {
         padding: fitPadding,
@@ -631,7 +638,7 @@ export class VegvesenRouteMap extends HTMLElement {
     this._header.hidden = !this._title.textContent.trim();
     this._fit.title = l.fit;
     this._fit.setAttribute("aria-label", l.fit);
-    this._fit.disabled = !this._snapshot || this._webglFailed;
+    this._fit.disabled = !this._routeGeometry || this._webglFailed;
     this._summary.textContent = l.legend;
     this._legendTitle.textContent = l.forecast_layer;
     this._modes.setAttribute("aria-label", l.forecast_layer);
@@ -656,11 +663,14 @@ export class VegvesenRouteMap extends HTMLElement {
         const retry = node("button", l.retry);
         retry.onclick = () => {
           this._data.stop();
+          this._cameras.stop();
           this._update();
         };
         this._status.append(retry);
       }
     } else if (!this._snapshot) this._status.textContent = l.loading;
+    for (const notice of this._cameras.notices)
+      this._status.append(node("span", notice));
     this._time.textContent = this._snapshot
       ? this._formatTime(this._snapshot.forecast_time)
       : "";

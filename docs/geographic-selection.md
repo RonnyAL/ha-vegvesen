@@ -106,20 +106,22 @@ or unclassified sources remain selectable under **Unknown county → Unknown
 municipality**. An unavailable or malformed index puts all live sources in
 those explicit buckets rather than assigning guessed geography.
 
-Source catalogues are live, paginated and cached independently for weather and
-cameras for 15 minutes per HA instance. The first or expired lookup still needs
+Source catalogues are live, paginated and cached per HA instance: weather for
+ten minutes and cameras for fifteen minutes. The first or expired lookup still needs
 a complete network response. Concurrent flows share one fetch; each gets its
 own dictionary copy. Failed, cancelled, malformed or incomplete pagination
 cannot publish a partial catalogue or replace the previous successful cache.
 An expired cache is not served as a successful refresh after a request failure.
-The form reports the failure for retry. Empty responses are not reused.
+The form reports the failure for retry. Successful empty snapshots are cached
+for map discovery; manual configuration can explicitly retry an empty list.
 All chosen sources are checked again with a filtered live request on final submission.
 Discovery and validation use HA's native progress tasks. Cancelling a pending
 flow cancels its request, and background tasks never save subentries. Complete
 validation is followed by a final duplicate check and synchronous save in the
 live flow. See the [config-flow review](config-flow-review.md).
-There are no discovery polling tasks, persistent runtime cache files or changes
-to entity polling.
+Enabled route-card source layers now use these caches with listener-driven
+coordinators; see [map discovery](route-card.md#automatic-cameras-and-weather-stations).
+There are no persistent runtime cache files or changes to manual entity polling.
 
 ## Updating through HACS
 

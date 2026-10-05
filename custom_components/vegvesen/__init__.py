@@ -24,6 +24,7 @@ from .discovery import async_get_discovery
 from .route_card import async_register_route_card, async_setup_route_card
 from .route_coordinator import RouteCoordinator
 from .route_services import async_setup_route_service
+from .route_sources import CameraFrames, SourceCoordinator
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -66,7 +67,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: VegvesenConfigEntry) -> 
         if s.subentry_type == "route"
     }
     entry.runtime_data = VegvesenData(
-        client=client, weather=coordinator, cameras=cameras, routes=routes
+        client=client,
+        weather=coordinator,
+        cameras=cameras,
+        routes=routes,
+        sources={
+            kind: SourceCoordinator(hass, entry, cache, kind)
+            for kind, cache in (
+                ("weather", shared.weather),
+                ("cameras", shared.cameras),
+            )
+        },
+        camera_frames=CameraFrames(client),
     )
     active = [
         resource

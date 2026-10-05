@@ -84,6 +84,9 @@ async def test_refresh_failure_recovery(
         else:
             with pytest.raises(VegvesenApiError):
                 await cache.async_get()
+        if problem == "empty":
+            assert await cache.async_get() == {}
+            cache._expires = 0
         mock_http.get(weather_url(), payload=page(features[:1]))
         assert len(await cache.async_get()) == 1
 

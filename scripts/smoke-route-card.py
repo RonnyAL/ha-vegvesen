@@ -1,6 +1,7 @@
 """Test the packaged card in a disposable HA and Chromium with public locations."""
 
 import argparse
+import base64
 import json
 import re
 import sys
@@ -66,6 +67,9 @@ def presentation_settings(dialog: Locator) -> None:
     dialog.get_by_text("Road cameras", exact=True).click()
     dialog.locator("ha-selector-boolean").nth(1).get_by_role("switch").press("Space")
     dialog.locator("ha-selector-number input").nth(1).fill("350")
+    dialog.get_by_text("Weather stations", exact=True).click()
+    dialog.locator("ha-selector-boolean").nth(2).get_by_role("switch").press("Space")
+    dialog.locator("ha-selector-number input").nth(2).fill("500")
     dialog.get_by_role("button", name="Save", exact=True).click()
     expect(dialog).not_to_be_visible()
 
@@ -397,24 +401,31 @@ def inspector_updates(page: Page, card: Locator, results: Path) -> None:
 
 
 def camera_layer(page: Page, card: Locator, results: Path) -> None:
-    """Exercise camera UI with explicit synthetic states and a mocked HA proxy."""
-    requests = []
-    image_failure = False
-
-    def image_request(route: Route) -> None:
-        requests.append(route.request.url)
-        if image_failure:
-            route.fulfill(status=503, body="Image unavailable")
-        else:
-            route.fulfill(
-                content_type="image/jpeg",
-                body=(ROOT / "tests/fixtures/camera.jpg").read_bytes(),
-            )
-
-    page.route("**/api/camera_proxy/camera.map_fixture_*?*", image_request)
+    """Check live automatic discovery, then deterministic grouped-source fixtures."""
     original_config = card.evaluate("c => c._config")
-    card.evaluate("""c => {
+    card.evaluate(
+        "c => c.setConfig({...c._config, show_cameras: true, show_weather: true})"
+    )
+    page.wait_for_function(
+        """c => c._cameras.snapshot?.cameras?.status === 'ready' &&
+        c._cameras.snapshot?.weather?.status === 'ready'""",
+        arg=card.element_handle(),
+        timeout=45000,
+    )
+    discovered = card.evaluate("c => c._cameras.snapshot")
+    assert len(discovered["cameras"]["items"]) > 0
+    assert len(discovered["weather"]["items"]) > 0
+    # The smoke instance contains only a route: these sources have no entities.
+    assert card.evaluate(
+        "c => !Object.keys(c._hass.states).some(id => id.startsWith('camera.'))"
+    )
+    (results / "discovered-sources.json").write_text(json.dumps(discovered))
+    card.evaluate("(c, config) => c.setConfig(config)", original_config)
+    card.evaluate(
+        """(c, jpeg) => {
         c._cameraTestHass = c._hass;
+        c._cameraTestRequests = [];
+        c._cameraTestImage = jpeg;
         const g = c._snapshot.geometry;
         const line = g.type === 'LineString' ? g.coordinates : g.coordinates[0];
         const [longitude, latitude] = line[Math.floor(line.length / 2)];
@@ -422,26 +433,53 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
         for (const direction of ['north', 'south']) {
             const id = 'camera.map_fixture_' + direction;
             c._cameraTestStates[id] = {
-                entity_id: id, state: 'idle', last_updated: new Date().toISOString(),
+                entity_id: id, state: 'idle',
                 attributes: { source_id: 'map_fixture_' + direction,
                     friendly_name: 'Test road camera ' + direction,
-                    orientation: direction === 'north' ? 'North' : 'South',
-                    longitude, latitude, source_availability: 'videoOrImagesAvailable',
-                    entity_picture: '/api/camera_proxy/' + id + '?token=fixture'
+                    longitude, latitude, source_availability: 'videoOrImagesAvailable'
                 }
             };
         }
+        const h = c._cameraTestHass;
+        c.hass = {...h, connection: {
+            subscribeMessage: async (callback, message) => {
+                if (message.type !== 'vegvesen/subscribe_route_sources')
+                    return h.connection.subscribeMessage(callback, message);
+                c._sourceTestCallback = callback;
+                c._cameraTestUpdate(c._cameraTestCurrent ?? c._cameraTestStates);
+                return () => {
+                    if (c._sourceTestCallback === callback)
+                        delete c._sourceTestCallback;
+                };
+            },
+        }, callWS: async (message) => {
+            if (message.type !== 'vegvesen/route_camera') return h.callWS(message);
+            c._cameraTestRequests.push(message.source_id);
+            const state = Object.values(c._cameraTestCurrent).find(
+                s => s.attributes.source_id === message.source_id);
+            return {camera: {
+                availability: state?.attributes.source_availability ?? null},
+                content: c._cameraTestImageFailure ? null : jpeg,
+                content_type: 'image/jpeg'};
+        }};
         c._cameraTestUpdate = (states) => {
-            const h = c._cameraTestHass;
-            c.hass = {...h, states: {...h.states, ...states}, entities: {...h.entities,
-                ...Object.fromEntries(Object.keys(states).map(
-                    id => [id, {platform: 'vegvesen'}]))}};
+            c._cameraTestCurrent = states;
+            c._sourceTestCallback?.({data: {geometry: g,
+                cameras: {status: 'ready', items: Object.values(states).map(s => ({
+                    source_id: s.attributes.source_id, name: s.attributes.friendly_name,
+                    longitude: s.attributes.longitude, latitude: s.attributes.latitude,
+                    availability: s.attributes.source_availability,
+                }))}, weather: {status: 'ready', items: c._config.show_weather
+                    ? (c._weatherTestItems ?? []) : []}}});
         };
-        c._cameraTestUpdate(c._cameraTestStates);
         c._map.jumpTo({center: [longitude, latitude], zoom: 12});
-    }""")
+    }""",
+        base64.b64encode((ROOT / "tests/fixtures/camera.jpg").read_bytes()).decode(
+            "ascii"
+        ),
+    )
     expect(card.locator(".source-marker")).to_have_count(0)
-    assert not requests
+    assert card.evaluate("c => c._cameraTestRequests.length") == 0
     card.get_by_role("button", name="Map layers and legend").click()
     expect(card.get_by_role("checkbox")).to_have_count(0)
     card.evaluate("c => c.setConfig({...c._config, show_cameras: true})")
@@ -467,7 +505,7 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
     expect(bubble).to_be_visible()
     expect(bubble.locator(".source-choice")).to_have_count(2)
     expect(bubble.locator(".source-choice").first).to_be_focused()
-    assert not requests
+    assert card.evaluate("c => c._cameraTestRequests.length") == 0
     card.evaluate("c => c._cameraTestUpdate(structuredClone(c._cameraTestStates))")
     expect(bubble.locator(".source-choice").first).to_be_focused()
     bubble.locator(".source-choice").first.press("Escape")
@@ -480,13 +518,13 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
     expect(panel).to_be_visible()
     expect(panel.locator(".camera-image")).to_be_visible()
     expect(panel).to_contain_text("Images available")
-    assert requests[-1].split("?")[0].endswith("camera.map_fixture_north")
+    assert card.evaluate("c => c._cameraTestRequests.at(-1)") == "map_fixture_north"
     assert (
         card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
     )
     expect(bubble).not_to_be_visible()
     assert card.evaluate("c => c._cameras.sources.collapseTimer === undefined")
-    panel.get_by_role("button", name="Close camera").press("Escape")
+    panel.get_by_role("button", name="Close source details").press("Escape")
     expect(bubble).to_be_visible()
     expect(bubble.locator(".source-choice").first).to_be_focused()
     # Focus inside the choices prevents an idle timeout from hiding them.
@@ -499,9 +537,9 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
     page.mouse.up()
     expect(panel.locator(".camera-image")).to_be_visible()
     expect(panel.locator("h3")).to_have_text("Test road camera south")
-    assert requests[-1].split("?")[0].endswith("camera.map_fixture_south")
+    assert card.evaluate("c => c._cameraTestRequests.at(-1)") == "map_fixture_south"
     page.screenshot(path=str(results / "camera-layer-mobile.png"))
-    panel.get_by_role("button", name="Close camera").tap()
+    panel.get_by_role("button", name="Close source details").tap()
     page.mouse.move(385, 830)
     expect(bubble).to_be_visible()
     expect(bubble).not_to_be_visible(timeout=12000)
@@ -509,34 +547,24 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
     marker.tap()
     bubble.get_by_role("button", name="Test road camera south").tap()
     expect(panel.locator(".camera-image")).to_be_visible()
-    image_failure = True
-    card.evaluate("c => c._cameraTestUpdate(structuredClone(c._cameraTestStates))")
+    card.evaluate("c => {c._cameraTestImageFailure = true; c._cameras.loadImage();}")
     expect(panel).to_contain_text("Image unavailable")
     expect(panel.locator(".camera-image")).not_to_be_visible()
-    image_failure = False
-    card.evaluate("c => c._cameraTestUpdate(c._cameraTestStates)")
-    expect(panel.locator(".camera-image")).to_be_visible()
-    # A failed image has HA's normal unavailable attributes (no coordinates).
-    card.evaluate("""c => {
-        const states = structuredClone(c._cameraTestStates);
-        states['camera.map_fixture_south'] = {entity_id: 'camera.map_fixture_south',
-            state: 'unavailable',
-            attributes: {friendly_name: 'Test road camera south'}};
-        c._cameraTestUpdate(states);
-    }""")
-    expect(panel.locator(".camera-image")).not_to_be_visible()
-    expect(panel).to_contain_text("Image unavailable")
-    assert panel.locator(".camera-image").get_attribute("src") is None
     assert card.evaluate("c => !!c._snapshot && !c._error")
-    card.evaluate("c => c._cameraTestUpdate(c._cameraTestStates)")
+    card.evaluate("c => {c._cameraTestImageFailure = false; c._cameras.loadImage();}")
     expect(panel.locator(".camera-image")).to_be_visible()
     card.evaluate("""c => {
         const states = structuredClone(c._cameraTestStates);
         states['camera.map_fixture_south'].attributes.source_availability =
             'futureStatus';
         c._cameraTestUpdate(states);
+        c._cameraTestImageFailure = true;
+        c._cameras.loadImage();
     }""")
     expect(panel).to_contain_text("futureStatus")
+    expect(panel.locator(".camera-image")).not_to_be_visible()
+    card.evaluate("c => {c._cameraTestImageFailure = false; c._cameras.loadImage();}")
+    expect(panel.locator(".camera-image")).to_be_visible()
     # Nearby but distinct coordinates share a group at this zoom, then split.
     card.evaluate("""c => {
         c._cameras.close();
@@ -580,6 +608,37 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
     expect(panel).not_to_be_visible()
     expect(marker).to_have_count(0)
     assert card.evaluate("c => c._cameras.timer === undefined")
+    # One mixed group exposes observations without making image requests.
+    card.evaluate("""c => {
+        const a = c._cameraTestStates['camera.map_fixture_north'].attributes;
+        c._weatherTestItems = [{source_id: 'test-weather', name: 'Test weather station',
+            longitude: a.longitude, latitude: a.latitude, air_temperature: 0,
+            measurement_time: null}];
+        c.setConfig({...c._config, show_weather: true});
+        c._cameraTestUpdate(c._cameraTestStates);
+    }""")
+    expect(marker.locator(".source-count")).to_have_text("3")
+    marker.tap()
+    bubble.get_by_role("button", name="Test weather station").tap()
+    expect(panel).to_contain_text("0 °C")
+    expect(panel).to_contain_text("Missing data")
+    expect(panel.locator(".camera-image")).not_to_be_visible()
+    before = card.evaluate("c => c._cameraTestRequests.length")
+    for value, expected in [(-999, "-999 °C"), (None, "Missing data")]:
+        card.evaluate(
+            """(c, value) => {
+            c._weatherTestItems[0].air_temperature = value;
+            c._cameraTestUpdate(c._cameraTestStates);
+        }""",
+            value,
+        )
+        expect(panel.locator(".source-values")).to_contain_text(expected)
+    assert card.evaluate("c => c._cameraTestRequests.length") == before
+    page.screenshot(path=str(results / "weather-source-mobile.png"))
+    card.evaluate("""c => {
+        c._weatherTestItems = [];
+        c.setConfig({...c._config, show_weather: false});
+    }""")
     # A larger group stays scrollable inside the mobile map, including dark UI.
     card.evaluate("""c => {
         const states = {};
@@ -617,6 +676,9 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
         c.hass = c._cameraTestHass;
         c.setConfig(config);
         delete c._cameraTestNearby;
+        delete c._cameraTestCurrent;
+        delete c._sourceTestCallback;
+        delete c._weatherTestItems;
         delete c._cameraTestStates;
         delete c._cameraTestUpdate;
         delete c._cameraTestHass;
@@ -630,7 +692,6 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
         arg=card.element_handle(),
         timeout=30000,
     )
-    page.unroute("**/api/camera_proxy/camera.map_fixture_*?*", image_request)
 
 
 def cold_views(browser: Browser, base: str, tokens: dict, results: Path) -> None:
@@ -1176,6 +1237,8 @@ def run(instance: SmokeInstance) -> None:
             assert saved_card["map_style"] == "natural"
             assert saved_card["show_cameras"] is True
             assert saved_card["camera_distance_m"] == 350
+            assert saved_card["show_weather"] is True
+            assert saved_card["weather_distance_m"] == 500
             for _ in range(3):
                 page.reload()
                 expect(card.locator("canvas")).to_be_visible(timeout=30000)
@@ -1214,7 +1277,8 @@ def run(instance: SmokeInstance) -> None:
                         "touch_pan": True,
                         "segment_touch_target": True,
                         "visual_editor": True,
-                        "configured_camera_layer": True,
+                        "automatic_source_discovery": True,
+                        "weather_layer": True,
                         "collapsed_source_groups": True,
                         "source_group_timeout_and_keyboard": True,
                         "camera_failure_recovery": True,

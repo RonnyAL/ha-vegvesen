@@ -349,10 +349,12 @@ button:focus-visible,
   display: grid;
   place-items: center;
 }
-.inspector dl {
+.inspector dl,
+.source-values {
   margin: 0;
 }
-.inspector dl > div {
+.inspector dl > div,
+.source-values > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
@@ -370,7 +372,8 @@ button:focus-visible,
 .segment-id {
   padding-top: 8px;
 }
-.inspector dd {
+.inspector dd,
+.source-values dd {
   margin: 0;
   font-size: 14px;
   line-height: 20px;

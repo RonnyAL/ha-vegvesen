@@ -126,18 +126,20 @@ export function validateConfig(config) {
     throw Error("Height must be between 240 and 1000 pixels");
   if (config.map_style_url && !/^https?:\/\//.test(config.map_style_url))
     throw Error("map_style_url must be an HTTP(S) MapLibre style URL");
-  if (
-    config.show_cameras !== undefined &&
-    typeof config.show_cameras !== "boolean"
-  )
-    throw Error("Show cameras must be true or false");
-  if (
-    config.camera_distance_m !== undefined &&
-    (!Number.isInteger(config.camera_distance_m) ||
-      config.camera_distance_m < 1 ||
-      config.camera_distance_m > 2000)
-  )
-    throw Error("Camera distance must be between 1 and 2000 meters");
+  for (const [kind, prefix] of [
+    ["cameras", "camera"],
+    ["weather", "weather"],
+  ]) {
+    const show = config[`show_${kind}`];
+    const distance = config[`${prefix}_distance_m`];
+    if (show !== undefined && typeof show !== "boolean")
+      throw Error(`Show ${kind} must be true or false`);
+    if (
+      distance !== undefined &&
+      (!Number.isInteger(distance) || distance < 1 || distance > 2000)
+    )
+      throw Error(`${prefix} distance must be between 1 and 2000 meters`);
+  }
   const result = { ...config };
   if (result.device_id) delete result.entity;
   return result;
@@ -152,8 +154,16 @@ export const routeTarget = (config) =>
 
 // Subscribe to cached snapshot changes, independently of sensor states.
 export class RouteData {
-  constructor(onData, onError, onReset) {
-    Object.assign(this, { onData, onError, onReset });
+  constructor(
+    onData,
+    onError,
+    onReset,
+    request = (config) => ({
+      type: "vegvesen/subscribe_route_map",
+      ...routeTarget(config),
+    }),
+  ) {
+    Object.assign(this, { onData, onError, onReset, request });
     this.generation = 0;
   }
   stop() {
@@ -177,7 +187,8 @@ export class RouteData {
     }
     this.disconnected = false;
     const target = routeTarget(config);
-    const key = JSON.stringify(target ?? null);
+    const request = this.request(config);
+    const key = JSON.stringify(request);
     if (this.connection === hass.connection && this.targetKey === key) return;
     this.stop();
     this.connection = hass.connection;
@@ -189,16 +200,13 @@ export class RouteData {
       return;
     }
     try {
-      const unsubscribe = await hass.connection.subscribeMessage(
-        (event) => {
-          if (generation !== this.generation) return;
-          if (event.error) {
-            this.onReset();
-            this.onError(event.error);
-          } else this.onData(event.data);
-        },
-        { type: "vegvesen/subscribe_route_map", ...target },
-      );
+      const unsubscribe = await hass.connection.subscribeMessage((event) => {
+        if (generation !== this.generation) return;
+        if (event.error) {
+          this.onReset();
+          this.onError(event.error);
+        } else this.onData(event.data);
+      }, request);
       if (generation !== this.generation) await unsubscribe();
       else this.unsubscribe = unsubscribe;
     } catch (error) {
