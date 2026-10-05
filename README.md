@@ -4,7 +4,7 @@ Bring road weather readings, road-camera still images and route forecasts from S
 
 This is an independent community integration, not an official Statens vegvesen product.
 
-**Route-map beta:** the development branch (`main`) includes the maps published in **0.8.0b8**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
+**Route-map beta:** the development branch (`main`) includes the maps published in **0.8.0b9**. The stable release remains **0.7.4**. See [beta installation and rollback](#try-the-route-map-beta).
 
 | Source | Entities | Refresh interval |
 | --- | --- | --- |
@@ -143,10 +143,11 @@ card with a vector background, touch panning, zoom controls and **Fit route /
 Vis hele ruten**. Use **Expand map / Utvid kartet** for a larger view, including
 the legend and segment details. Tap a colored segment to highlight it and show
 its source condition, road temperature, slipperiness and forecast time in a
-panel below the map. The selection remains through successful forecast updates;
+panel inside the map. The selection remains through successful forecast updates;
 it clears when the segment disappears, data becomes unavailable, or you reset
-the view. The card shows the highest source slipperiness
-grade and counts of the conditions present. Switch between **Road condition /
+the view. The card shows the highest source slipperiness grade and forecast time.
+Open **Map layers and legend / Kartlag og tegnforklaring** using the layers button
+on the left to see category counts and switch between **Road condition /
 Føreforhold** and **Slipperiness / Glatthet** for map colours. Tap a category count
 to highlight and fit its segments; tap it again or choose **Fit route** to reset.
 Missing and unrecognized source values are shown explicitly; expand
@@ -192,18 +193,28 @@ type: custom:vegvesen-route-map
 device_id: YOUR_ROUTE_DEVICE_ID
 ```
 
-The visual editor also offers an optional title, map height (240–1,000 pixels;
-default 400), initial layer and whether to expand the legend. Leaving the title
-empty uses the route name. The initial layer applies when the card opens;
-switching layers on the card does not change the route's forecast settings.
-Equivalent optional YAML settings are `title`, `height`,
-`default_mode` (`condition` or `slip`; default `condition`) and
-`legend_expanded` (default `true`).
-Advanced users can set `map_style_url` to another public HTTP(S) MapLibre style
-URL, following that provider's terms and attribution requirements.
+There is no title by default. An optional title can be set in the visual editor.
+Under **Appearance / Utseende**, choose:
 
-The card uses MapLibre and OpenStreetMap Shortbread **vector tiles**, with a
-subdued light/dark style. Tiles and label fonts are requested directly by the
+- **Map style / Kartstil:** Default, Colorful, Natural, Muted, Gray or Toner,
+  matching the style choices in HA 2026.10's map card.
+- **Theme mode / Temamodus:** Auto follows HA's light/dark mode; Light and Dark
+  override it for the map and its controls.
+- Map height (240–1,000 pixels; default 400), initial forecast layer and whether
+  the legend starts expanded (off by default).
+
+The default style uses HA's map palette. Opening the legend or segment details
+does not make the card taller. Existing explicit titles, heights and legend
+preferences are retained. Visual settings do not change route forecasts.
+Equivalent YAML settings are `title`, `height`, `map_style` (`default`, `colorful`,
+`natural`, `muted`, `gray` or `toner`), `theme_mode` (`auto`, `light` or `dark`),
+`default_mode` (`condition` or `slip`) and `legend_expanded` (`true` or `false`).
+Advanced users can set `map_style_url` to another public HTTP(S) MapLibre style
+URL, following that provider's terms and attribution requirements. It overrides
+the bundled map style; its own colors apply while Theme mode still controls the UI.
+
+The card uses MapLibre and OpenStreetMap Shortbread **vector tiles**. Tiles and
+label fonts are requested directly by the
 browser and use its HTTP cache. The map provider receives the viewer's IP
 address, the HA site's origin as a referrer, and requested tile areas; route
 names and complete route geometry are not uploaded. Only visible map views are
@@ -219,7 +230,7 @@ proxy. Map interaction and appearance are separate from the configuration previe
 
 1. In HACS, open **Statens vegvesen** → menu → **Update information**.
 2. Choose **Redownload** → **Need a different version?**, then select release
-   **0.8.0b8**. If your HACS version offers a beta filter, enable it.
+   **0.8.0b9**. If your HACS version offers a beta filter, enable it.
 3. Restart Home Assistant. Reconfigure an existing route if you want to select
    0 hours, and follow the card instructions above.
 
@@ -265,6 +276,10 @@ To remove one source or route, remove its configuration under the integration in
 The [road-routing dataset](https://dataut.vegvesen.no/nb/dataset/ruteplandata-bil) lists NLOD. Road-condition forecasts come from Statens vegvesen's public [Vegvær map service](https://www.vegvesen.no/fag/teknologi/apne-data/et-utvalg-apne-data/ogc-karttjenester/kartlag/). See the [API notes](docs/route-forecasts.md) for verified endpoints and remaining documentation gaps.
 
 Background maps: [© OpenStreetMap contributors](https://www.openstreetmap.org/copyright), used under the [OSMF tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
+
+The interactive card's default map palette comes from Home Assistant under
+Apache-2.0. MapLibre, VersaTiles and palette license notices are included in the
+[bundled frontend licenses](custom_components/vegvesen/frontend/LICENSES.md).
 
 Administrative geography: [© Kartverket](https://www.kartverket.no/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), under [Kartverket's terms of use](https://www.kartverket.no/api-og-data/vilkar-for-bruk).
 

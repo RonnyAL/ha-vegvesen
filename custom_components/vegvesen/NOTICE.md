@@ -37,5 +37,7 @@ is visible in each generated image and linked beneath configuration previews.
 The optional interactive card uses OpenStreetMap Shortbread vector tiles and
 label fonts under the [vector tile policy](https://operations.osmfoundation.org/policies/vector/).
 It bundles MapLibre GL JS (BSD-3-Clause) and styles generated with VersaTiles
-Style (MIT). Their notices, including bundled dependencies, are retained in
+Style (MIT). The default map palette is from Home Assistant frontend 20260930.0
+(Home Assistant contributors, Apache-2.0). The palette values are retained in
+locally generated styles. Their notices, including bundled dependencies, are retained in
 [frontend/LICENSES.md](frontend/LICENSES.md).

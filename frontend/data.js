@@ -1,3 +1,5 @@
+import { MAP_STYLES, THEME_MODES } from "./config.js";
+
 export const COLORS = {
   NoNewPrecipitation: "#009e73",
   WetRoadSurface: "#56b4e9",
@@ -98,6 +100,13 @@ export function validateConfig(config) {
     throw Error("Select a Statens vegvesen route");
   if (config.title !== undefined && typeof config.title !== "string")
     throw Error("Title must be text");
+  if (config.map_style !== undefined && !MAP_STYLES.includes(config.map_style))
+    throw Error("Select a supported map style");
+  if (
+    config.theme_mode !== undefined &&
+    !THEME_MODES.includes(config.theme_mode)
+  )
+    throw Error("Theme mode must be auto, light or dark");
   if (
     config.default_mode !== undefined &&
     !["condition", "slip"].includes(config.default_mode)

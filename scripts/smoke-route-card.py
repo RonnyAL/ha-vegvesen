@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -23,22 +24,86 @@ def choose_route(selector: Locator) -> None:
     selector.get_by_text("Trondheim - Orkanger", exact=True).click()
 
 
-def presentation_settings(dialog: Locator) -> None:
-    """Change each setting using the supported frontend's native controls."""
-    dialog.locator("ha-selector-text").get_by_role("textbox").fill("Route overview")
-    dialog.locator("ha-selector-number input").fill("480")
-    mode = dialog.locator("ha-selector-select")
+def select_setting(dialog: Locator, label: str, option: str) -> None:
+    """Select a labeled setting on either native form generation."""
+    mode = next(
+        item
+        for item in dialog.locator("ha-selector-select").all()
+        if item.evaluate("e => e.label") == label
+    )
     if mode.locator("ha-picker-field").count():
         mode.locator("ha-picker-field").click()
     else:
         mode.get_by_role("combobox").click()
-    mode.get_by_text("Slipperiness", exact=True).click()
-    expect(mode).to_have_js_property("value", "slip")
+    mode.get_by_text(option, exact=True).click()
+    if not mode.locator("ha-picker-field").count():
+        expect(mode.get_by_role("listbox")).not_to_be_visible()
+
+
+def presentation_settings(dialog: Locator) -> None:
+    """Change each setting using the supported frontend's native controls."""
+    dialog.locator("ha-selector-text").get_by_role("textbox").fill("Route overview")
+    if not dialog.locator("ha-selector-number input").is_visible():
+        dialog.get_by_text("Appearance", exact=True).click()
+    dialog.locator("ha-selector-number input").fill("480")
+    select_setting(dialog, "Initial layer", "Slipperiness")
+    select_setting(dialog, "Map style", "Natural")
+    select_setting(dialog, "Theme mode", "Dark")
     # Native switches can paint a control above their input. Exercise
     # normal keyboard activation instead of clicking through that layer.
     dialog.locator("ha-selector-boolean").get_by_role("switch").press("Space")
     dialog.get_by_role("button", name="Save", exact=True).click()
     expect(dialog).not_to_be_visible()
+
+
+def map_appearance(page: Page, card: Locator, results: Path) -> None:
+    """Check every palette, UI contrast and style swaps with a selected segment."""
+    config = card.evaluate("c => c._config")
+    selected_id = card.evaluate("c => c._segmentId")
+    center = card.evaluate("c => c._map.getCenter().toArray()")
+    card.evaluate("c => c._testedMap = c._map")
+    for preset in ("default", "colorful", "natural", "muted", "gray", "toner"):
+        for mode in ("light", "dark"):
+            card.evaluate(
+                "(c, config) => c.setConfig(config)",
+                {**config, "map_style": preset, "theme_mode": mode},
+            )
+            expect(card).to_have_js_property("_ready", value=True)
+            # MapLibre animates paint changes for 300ms after a style loads.
+            page.wait_for_timeout(400)
+            assert card.evaluate("c => c._map === c._testedMap")
+            assert card.evaluate("c => c._map.getCenter().toArray()") == center
+            assert card.evaluate("c => c._segmentId") == selected_id
+            assert card.evaluate("c => c._map.getStyle().metadata") == {
+                "vegvesen:preset": preset,
+                "vegvesen:mode": mode,
+            }
+            assert card.evaluate(
+                "c => getComputedStyle(c._inspector).backgroundColor"
+            ) == ("rgb(28, 28, 28)" if mode == "dark" else "rgb(255, 255, 255)")
+            if preset == "default":
+                page.screenshot(path=str(results / f"default-{mode}.png"))
+    card.evaluate(
+        "(c, config) => c.setConfig(config)", {**config, "theme_mode": "auto"}
+    )
+    for mode in ("dark", "light"):
+        page.emulate_media(color_scheme=mode)
+        expect(card).to_have_js_property("_dark", mode == "dark")
+        expect(card).to_have_js_property("_ready", value=True)
+        page.wait_for_timeout(400)
+        assert card.evaluate("c => c._map.getStyle().metadata['vegvesen:mode']") == mode
+        assert card.evaluate("c => getComputedStyle(c._inspector).backgroundColor") == (
+            "rgb(28, 28, 28)" if mode == "dark" else "rgb(255, 255, 255)"
+        )
+        assert card.locator(".maplibregl-ctrl-attrib").evaluate(
+            "e => getComputedStyle(e).backgroundColor"
+        ) == ("rgb(28, 28, 28)" if mode == "dark" else "rgb(255, 255, 255)")
+        page.screenshot(path=str(results / f"auto-{mode}.png"))
+    card.evaluate("(c, config) => c.setConfig(config)", {**config, "height": 240})
+    expect(card.get_by_role("button", name="Close segment details")).to_be_in_viewport()
+    page.screenshot(path=str(results / "compact-240.png"))
+    card.evaluate("(c, config) => c.setConfig(config)", config)
+    card.evaluate("c => delete c._testedMap")
 
 
 def expanded_map(page: Page, card: Locator, results: Path) -> None:
@@ -87,6 +152,34 @@ def expanded_map(page: Page, card: Locator, results: Path) -> None:
     )
 
 
+def basemap_recovery(page: Page, card: Locator) -> None:
+    """Keep forecasts usable after a refused style and recover on style change."""
+    config = card.evaluate("c => c._config")
+    center = card.evaluate("c => c._map.getCenter().toArray()")
+    url = "https://example.invalid/unavailable-map-style.json"
+    page.route(
+        url,
+        lambda route: route.fulfill(
+            status=404,
+            body="Missing style",
+            headers={"Access-Control-Allow-Origin": "*"},
+        ),
+    )
+    card.evaluate(
+        "(c, config) => c.setConfig(config)", {**config, "map_style_url": url}
+    )
+    expect(card.locator(".basemap")).to_contain_text("could not be loaded")
+    expect(card).to_have_js_property("_ready", value=True)
+    assert card.evaluate(
+        "c => c._map.getStyle().sources.forecasts.data.features.length > 0"
+    )
+    assert card.evaluate("c => c._map.getCenter().toArray()") == center
+    card.evaluate("(c, config) => c.setConfig(config)", config)
+    expect(card).to_have_js_property("_ready", value=True)
+    expect(card.locator(".basemap")).to_have_text("")
+    page.unroute(url)
+
+
 def inspector_updates(page: Page, card: Locator, results: Path) -> None:
     """Deliver fixture snapshots through the card's normal subscription callback."""
     inspector = card.locator(".inspector")
@@ -115,16 +208,6 @@ def inspector_updates(page: Page, card: Locator, results: Path) -> None:
             card.evaluate("c => c._map.getFilter('segment-outline').at(-1)")
             == selected_id
         )
-    card.evaluate("""c => {
-        const data = structuredClone(c._snapshot);
-        data.summary.road_condition.missing_segments = 2;
-        data.summary.slip_risk.unrecognized_segments = 1;
-        c._data.onData(data);
-    }""")
-    expect(card.locator(".data-quality summary")).to_have_text("Incomplete data")
-    expect(card.locator(".quality")).not_to_be_visible()
-    card.locator(".data-quality summary").click()
-    expect(card.locator(".quality")).to_contain_text("Unrecognized values: 1")
     card.get_by_role("button", name="Expand map", exact=True).click()
     expect(inspector).to_be_visible()
     expect(
@@ -157,6 +240,17 @@ def inspector_updates(page: Page, card: Locator, results: Path) -> None:
         == 0
     )
     expect(card.locator(".status")).to_contain_text("Route unavailable")
+    card.evaluate("(c, data) => c._data.onData(data)", original)
+    card.evaluate("""c => {
+        const data = structuredClone(c._snapshot);
+        data.summary.road_condition.missing_segments = 2;
+        data.summary.slip_risk.unrecognized_segments = 1;
+        c._data.onData(data);
+    }""")
+    expect(card.locator(".data-hint")).to_have_text("Incomplete data")
+    card.locator(".data-hint").click()
+    expect(card.locator(".quality")).to_contain_text("Unrecognized values: 1")
+    card.get_by_role("button", name="Map layers and legend").click()
     card.evaluate("(c, data) => c._data.onData(data)", original)
 
 
@@ -481,6 +575,15 @@ def run(instance: SmokeInstance) -> None:
             page.wait_for_timeout(1000)
             assert abs(card.evaluate("c => c._map.getZoom()") - zoom) < 0.01
             expect(card.locator(".headline")).to_contain_text("Highest slipperiness:")
+            expect(card.locator("header")).not_to_be_visible()
+            assert card.locator("ha-card").bounding_box()["height"] <= 402
+            fit = card.get_by_role(
+                "button", name="Fit route", exact=True
+            ).bounding_box()
+            assert fit["x"] - canvas.bounding_box()["x"] < 16
+            assert fit["width"] == 32
+            expect(card.locator(".legend")).not_to_be_visible()
+            card.get_by_role("button", name="Map layers and legend").click()
             card.locator(".modes").get_by_role(
                 "button", name="Slipperiness", exact=True
             ).click()
@@ -498,6 +601,7 @@ def run(instance: SmokeInstance) -> None:
             card.locator(".modes").get_by_role(
                 "button", name="Road condition", exact=True
             ).click()
+            card.get_by_role("button", name="Map layers and legend").click()
             page.screenshot(path=str(instance.results / "mobile-vector-card.png"))
             print(
                 "Mobile vector map rendered; zoom, touch pan and fit passed", flush=True
@@ -506,7 +610,7 @@ def run(instance: SmokeInstance) -> None:
             assert not card.locator(".basemap").inner_text()
             expanded_map(page, card, instance.results)
             # Tap a rendered source segment. Geometry stays in the map, with
-            # source values rendered as text in a panel below the map.
+            # source values rendered as text in a panel within the map.
             point = card.evaluate("""c => {
                 const map = c._map;
                 const canvas = map.getCanvas();
@@ -530,9 +634,11 @@ def run(instance: SmokeInstance) -> None:
             expect(card.locator(".inspector")).to_contain_text("Road temperature")
             assert (
                 card.locator(".inspector").bounding_box()["y"]
-                >= canvas.bounding_box()["y"] + canvas.bounding_box()["height"]
+                >= canvas.bounding_box()["y"]
             )
+            assert card.locator("ha-card").bounding_box()["height"] <= 402
             page.screenshot(path=str(instance.results / "segment-inspector.png"))
+            map_appearance(page, card, instance.results)
             inspector_updates(page, card, instance.results)
             # A touch just outside a narrow painted line still opens its data.
             near_line = card.evaluate("""c => {
@@ -556,6 +662,7 @@ def run(instance: SmokeInstance) -> None:
             expect(card.locator(".inspector")).to_be_visible()
             card.get_by_role("button", name="Close segment details").click()
             expect(card.locator(".inspector")).not_to_be_visible()
+            basemap_recovery(page, card)
             # Capture the same source line at street scales for visual review.
             center = card.evaluate(
                 "(c, p) => c._map.unproject([p.x, p.y]).toArray()", point
@@ -579,7 +686,9 @@ def run(instance: SmokeInstance) -> None:
                 }));
             }""")
             expect(card.get_by_role("button", name="Vis hele ruten")).to_be_visible()
-            expect(card.locator(".time")).to_contain_text("Prognosen gjelder for")
+            expect(card.locator(".time")).to_have_attribute(
+                "title", re.compile("Prognosen gjelder for")
+            )
             expect(card).to_have_js_property("_ready", value=True)
             card.evaluate(
                 "async c => { if (!c._map.loaded()) await new Promise("
@@ -623,10 +732,11 @@ def run(instance: SmokeInstance) -> None:
                 }));
             }""")
             expect(selector).to_have_js_property("label", "Rute")
+            dialog.get_by_text("Utseende", exact=True).click()
             expect(dialog.locator("ha-selector-number")).to_have_js_property(
                 "label", "Karthøyde"
             )
-            expect(dialog.locator("ha-selector-select")).to_have_js_property(
+            expect(dialog.locator("ha-selector-select").nth(2)).to_have_js_property(
                 "label", "Kartlag ved åpning"
             )
             page.screenshot(path=str(instance.results / "card-editor.png"))
@@ -649,7 +759,9 @@ def run(instance: SmokeInstance) -> None:
             assert saved_card["title"] == "Route overview"
             assert saved_card["height"] == 480
             assert saved_card["default_mode"] == "slip"
-            assert saved_card["legend_expanded"] is False
+            assert saved_card["legend_expanded"] is True
+            assert saved_card["theme_mode"] == "dark"
+            assert saved_card["map_style"] == "natural"
             for _ in range(3):
                 page.reload()
                 expect(card.locator("canvas")).to_be_visible(timeout=30000)
@@ -659,7 +771,8 @@ def run(instance: SmokeInstance) -> None:
                 expect(
                     card.locator(".modes").get_by_role("button", name="Slipperiness")
                 ).to_have_attribute("aria-pressed", "true")
-                expect(card.locator(".legend")).not_to_be_visible()
+                expect(card.locator(".legend")).to_be_visible()
+                expect(card).to_have_js_property("_dark", value=True)
             cold_views(browser, base, tokens, instance.results)
             automatic_loading_lifecycle(page, base, entry_id)
             # HA 2025.12 can reject a skipped native view transition on a
@@ -692,6 +805,16 @@ def run(instance: SmokeInstance) -> None:
                         "fullscreen_css_fallback": True,
                         "persistent_segment_details": True,
                         "visual_presentation_settings": True,
+                        "map_styles": [
+                            "default",
+                            "colorful",
+                            "natural",
+                            "muted",
+                            "gray",
+                            "toner",
+                        ],
+                        "theme_modes": ["auto", "light", "dark"],
+                        "compact_map_controls": True,
                         "forecast_hours": 0,
                         "automatic_registration": True,
                         "card_picker": True,

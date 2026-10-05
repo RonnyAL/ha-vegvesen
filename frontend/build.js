@@ -3,40 +3,55 @@ import { build } from "esbuild";
 import { osm } from "@versatiles/style";
 import { readFile, mkdir, writeFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { MAP_STYLES } from "./config.js";
+import { HA_MAP_COLORS, HA_MAP_COLORS_DARK } from "./ha-map-palette.js";
 
 const directory = "custom_components/vegvesen/frontend";
 const styles = {};
-for (const theme of ["muted", "muted-dark"]) {
-  const style = osm({ theme, projection: "mercator" });
-  style.sources["versatiles-shortbread"] = {
-    type: "vector",
-    url: "https://vector.openstreetmap.org/shortbread_v1/tilejson.json",
-    attribution:
-      '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  };
-  style.glyphs =
-    "https://vector.openstreetmap.org/styles/shortbread/fonts/{fontstack}/{range}.pbf";
-  // A quiet road map needs labels, not POI icons or extra sprite downloads.
-  delete style.sprite;
-  for (const layer of style.layers) {
-    if (layer.layout) {
-      for (const key of Object.keys(layer.layout)) {
-        if (key.startsWith("icon-")) delete layer.layout[key];
+for (const preset of MAP_STYLES)
+  for (const dark of [false, true]) {
+    const base = preset === "default" ? "colorful" : preset;
+    const theme = base + (dark ? "-dark" : "");
+    const style = osm({
+      theme,
+      projection: "mercator",
+      ...(preset === "default"
+        ? { colors: dark ? HA_MAP_COLORS_DARK : HA_MAP_COLORS }
+        : {}),
+    });
+    style.metadata = {
+      "vegvesen:preset": preset,
+      "vegvesen:mode": dark ? "dark" : "light",
+    };
+    style.sources["versatiles-shortbread"] = {
+      type: "vector",
+      url: "https://vector.openstreetmap.org/shortbread_v1/tilejson.json",
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    };
+    style.glyphs =
+      "https://vector.openstreetmap.org/styles/shortbread/fonts/{fontstack}/{range}.pbf";
+    // A quiet road map needs labels, not POI icons or extra sprite downloads.
+    delete style.sprite;
+    for (const layer of style.layers) {
+      if (layer.layout) {
+        for (const key of Object.keys(layer.layout)) {
+          if (key.startsWith("icon-")) delete layer.layout[key];
+        }
+      }
+      if (layer.paint) {
+        delete layer.paint["fill-pattern"];
+        for (const key of Object.keys(layer.paint)) {
+          if (key.startsWith("icon-")) delete layer.paint[key];
+        }
       }
     }
-    if (layer.paint) {
-      delete layer.paint["fill-pattern"];
-      for (const key of Object.keys(layer.paint)) {
-        if (key.startsWith("icon-")) delete layer.paint[key];
-      }
-    }
+    style.layers = style.layers.filter(
+      (layer) =>
+        layer.type !== "symbol" || layer.layout?.["text-field"] !== undefined,
+    );
+    styles[`${preset}-${dark ? "dark" : "light"}`] = style;
   }
-  style.layers = style.layers.filter(
-    (layer) =>
-      layer.type !== "symbol" || layer.layout?.["text-field"] !== undefined,
-  );
-  styles[theme] = style;
-}
 
 const result = await build({
   entryPoints: ["frontend/route-map-card.js"],
@@ -48,22 +63,12 @@ const result = await build({
   legalComments: "inline",
   loader: { ".css": "text" },
   write: false,
-  plugins: [
-    {
-      name: "basemaps",
-      setup(build) {
-        build.onResolve({ filter: /^generated-styles$/ }, () => ({
-          path: "styles",
-          namespace: "generated",
-        }));
-        build.onLoad({ filter: /.*/, namespace: "generated" }, () => ({
-          contents: `export default ${JSON.stringify(styles)}`,
-        }));
-      },
-    },
-  ],
 });
 const licenses = [
+  [
+    "Home Assistant frontend 20260930.0 (default map palette; Home Assistant contributors)",
+    "frontend/LICENSE.home-assistant.md",
+  ],
   [
     "MapLibre GL JS 6.12.0 (including bundled dependencies)",
     "node_modules/maplibre-gl/LICENSE.txt",
@@ -108,6 +113,10 @@ async function dependencyLicenses(name) {
 }
 await dependencyLicenses("maplibre-gl");
 const outputs = [
+  ...Object.entries(styles).map(([name, style]) => [
+    resolve(directory, "styles", `${name}.json`),
+    Buffer.from(JSON.stringify(style) + "\n"),
+  ]),
   ...[...result.outputFiles, ...worker.outputFiles].map((file) => [
     file.path,
     file.contents,
@@ -115,7 +124,7 @@ const outputs = [
   [resolve(directory, "LICENSES.md"), Buffer.from(notice.trimEnd() + "\n")],
 ];
 if (!process.argv.includes("--check"))
-  await mkdir(directory, { recursive: true });
+  await mkdir(`${directory}/styles`, { recursive: true });
 for (const [path, content] of outputs) {
   if (process.argv.includes("--check")) {
     if (!Buffer.from(await readFile(path)).equals(Buffer.from(content)))

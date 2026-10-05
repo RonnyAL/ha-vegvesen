@@ -18,6 +18,9 @@ import {
   editorConfig,
   routeSchema,
   stubConfig,
+  MAP_STYLES,
+  THEME_MODES,
+  darkMode,
 } from "./config.js";
 
 test("route defaults and legacy editor selections use stable devices, without choosing among several routes", () => {
@@ -39,13 +42,17 @@ test("route defaults and legacy editor selections use stable devices, without ch
     height: 500,
     title: "My route",
     default_mode: "condition",
-    legend_expanded: true,
+    legend_expanded: false,
+    map_style: "default",
+    theme_mode: "auto",
   });
   assert.equal(legacy.entity, "sensor.renamed");
   assert.deepEqual(editorConfig(legacy, {}), {
     ...legacy,
     default_mode: "condition",
-    legend_expanded: true,
+    legend_expanded: false,
+    map_style: "default",
+    theme_mode: "auto",
   });
   assert.deepEqual(
     editorConfig({ device_id: "chosen", entity: "sensor.renamed" }, hass),
@@ -53,7 +60,9 @@ test("route defaults and legacy editor selections use stable devices, without ch
       device_id: "chosen",
       height: 400,
       default_mode: "condition",
-      legend_expanded: true,
+      legend_expanded: false,
+      map_style: "default",
+      theme_mode: "auto",
     },
   );
   hass.devices.two = { id: "two", model: "Route forecast" };
@@ -93,6 +102,8 @@ test("editor clears optional settings, retains false and preserves advanced YAML
     ["height", NaN],
     ["default_mode", "high"],
     ["legend_expanded", "false"],
+    ["theme_mode", "unknown"],
+    ["map_style", "other"],
   ])
     assert.throws(() => validateConfig({ device_id: "route", [key]: value }));
 });
@@ -100,7 +111,9 @@ test("editor clears optional settings, retains false and preserves advanced YAML
 test("visual-editor fields and options have English and Bokmål labels", () => {
   for (const language of ["en", "nb"]) {
     const l = labels[language];
-    const schema = routeSchema(l);
+    const flatten = (fields) =>
+      fields.flatMap((f) => (f.schema ? flatten(f.schema) : [f]));
+    const schema = flatten(routeSchema(l));
     for (const field of schema)
       assert.equal(typeof l.editor[field.name], "string");
     const options = schema.find((f) => f.name === "default_mode").selector
@@ -113,7 +126,49 @@ test("visual-editor fields and options have English and Bokmål labels", () => {
       options.map((o) => o.value),
       ["condition", "slip"],
     );
+    for (const [name, values] of [
+      ["map_style", MAP_STYLES],
+      ["theme_mode", THEME_MODES],
+    ]) {
+      const choices = schema.find((f) => f.name === name).selector.select
+        .options;
+      assert.deepEqual(
+        choices.map((c) => c.value),
+        values,
+      );
+      assert(
+        choices.every((c) => typeof c.label === "string" && c.label.length > 0),
+      );
+    }
   }
+});
+
+test("auto follows HA dark mode while explicit modes override it", () => {
+  for (const dark of [false, true]) {
+    const hass = { themes: { darkMode: dark } };
+    assert.equal(darkMode({}, hass), dark);
+    assert.equal(darkMode({ theme_mode: "auto" }, hass), dark);
+    assert.equal(darkMode({ theme_mode: "dark" }, hass), true);
+    assert.equal(darkMode({ theme_mode: "light" }, hass), false);
+    for (const map_style of MAP_STYLES)
+      assert.equal(
+        validateConfig({ device_id: "route", map_style }).map_style,
+        map_style,
+      );
+  }
+  const legacy = {
+    device_id: "route",
+    title: "Named route",
+    height: 480,
+    legend_expanded: true,
+    map_style_url: "https://example.org/style.json",
+  };
+  assert.deepEqual(validateConfig(legacy), legacy);
+  const cleared = changedConfig(legacy, { map_style: null, theme_mode: "" });
+  assert.equal(editorConfig(cleared).map_style, "default");
+  assert.equal(editorConfig(cleared).theme_mode, "auto");
+  assert.equal(editorConfig(cleared).title, "Named route");
+  assert.equal(editorConfig(cleared).legend_expanded, true);
 });
 
 test("segment selection follows source identity across refreshed values and disappears on missing or filtered data", () => {

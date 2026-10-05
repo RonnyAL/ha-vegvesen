@@ -100,7 +100,8 @@ contains distribution assets. npm's cache and node_modules are ignored.
 
 The optional live browser checks exercise automatic module loading, the native
 card picker/editor, saved presentation settings, OSM vector tiles, touch panning,
-zoom, fullscreen and CSS fallback, segment-detail updates and English/Bokmål:
+zoom, fullscreen and CSS fallback, segment-detail updates, all light/dark map
+styles, automatic theme changes, basemap failure/recovery and English/Bokmål:
 
 ```bash
 scripts/smoke-ui --route-card

@@ -1,6 +1,6 @@
 # Interactive route-map card
 
-Route-map development is now on `main`. The latest published beta is **0.8.0b8**;
+Route-map development is now on `main`. The latest published beta is **0.8.0b9**;
 the stable release remains **0.7.4**. Installation and upgrade instructions are in the
 [README](../README.md#interactive-dashboard-card).
 
@@ -13,7 +13,8 @@ resolves it using registry identifiers and route subentries, never display names
 or model strings. A single route is preselected for a new card; several routes
 require a choice. No extra entity, route catalogue or source request is needed.
 
-The same native form exposes `title`, `height`, `default_mode` and
+The same native form exposes an optional `title` and an **Appearance** expander
+containing `map_style`, `theme_mode`, `height`, `default_mode` and
 `legend_expanded`, with English and Bokmål labels. Cleared optional fields return
 to defaults; advanced YAML such as `map_style_url` is retained. Presentation
 changes do not change route settings or request new source data.
@@ -56,10 +57,36 @@ carriageway coverage. Filters preserve the full route as subdued context.
 ## Rendering and provider
 
 The card bundles **MapLibre GL JS 6.12.0** and uses styles generated offline with
-**VersaTiles Style 6.1.1**, in muted light/dark palettes. This follows HA's 2026.10
+**VersaTiles Style 6.1.1**, with six light/dark style pairs. This follows HA's 2026.10
 vector-map approach, while avoiding its internal components, token handling and
 tile proxy. The unchanged minimum HA **2025.12.0** already provides the required
 WebSocket, static-path and dashboard APIs. Browser WebGL 2 is required.
+
+The reference is **HA Core 2026.10.0b0**, whose
+[frontend manifest](https://github.com/home-assistant/core/blob/2026.10.0b0/homeassistant/components/frontend/manifest.json)
+pins **frontend 20260930.0**. Its
+[map-card editor](https://github.com/home-assistant/frontend/blob/20260930.0/src/panels/lovelace/editor/config-elements/hui-map-card-editor.ts)
+groups visual settings under Appearance, and its
+[style definitions](https://github.com/home-assistant/frontend/blob/20260930.0/src/common/map/map-styles.ts)
+offer Default, Colorful, Natural, Muted, Gray and Toner. This card uses those
+preset names and Auto/Light/Dark theme semantics, with no automatic title.
+
+The default light/dark color tables are copied from HA's Apache-2.0
+[`ha-map-palette.ts`](https://github.com/home-assistant/frontend/blob/20260930.0/src/common/map/ha-map-palette.ts),
+with source attribution and its license in the source tree and bundled notices.
+The remaining palettes come from the pinned VersaTiles builder. The build emits
+twelve local JSON assets; only the selected style is fetched, using the module's
+version parameter. No runtime builder, HA-internal style imports or map proxy
+is required. Source condition colors retain their meaning across all styles.
+
+Auto follows `hass.themes.darkMode`. Forced modes change map controls, panels and
+attribution along with the basemap, even when the HA page uses the opposite mode.
+Style changes use MapLibre's public `setStyle` and `style.load` lifecycle,
+restoring forecast layers from the current snapshot while keeping the map camera
+and selected source. This does not implement HA's advanced per-feature map
+color overrides or arbitrary custom `map_style` objects. Existing
+`map_style_url` configurations take precedence over presets; Theme mode changes
+their UI but does not recolor an external provider's style.
 
 The default source is the public OSM Shortbread TileJSON at
 <https://vector.openstreetmap.org/shortbread_v1/tilejson.json>. Label fonts also
@@ -87,11 +114,18 @@ route/forecast geometry usable and shows a message. The configuration preview
 continues to use the existing simple static route image.
 
 Since 0.8.0b8, tapping a segment selects its stable source ID, draws an outline
-without changing its condition colour, and shows details below the map. A new
+without changing its condition colour, and shows its details. A new
 snapshot refreshes those details without changing the viewport. Missing records,
 missing geometry, failures and disconnects clear the selection; choosing a
 category or fitting the route also resets it. Data-quality counts sit in an
 expandable section, while its incomplete-data label stays visible.
+
+From 0.8.0b9, zoom, fit, expansion and layers controls occupy a compact column
+inside the map on the left. The legend starts collapsed; its popup and the
+segment panel stay inside the map, leaving attribution and controls accessible.
+The panels alternate so they do not overlap each other. An explicit
+`legend_expanded: true` retains the open-on-start preference. The card's height
+stays fixed while inspecting a source, with scrolling inside long panels.
 
 Expansion uses MapLibre's public `FullscreenControl` with the whole card as its
 container. Its built-in CSS fallback supports browsers without the Fullscreen
@@ -101,7 +135,7 @@ releases its expanded container. No HA dialogs, private frontend hooks or map
 components are used for expansion. Companion WebView behavior still needs
 physical-device testing.
 
-Fit bounds reserve space for the map controls so endpoint markers remain visible.
+Fit bounds leave a margin for the left control column.
 
 ## Supported extension points
 
@@ -228,3 +262,14 @@ during reload. A rerun passed without changing or suppressing that error check.
 The older frontend's already documented skipped-view-transition notices remain;
 the card does not patch HA's theme or transition behavior. Browser emulation is
 not a substitute for checking expansion in physical companion apps.
+
+For 0.8.0b9, all 14 JavaScript tests pass, including the six packaged style pairs,
+HA palette colors, theme-mode selection and compatibility with existing settings.
+The 364 Python tests retain 97% statement coverage. Packaged browser scenarios
+pass on HA 2025.12.0 and 2026.10.0b0: no default title, controls on the left,
+fixed card height while inspecting, every light/dark palette, automatic HA theme
+changes, forced-mode UI contrast, retained viewport/selection across style changes,
+native Appearance settings saved across reloads, and failed-style fallback/recovery.
+Existing fullscreen, language, source-data and registration lifecycle checks also
+pass. Screenshots include 390-pixel mobile width and the minimum 240-pixel map
+height; physical companion-app testing remains necessary.

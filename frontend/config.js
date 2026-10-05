@@ -1,3 +1,17 @@
+// The map settings use the same preset names as HA 2026.10.0b0's map card.
+export const MAP_STYLES = [
+  "default",
+  "colorful",
+  "natural",
+  "muted",
+  "gray",
+  "toner",
+];
+export const THEME_MODES = ["auto", "light", "dark"];
+export const darkMode = (config, hass) =>
+  config.theme_mode === "dark" ||
+  (config.theme_mode !== "light" && !!hass?.themes?.darkMode);
+
 // A route already has a HA device. Use its stable ID rather than a summary sensor.
 export const routeSchema = (labels) => [
   {
@@ -11,37 +25,68 @@ export const routeSchema = (labels) => [
   },
   { name: "title", selector: { text: {} } },
   {
-    name: "height",
-    selector: {
-      number: {
-        min: 240,
-        max: 1000,
-        step: 10,
-        mode: "box",
-        unit_of_measurement: "px",
-      },
-    },
-  },
-  {
-    name: "default_mode",
-    selector: {
-      select: {
-        mode: "dropdown",
-        options: [
-          { value: "condition", label: labels.condition },
-          { value: "slip", label: labels.slip },
+    name: "",
+    type: "expandable",
+    title: labels.appearance,
+    icon: "mdi:palette",
+    schema: [
+      {
+        name: "",
+        type: "grid",
+        schema: [
+          ...[
+            ["theme_mode", THEME_MODES, labels.theme_modes],
+            ["map_style", MAP_STYLES, labels.map_styles],
+          ].map(([name, choices, names]) => ({
+            name,
+            selector: {
+              select: {
+                mode: "dropdown",
+                options: choices.map((value) => ({
+                  value,
+                  label: names[value],
+                })),
+              },
+            },
+          })),
+          {
+            name: "height",
+            selector: {
+              number: {
+                min: 240,
+                max: 1000,
+                step: 10,
+                mode: "box",
+                unit_of_measurement: "px",
+              },
+            },
+          },
+          {
+            name: "default_mode",
+            selector: {
+              select: {
+                mode: "dropdown",
+                options: [
+                  { value: "condition", label: labels.condition },
+                  { value: "slip", label: labels.slip },
+                ],
+              },
+            },
+          },
+          { name: "legend_expanded", selector: { boolean: {} } },
         ],
       },
-    },
+    ],
   },
-  { name: "legend_expanded", selector: { boolean: {} } },
 ];
 
 export function editorConfig(config, hass) {
   const defaults = {
     height: 400,
     default_mode: "condition",
-    legend_expanded: true,
+    legend_expanded: false,
+    map_style: "default",
+    theme_mode: "auto",
   };
   const device_id =
     config.device_id || hass?.entities?.[config.entity]?.device_id;
@@ -55,7 +100,14 @@ export function changedConfig(config, values) {
   const result = { ...config, ...values };
   delete result.entity;
   // Clearing an optional field restores its default instead of storing null.
-  for (const key of ["title", "height", "default_mode", "legend_expanded"]) {
+  for (const key of [
+    "title",
+    "height",
+    "default_mode",
+    "legend_expanded",
+    "theme_mode",
+    "map_style",
+  ]) {
     if (result[key] == null || result[key] === "") delete result[key];
   }
   return result;
