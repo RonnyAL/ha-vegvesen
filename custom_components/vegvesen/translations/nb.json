@@ -99,9 +99,11 @@
       "no_route": "Ingen kjørbar rute funnet mellom punktene.",
       "zone_unavailable": "Sonen mangler gyldige koordinater. Velg en annen sone eller et punkt på kartet.",
       "invalid_forecast_hours": "Velg et helt antall timer fra 0 til 24.",
-      "invalid_corridor": "Velg en gyldig avstand fra 10 til 2000 meter.",
+      "invalid_corridor": "Velg en gyldig avstand fra 1 til 2000 meter.",
       "off_road_network": "Velg et punkt nærmere en vei som støttes av rutetjenesten.",
-      "no_sources_selected": "Velg minst ett alternativ."
+      "no_sources_selected": "Velg minst ett alternativ.",
+      "route_timeout": "Ruteberegningen tok for lang tid. Prøv igjen eller endre start og mål.",
+      "unknown": "En uventet feil oppstod under ruteberegningen. Prøv igjen. Se loggen for detaljer."
     },
     "abort": {
       "already_configured": "Statens vegvesen er allerede konfigurert. Legg til datakilder eller ruter i den eksisterende integrasjonen."
@@ -262,8 +264,10 @@
         "cannot_connect": "Kunne ikke beregne ruten. Prøv igjen.",
         "zone_unavailable": "Sonen mangler gyldige koordinater. Velg en annen sone eller et punkt på kartet.",
         "invalid_forecast_hours": "Velg et helt antall timer fra 0 til 24.",
-        "invalid_corridor": "Velg en gyldig avstand fra 10 til 2000 meter.",
-        "off_road_network": "Velg et punkt nærmere en vei som støttes av rutetjenesten."
+        "invalid_corridor": "Velg en gyldig avstand fra 1 til 2000 meter.",
+        "off_road_network": "Velg et punkt nærmere en vei som støttes av rutetjenesten.",
+        "route_timeout": "Ruteberegningen tok for lang tid. Prøv igjen eller endre start og mål.",
+        "unknown": "En uventet feil oppstod under ruteberegningen. Prøv igjen. Se loggen for detaljer."
       },
       "abort": {
         "reconfigure_successful": "Ruten er oppdatert."

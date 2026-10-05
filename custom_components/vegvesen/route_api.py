@@ -25,6 +25,10 @@ ROUTING_URL = "https://www.vegvesen.no/ws/no/vegvesen/ruteplan/routingservice_v3
 FORECAST_URL = "https://ogckart-sn1.atlas.vegvesen.no/ogc/features/v1/collections/vegvar_1_0:vv_road_prognosis_V2/items"
 
 
+class RouteCalculationTimeoutError(VegvesenApiError):
+    """The bounded routing request did not finish in time."""
+
+
 class RoutePointError(VegvesenApiError):
     """The routing service cannot match an endpoint to its road network."""
 
@@ -166,7 +170,11 @@ class RouteApiClient:
                     if response.status != HTTPStatus.OK:
                         raise VegvesenApiError("Unexpected routing response")
                     return parse_routes(await response.json())
-        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+        except TimeoutError as err:
+            raise RouteCalculationTimeoutError(
+                "Road route calculation timed out"
+            ) from err
+        except (aiohttp.ClientError, ValueError) as err:
             raise VegvesenApiError("Cannot calculate road route") from err
 
     async def async_forecasts(

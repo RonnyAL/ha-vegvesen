@@ -127,6 +127,21 @@ def test_routing_geometry_and_filtering(
     )
 
 
+def test_narrow_corridor_matches_source_geometry_without_snapping() -> None:
+    """A one-metre corridor excludes a parallel segment about two metres away."""
+    route = {"type": "LineString", "coordinates": [[10, 60], [10.01, 60]]}
+    parallel = {
+        "type": "LineString",
+        "coordinates": [[10.002, 60.00002], [10.008, 60.00002]],
+    }
+    narrow = make_corridor(route, 1)
+    assert narrow.intersects(route)
+    assert not narrow.intersects(parallel)
+    assert make_corridor(route, 5).intersects(parallel)
+    with pytest.raises(VegvesenApiError, match="corridor width"):
+        make_corridor(route, 0)
+
+
 @pytest.mark.parametrize(
     "damage",
     ["empty", "missing_part", "coordinate", "temperature", "timestamp", "unit"],

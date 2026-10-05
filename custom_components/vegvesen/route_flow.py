@@ -22,8 +22,9 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import VegvesenApiError
+from .const import LOGGER
 from .discovery import async_get_discovery
-from .route_api import RoadRoute, RoutePointError
+from .route_api import RoadRoute, RouteCalculationTimeoutError, RoutePointError
 from .route_map import MapContent
 from .route_map_view import DATA_MAPS, async_get_route_maps
 
@@ -127,9 +128,9 @@ class RouteFlow:
             "end_source": self._endpoint_selector(),
             "corridor_m": NumberSelector(
                 NumberSelectorConfig(
-                    min=10,
+                    min=1,
                     max=2000,
-                    step=10,
+                    step=1,
                     mode=NumberSelectorMode.BOX,
                     unit_of_measurement="m",
                 )
@@ -231,6 +232,16 @@ class RouteFlow:
         return self._route_locations_form(errors)
 
     async def _async_calculate_route(self) -> dict[str, str]:
+        """Finish HA's progress task with an editable error, preserving cancellation."""
+        try:
+            return await self._async_resolve_route()
+        except RouteCalculationTimeoutError:
+            return {"base": "route_timeout"}
+        except Exception:  # noqa: BLE001
+            LOGGER.exception("Unexpected error calculating road route")
+            return {"base": "unknown"}
+
+    async def _async_resolve_route(self) -> dict[str, str]:
         """Resolve zones at explicit calculation time and reuse unchanged geometry."""
         for endpoint in ("start", "end"):
             source = self._route_data.get(f"{endpoint}_source", "map")
@@ -262,6 +273,8 @@ class RouteFlow:
             if self._route_data.get(f"{field}_source", "map") != "map":
                 field = f"{field}_source"
             return {field: "off_road_network"}
+        except RouteCalculationTimeoutError:
+            raise
         except VegvesenApiError:
             return {"base": "cannot_connect"}
         return {} if self._route_choices else {"base": "no_route"}

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
+import voluptuous as vol
 from aioresponses import CallbackResult
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.data_entry_flow import FlowResultType
@@ -24,6 +25,7 @@ from .helpers import (
     page,
     weather_url,
 )
+from .test_routes import routing_url
 from .test_selection import start_flow
 
 if TYPE_CHECKING:
@@ -141,6 +143,120 @@ async def test_route_numeric_validation(
 
 
 @pytest.mark.parametrize("kind", ["parent", "subentry"])
+async def test_fine_corridor_limits(hass: HomeAssistant, kind: str) -> None:
+    """Allow narrow positive corridors while zero and out-of-range widths fail."""
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="public_service", data={})
+    manager, result = await start_flow(hass, "route", kind, entry)
+    serialized = FlowManagerIndexView(manager)._prepare_result_json(result)
+    field = next(f for f in serialized["data_schema"] if f["name"] == "corridor_m")
+    assert field["default"] == 100
+    assert field["selector"]["number"]["step"] == 1
+    settings = {"start_source": "map", "end_source": "map", "forecast_hours": 0}
+    for width in (0, -1, 2001):
+        with pytest.raises(vol.Invalid):
+            result["data_schema"]({**settings, "corridor_m": width})
+    for width in (1, 5, 10, 2000):
+        assert (
+            result["data_schema"]({**settings, "corridor_m": width})["corridor_m"]
+            == width
+        )
+    manager.async_abort(result["flow_id"])
+
+
+@pytest.mark.parametrize("kind", ["parent", "subentry", "reconfigure"])
+@pytest.mark.parametrize("failure", ["timeout", "unexpected"])
+async def test_route_progress_failure_and_retry(
+    hass: HomeAssistant,
+    mock_http: aioresponses,
+    route_data: dict[str, Any],
+    routing: dict[str, Any],
+    kind: str,
+    failure: str,
+) -> None:
+    """Deadline expiry and task errors finish progress and retain input."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="public_service",
+        subentries_data=[
+            {
+                "subentry_type": "route",
+                "unique_id": "route:example-route",
+                "title": route_data["name"],
+                "data": route_data,
+            }
+        ]
+        if kind == "reconfigure"
+        else [],
+    )
+    if kind == "reconfigure":
+        entry.add_to_hass(hass)
+        manager = hass.config_entries.subentries
+        result = await manager.async_init(
+            (entry.entry_id, "route"),
+            context={
+                "source": "reconfigure",
+                "subentry_id": next(iter(entry.subentries)),
+            },
+        )
+    else:
+        manager, result = await start_flow(hass, "route", kind, entry)
+        result = await manager.async_configure(
+            result["flow_id"],
+            {
+                "name": "Retained name",
+                "start_source": "map",
+                "end_source": "map",
+                "corridor_m": 1,
+                "forecast_hours": 0,
+            },
+        )
+    cancelled = asyncio.Event()
+    failed = False
+
+    async def response(*_args: Any, **_kwargs: Any) -> CallbackResult:
+        nonlocal failed
+        # aioresponses retains a matcher whose callback raised or was cancelled.
+        if failed:
+            return CallbackResult(payload=routing)
+        failed = True
+        if failure == "unexpected":
+            raise RuntimeError("Test routing task failure")
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+        return CallbackResult(payload=routing)
+
+    mock_http.get(routing_url(route_data), callback=response)
+    with patch("custom_components.vegvesen.route_api.REQUEST_TIMEOUT", 0.01):
+        result = await manager.async_configure(
+            result["flow_id"],
+            {"next_step_id": "route_recalculate"}
+            if kind == "reconfigure"
+            else {key: route_data[key] for key in ("start", "end")},
+        )
+        await hass.async_block_till_done()
+        result = await finish_progress(manager, result)
+    assert result["step_id"] == "route_locations"
+    assert result["errors"] == {
+        "base": "route_timeout" if failure == "timeout" else "unknown"
+    }
+    if failure == "timeout":
+        assert cancelled.is_set()
+    if kind == "reconfigure":
+        assert dict(next(iter(entry.subentries.values())).data) == route_data
+    result = await manager.async_configure(
+        result["flow_id"], {key: route_data[key] for key in ("start", "end")}
+    )
+    result = await finish_progress(manager, result)
+    assert result["step_id"] == "route_overview"
+    assert result["description_placeholders"]["name"] == (
+        route_data["name"] if kind == "reconfigure" else "Retained name"
+    )
+    manager.async_abort(result["flow_id"])
+
+
+@pytest.mark.parametrize("kind", ["parent", "subentry"])
 @pytest.mark.parametrize("family", ["weather_station", "camera"])
 @pytest.mark.parametrize("stage", ["discovery", "validation"])
 async def test_source_progress_cancellation(
@@ -236,6 +352,8 @@ async def test_native_progress_translations(hass: HomeAssistant, language: str) 
             if category == "config" or prefix.endswith(".route"):
                 assert labels[f"{prefix}.error.invalid_forecast_hours"]
                 assert labels[f"{prefix}.error.invalid_corridor"]
+                assert labels[f"{prefix}.error.route_timeout"]
+                assert labels[f"{prefix}.error.unknown"]
 
 
 @pytest.mark.parametrize("kind", ["parent", "subentry", "reconfigure"])
@@ -248,8 +366,6 @@ async def test_route_calculation_cancellation(
 ) -> None:
     """HA cancels slow route requests without creating or editing saved routes."""
     from copy import deepcopy  # noqa: PLC0415
-
-    from .test_routes import routing_url  # noqa: PLC0415
 
     original = deepcopy(route_data)
     entry = MockConfigEntry(

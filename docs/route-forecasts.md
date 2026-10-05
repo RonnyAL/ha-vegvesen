@@ -61,7 +61,7 @@ forecast collection metadata, WMS GetCapabilities and bounded live requests.
 | Route endpoints | `Stops` uses coordinates in the selected `InputSRS`; WGS84 is supported. The service describes Norwegian, Swedish and Finnish road networks. | Send longitude,latitude with explicit `EPSG_4326` input/output. Validate finite geographic coordinates; let the service decide road-network reachability rather than imposing a country or area boundary. |
 | Endpoint road matching | HTTP 404 codes 9200/9201 identify an unmatched start/end. No numeric snap-distance limit was found in the inspected v3 contract. | From 0.6.4, show an editable error on that map or zone field. Do not invent a snapping radius. Accept both documented `Code` and observed `code`. Other no-route codes remain distinct from overload, timeout and internal errors. |
 | Forecast time | The endpoint accepts a timezone-aware timestamp filter. No fixed rolling horizon is advertised by the collection or WMS metadata. | Whole-hour offsets match observed source timestamps. The 0–24-hour selector range is an integration choice, not a guarantee that each target is published. A complete empty response remains unknown; no nearer-time substitution. |
-| Corridor | The routing API receives no corridor parameter. Forecast retrieval receives the locally calculated geographic bounding box. | 10–2,000 metres is a UI/performance choice for local geometry matching, not an upstream radius requirement. No separate geographic restriction or undocumented route-length limit is added. |
+| Corridor | The routing API receives no corridor parameter. Forecast retrieval receives the locally calculated geographic bounding box. | 1–2,000 metres, in one-metre steps, is a UI/performance choice for local geometry matching, not an upstream radius requirement. Default 100 metres. No separate geographic restriction or undocumented route-length limit is added. |
 | Pagination/size | Actual OGC responses accept `limit=500` and supply continuation metadata. The inspected material does not establish a maximum route area or a guaranteed response size. | Keep the complete-pagination checks and bounded request deadline. An oversized/incomplete request fails instead of publishing partial data. |
 | Usage | The routing catalogue states 2,500 calls/day, alongside credential instructions that differ from the working open endpoint. | Calculate only during explicit configuration/recalculation and reuse unchanged geometry. Respect HTTP 429; do not assert a verified open-endpoint quota scope or apply the routing quota to the separate forecast API. |
 
@@ -255,3 +255,27 @@ These are counts within the corridor, not exact-route coverage or distance.
 The [interactive card](route-card.md) uses the same cached snapshot and source
 counts, with condition/slipperiness highlighting. Full geometry stays out of
 entity state and recorder. There is no saved-route image entity.
+
+### Narrow corridors and route-calculation recovery
+
+The routing service's v3 OpenAPI was rechecked on 2026-10-05: no corridor radius
+parameter, default, minimum or maximum is specified for route calculation.
+Forecast collection matching uses the integration's local metric buffer after
+complete bounding-box pagination. Zero is unsupported: a zero-width buffer has
+no area, and independently produced route/forecast lines need not coincide.
+Positive widths as small as one metre are allowed, without snapping or correcting
+source geometry. A narrow corridor is not a guarantee of exact carriageway
+matching or complete forecast coverage.
+
+HA's native progress task retains the existing 30-second routing-request
+bound. A timeout returns a translated, editable error. Unexpected calculation
+task exceptions are logged and return an editable error too, rather than
+escaping when HA reads the completed task. User cancellation still propagates
+through HA's normal progress lifecycle. Draft endpoints/settings survive failure
+and retry; failed reconfiguration does not modify a saved route.
+
+Tests exercise timeout, unexpected failure, retry and cancellation through the
+real HA flow manager for parent entries, subentries and reconfiguration. A
+synthetic geometry regression verifies one-metre matching and exclusion of a
+parallel source line about two metres away. Corridor width does not affect the
+routing request or pre-save preview calculation.

@@ -99,9 +99,11 @@
       "no_route": "No drivable route found between these locations.",
       "zone_unavailable": "This zone has no usable coordinates. Choose another zone or a point on the map.",
       "invalid_forecast_hours": "Choose a whole number of hours from 0 to 24.",
-      "invalid_corridor": "Choose a valid distance from 10 to 2000 metres.",
+      "invalid_corridor": "Choose a valid distance from 1 to 2000 metres.",
       "off_road_network": "Choose a point closer to a road supported by the routing service.",
-      "no_sources_selected": "Select at least one option."
+      "no_sources_selected": "Select at least one option.",
+      "route_timeout": "Route calculation timed out. Try again or change the start and destination.",
+      "unknown": "An unexpected error occurred while calculating the route. Try again. See the logs for details."
     },
     "abort": {
       "already_configured": "Statens vegvesen is already configured. Add sources or routes to the existing integration."
@@ -262,8 +264,10 @@
         "cannot_connect": "Could not calculate the route. Try again.",
         "zone_unavailable": "This zone has no usable coordinates. Choose another zone or a point on the map.",
         "invalid_forecast_hours": "Choose a whole number of hours from 0 to 24.",
-        "invalid_corridor": "Choose a valid distance from 10 to 2000 metres.",
-        "off_road_network": "Choose a point closer to a road supported by the routing service."
+        "invalid_corridor": "Choose a valid distance from 1 to 2000 metres.",
+        "off_road_network": "Choose a point closer to a road supported by the routing service.",
+        "route_timeout": "Route calculation timed out. Try again or change the start and destination.",
+        "unknown": "An unexpected error occurred while calculating the route. Try again. See the logs for details."
       },
       "abort": {
         "reconfigure_successful": "Route updated."
