@@ -205,7 +205,8 @@ button:focus-visible,
   max-height: calc(100% - 56px);
   padding: 8px 12px;
 }
-.camera-marker {
+.source-marker {
+  z-index: 1;
   display: grid;
   place-items: center;
   width: 44px;
@@ -215,7 +216,7 @@ button:focus-visible,
   background: transparent;
   color: var(--map-ui-text);
 }
-.camera-marker ha-icon {
+.source-marker ha-icon {
   --mdc-icon-size: 20px;
   display: grid;
   place-items: center;
@@ -226,14 +227,95 @@ button:focus-visible,
   background: var(--map-ui-background);
   box-shadow: 0 1px 4px #0004;
 }
+.source-cluster ha-icon {
+  border-radius: 10px;
+}
+.source-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--map-ui-text);
+  color: var(--map-ui-background);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+.source-popup {
+  z-index: 2;
+}
+.source-popup .maplibregl-popup-content {
+  padding: 6px;
+  border-radius: 14px;
+  color: var(--map-ui-text);
+  background: var(--map-ui-background);
+  box-shadow: 0 1px 4px #0004;
+  max-height: var(--source-popup-max-height);
+  box-sizing: border-box;
+  overflow: auto;
+  font-family: var(--ha-font-family-body, inherit);
+}
+.source-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.source-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.source-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--map-ui-background);
+}
+.source-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.source-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.source-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--map-ui-background);
+}
+.source-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--map-ui-background);
+}
+.source-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--map-ui-background);
+}
+.source-bubble .panel-heading {
+  padding-left: 6px;
+  position: sticky;
+  top: -6px;
+  background: var(--map-ui-background);
+  z-index: 1;
+}
+.source-bubble h3 {
+  font-size: 14px;
+}
+.source-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+.source-choice {
+  color: var(--map-ui-text);
+  background: color-mix(in srgb, var(--map-ui-text) 8%, transparent);
+  border: 0;
+  border-radius: 10px;
+  padding: 8px;
+  min-width: 0;
+  min-height: 44px;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+.source-choice ha-icon {
+  --mdc-icon-size: 24px;
+}
 .camera-image {
   display: block;
   width: 100%;
   height: auto;
 }
 .camera-source,
-.camera-message,
-.camera-empty {
+.camera-message {
   font-size: 12px;
   line-height: 20px;
   overflow-wrap: anywhere;
@@ -241,35 +323,6 @@ button:focus-visible,
 }
 .camera-source {
   padding-top: 8px;
-}
-.camera-layer {
-  border-top: 1px solid var(--map-ui-divider);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  font-size: 14px;
-  cursor: pointer;
-}
-.camera-layer input {
-  accent-color: var(--map-ui-active);
-}
-.camera-choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.camera-choices button {
-  min-height: 44px;
-  padding: 8px;
-  font-size: 14px;
-  color: var(--map-ui-text);
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
-}
-.camera-choices button[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--map-ui-active) 15%, transparent);
 }
 .panel-heading {
   display: flex;

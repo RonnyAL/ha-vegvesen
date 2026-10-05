@@ -59,9 +59,10 @@ carriageway coverage. Filters preserve the full route as subdued context.
 ### Optional configured-camera layer
 
 The native editor's **Road cameras** expander exposes `show_cameras` (default
-false) and `camera_distance_m` (default 250, allowed 1–2,000). The layers panel
-can temporarily toggle the layer. Camera proximity is independent of the
-forecast corridor, current forecast category, and map zoom.
+false) and `camera_distance_m` (default 250, allowed 1–2,000). Visibility is set
+only in the card editor, keeping the map panel focused on forecasts. Camera
+proximity is independent of the forecast corridor, current forecast category,
+and map zoom.
 
 The card uses readable HA camera states registered to `vegvesen`, identified by
 their existing `source_id`. Camera entities expose the source's latitude and
@@ -69,11 +70,33 @@ longitude unchanged. The bundled, locked Turf `point-to-line-distance` 7.4.0
 computes geodesic distance to each route part separately; disconnected parts
 are never bridged. Its [public API](https://turfjs.org/docs/api/pointToLineDistance)
 is used instead of a new geometry algorithm. Matching is reused until positions,
-the route geometry or the distance setting changes. Coincident cameras share a
-marker, retaining individual source identities and direction choices.
+the route geometry or the distance setting changes.
 
-Only opening a marker requests its native `/api/camera_proxy/` image. An open
-panel refreshes that cached HA image every minute, except while the page is
+From 0.9.1, markers within 40 screen pixels form a collapsed group with a count.
+Tapping the group opens a compact bubble of named source buttons without zooming
+or opening an image. This follows the screen-distance grouping and rounded
+member bubbles in HA 2026.10.0b0's
+[`ha-map`](https://github.com/home-assistant/frontend/blob/20260930.0/src/components/map/ha-map.ts)
+and [MapLibre engine](https://github.com/home-assistant/frontend/blob/20260930.0/src/common/map/engines/maplibre-map-engine.ts),
+with groups collapsed initially. The implementation uses public MapLibre markers,
+popups and map events; it imports no HA internal component or clustering engine.
+
+The bubble hides while a camera image is open and returns when the image closes.
+It collapses after eight idle seconds, with keyboard focus and pointer hover
+preventing collapse. Escape, the close button, a map tap or movement dismisses
+the group immediately. Zooming regroups nearby points; coincident points remain
+grouped. Source updates preserve stable member identities and focus; removal,
+hidden layers and disconnect remove markers, popups, timers and map listeners.
+Source coordinates remain unchanged; the group position is a display position.
+
+The `SourceMarkers` presentation component and pure `sourceGroups` helper
+accept named, typed source IDs, coordinates, icons and selection callbacks.
+Future weather-station markers can use these same controls, with visibility in
+card configuration too. Weather discovery, automatic route ownership and fetching
+all nearby sources are not implemented here.
+
+Only choosing an individual camera requests its native `/api/camera_proxy/`
+image. An open panel refreshes that cached HA image every minute, except while the page is
 hidden, and reacts to entity updates. Closing, removing or disconnecting the
 card clears the image and timer. Neither the card nor the proxy adds upstream
 image requests: the existing camera coordinator owns source polling. The card
@@ -89,8 +112,9 @@ the same physical camera devices. Automatic source ownership remains future
 work.
 
 Browser checks inject explicitly synthetic camera states into a real packaged
-card and mock only their HA image-proxy responses. They cover marker grouping,
-direction selection, image failure/recovery, removal, mobile layout and native
+card and mock only their HA image-proxy responses. They cover counted groups,
+overlap at identical and nearby coordinates, zoom separation, rapid taps, keyboard
+focus, idle collapse, dark-mode scrolling, image failure/recovery, removal and native
 editor persistence. Python tests cover unchanged source coordinates and cached
 HA camera retrieval with mocked public API fixtures.
 

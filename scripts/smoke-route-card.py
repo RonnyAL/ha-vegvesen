@@ -440,17 +440,42 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
         c._cameraTestUpdate(c._cameraTestStates);
         c._map.jumpTo({center: [longitude, latitude], zoom: 12});
     }""")
-    expect(card.locator(".camera-marker")).to_have_count(0)
+    expect(card.locator(".source-marker")).to_have_count(0)
     assert not requests
     card.get_by_role("button", name="Map layers and legend").click()
-    toggle = card.get_by_role("checkbox", name="Road cameras (2)")
-    toggle.check()
-    expect(card.locator(".camera-marker")).to_have_count(1)
+    expect(card.get_by_role("checkbox")).to_have_count(0)
+    card.evaluate("c => c.setConfig({...c._config, show_cameras: true})")
+    expect(card.locator(".source-marker")).to_have_count(1)
     card.get_by_role("button", name="Close map layers").click()
-    marker = card.locator(".camera-marker")
+    marker = card.locator(".source-marker")
     assert marker.bounding_box()["width"] == 44
+    offsets = card.evaluate("""c => {
+        const rect = c.shadowRoot.querySelector('.source-marker')
+            .getBoundingClientRect();
+        const canvas = c._map.getCanvas().getBoundingClientRect();
+        const a = c._cameraTestStates['camera.map_fixture_north'].attributes;
+        const point = c._map.project([a.longitude, a.latitude]);
+        return [rect.x + rect.width / 2 - canvas.x - point.x,
+            rect.y + rect.height / 2 - canvas.y - point.y];
+    }""")
+    assert all(abs(offset) <= 1 for offset in offsets), offsets
     camera = card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]")
+    expect(marker.locator(".source-count")).to_have_text("2")
+    expect(marker).to_have_attribute("aria-expanded", "false")
     marker.press("Enter")
+    bubble = card.locator(".source-bubble")
+    expect(bubble).to_be_visible()
+    expect(bubble.locator(".source-choice")).to_have_count(2)
+    expect(bubble.locator(".source-choice").first).to_be_focused()
+    assert not requests
+    card.evaluate("c => c._cameraTestUpdate(structuredClone(c._cameraTestStates))")
+    expect(bubble.locator(".source-choice").first).to_be_focused()
+    bubble.locator(".source-choice").first.press("Escape")
+    expect(bubble).not_to_be_visible()
+    expect(marker).to_be_focused()
+    marker.press("Enter")
+    page.screenshot(path=str(results / "camera-group-mobile.png"))
+    bubble.get_by_role("button", name="Test road camera north").press("Enter")
     panel = card.locator(".camera-panel")
     expect(panel).to_be_visible()
     expect(panel.locator(".camera-image")).to_be_visible()
@@ -459,11 +484,31 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
     assert (
         card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
     )
-    panel.get_by_role("button", name="South", exact=True).click()
+    expect(bubble).not_to_be_visible()
+    assert card.evaluate("c => c._cameras.sources.collapseTimer === undefined")
+    panel.get_by_role("button", name="Close camera").press("Escape")
+    expect(bubble).to_be_visible()
+    expect(bubble.locator(".source-choice").first).to_be_focused()
+    # Focus inside the choices prevents an idle timeout from hiding them.
+    page.wait_for_timeout(8200)
+    expect(bubble).to_be_visible()
+    # An HA state update in the middle of a press must not replace the button.
+    bubble.get_by_role("button", name="Test road camera south").hover()
+    page.mouse.down()
+    card.evaluate("c => c._cameraTestUpdate(structuredClone(c._cameraTestStates))")
+    page.mouse.up()
     expect(panel.locator(".camera-image")).to_be_visible()
     expect(panel.locator("h3")).to_have_text("Test road camera south")
     assert requests[-1].split("?")[0].endswith("camera.map_fixture_south")
     page.screenshot(path=str(results / "camera-layer-mobile.png"))
+    panel.get_by_role("button", name="Close camera").tap()
+    page.mouse.move(385, 830)
+    expect(bubble).to_be_visible()
+    expect(bubble).not_to_be_visible(timeout=12000)
+    expect(marker).to_have_attribute("aria-expanded", "false")
+    marker.tap()
+    bubble.get_by_role("button", name="Test road camera south").tap()
+    expect(panel.locator(".camera-image")).to_be_visible()
     image_failure = True
     card.evaluate("c => c._cameraTestUpdate(structuredClone(c._cameraTestStates))")
     expect(panel).to_contain_text("Image unavailable")
@@ -492,22 +537,98 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
         c._cameraTestUpdate(states);
     }""")
     expect(panel).to_contain_text("futureStatus")
+    # Nearby but distinct coordinates share a group at this zoom, then split.
+    card.evaluate("""c => {
+        c._cameras.close();
+        const states = structuredClone(c._cameraTestStates);
+        const first = states['camera.map_fixture_north'].attributes;
+        const p = c._map.project([first.longitude, first.latitude]);
+        const shifted = c._map.unproject([p.x + 20, p.y]);
+        Object.assign(states['camera.map_fixture_south'].attributes,
+            {longitude: shifted.lng, latitude: shifted.lat});
+        c.setConfig({...c._config, camera_distance_m: 2000});
+        c._cameraTestUpdate(states);
+        c._cameraTestNearby = states;
+    }""")
+    expect(marker).to_have_count(1)
+    expect(marker.locator(".source-count")).to_have_text("2")
+    card.evaluate("c => c._map.jumpTo({zoom: 14})")
+    expect(marker).to_have_count(2)
+    expect(card.locator(".source-cluster")).to_have_count(0)
+    marker.first.tap()
+    expect(panel.locator(".camera-image")).to_be_visible()
+    card.evaluate("c => c.setConfig({...c._config, show_cameras: false})")
+    expect(marker).to_have_count(0)
+    expect(panel).not_to_be_visible()
+    assert card.evaluate("c => !c._cameras.sources.map && !c._cameras.timer")
+    card.evaluate("""c => {
+        c.setConfig({...c._config, show_cameras: true});
+        c._cameraTestUpdate(c._cameraTestStates);
+    }""")
+    expect(marker).to_have_count(1)
+    expect(marker).to_have_attribute("aria-expanded", "false")
+    # Rapid taps are disclosure actions, not map double-tap zoom gestures.
+    for _ in range(2):
+        marker.tap()
+    expect(bubble).not_to_be_visible()
+    assert card.evaluate("c => c._map.getZoom()") == 14
+    marker.tap()
+    bubble.get_by_role("button", name="Test road camera south").tap()
+    expect(panel.locator(".camera-image")).to_be_visible()
     # Permission loss/removal clears the frame and its refresh timer immediately.
     card.evaluate("c => c._cameraTestUpdate({})")
     expect(panel).not_to_be_visible()
     expect(marker).to_have_count(0)
     assert card.evaluate("c => c._cameras.timer === undefined")
+    # A larger group stays scrollable inside the mobile map, including dark UI.
+    card.evaluate("""c => {
+        const states = {};
+        for (let i = 0; i < 12; i++) {
+            const id = 'camera.map_fixture_' + i;
+            const state = structuredClone(
+                c._cameraTestStates['camera.map_fixture_north']);
+            state.entity_id = id;
+            Object.assign(state.attributes, {source_id: 'fixture_' + i,
+                friendly_name: 'Camera ' + i});
+            states[id] = state;
+        }
+        c.setConfig({...c._config, theme_mode: 'dark'});
+        c._cameraTestUpdate(states);
+    }""")
+    expect(marker.locator(".source-count")).to_have_text("12")
+    marker.tap()
+    content = card.locator(".source-popup .maplibregl-popup-content")
+    expect(bubble.locator(".source-choice")).to_have_count(12)
+    bubble.locator(".source-choice").last.focus()
+    expect(bubble.locator(".source-choice").last).to_be_in_viewport()
+    frame = card.locator(".map-frame").bounding_box()
+    box = content.bounding_box()
+    assert frame["y"] <= box["y"]
+    assert box["y"] + box["height"] <= frame["y"] + frame["height"]
+    assert (
+        content.evaluate("e => getComputedStyle(e).backgroundColor")
+        == "rgb(28, 28, 28)"
+    )
+    page.screenshot(path=str(results / "camera-group-dark.png"))
+    bubble.get_by_role("button", name="Collapse group").click()
+    expect(bubble).not_to_be_visible()
     card.evaluate(
         """(c, config) => {
         c.hass = c._cameraTestHass;
-        c._camerasVisible = false;
         c.setConfig(config);
+        delete c._cameraTestNearby;
         delete c._cameraTestStates;
         delete c._cameraTestUpdate;
         delete c._cameraTestHass;
         c._fitRoute();
     }""",
         original_config,
+    )
+    # The dark-mode scenario restores the original style asynchronously.
+    page.wait_for_function(
+        "c => c._ready && c._map.loaded()",
+        arg=card.element_handle(),
+        timeout=30000,
     )
     page.unroute("**/api/camera_proxy/camera.map_fixture_*?*", image_request)
 
@@ -1094,6 +1215,8 @@ def run(instance: SmokeInstance) -> None:
                         "segment_touch_target": True,
                         "visual_editor": True,
                         "configured_camera_layer": True,
+                        "collapsed_source_groups": True,
+                        "source_group_timeout_and_keyboard": True,
                         "camera_failure_recovery": True,
                         "category_highlight": True,
                         "layers_panel_on_demand": True,

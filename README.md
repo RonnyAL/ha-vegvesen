@@ -182,10 +182,15 @@ markers. Only cameras already added to this integration and within the selected
 distance of the route appear. The default is **250 metres**, independently of
 the forecast corridor. Change it from 1 to 2,000 metres in the card editor.
 
-Tap a marker for its image and source status. Cameras at the same location share
-a marker with separate direction buttons. The map keeps its position and zoom.
+Tap a camera marker for its image and source status. Overlapping cameras share
+a marker with a count: tap it to reveal the individual cameras, then choose one.
+Neither action changes the map's position or zoom. After closing an image, the
+choices return for eight seconds; pointing at them or keeping keyboard focus
+inside keeps them open. Tap elsewhere or close the group to collapse it sooner.
+Nearby cameras separate as you zoom in; cameras at the same position stay grouped.
+Camera visibility is controlled only in the card editor.
 The open image refreshes from HA's cache once a minute; this does not add source
-requests. Use the layers panel to temporarily show or hide the markers.
+requests.
 Unavailable cameras or cameras without coordinates are omitted; an already open
 camera shows **Image unavailable** if it fails. Forecasts continue independently.
 

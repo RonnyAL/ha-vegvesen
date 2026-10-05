@@ -130,23 +130,11 @@ export class VegvesenRouteMap extends HTMLElement {
     this._legendHeading.append(this._legendTitle, this._closeLegend);
     this._summary = node("div", "", "legend-title");
     this._legend = node("div", "", "legend");
-    this._cameraLayer = node("label", undefined, "camera-layer");
-    this._cameraToggle = node("input");
-    this._cameraToggle.type = "checkbox";
-    this._cameraToggle.onchange = () => {
-      this._camerasVisible = this._cameraToggle.checked;
-      this._updateCameras();
-    };
-    this._cameraLabel = node("span");
-    this._cameraLayer.append(this._cameraToggle, this._cameraLabel);
-    this._cameraEmpty = node("div", undefined, "camera-empty");
     this._legendBody.append(
       this._modes,
       this._summary,
       this._legend,
       this._qualityDetails,
-      this._cameraLayer,
-      this._cameraEmpty,
     );
     this._information = node("div", undefined, "information");
     this._information.id = "route-legend";
@@ -209,8 +197,6 @@ export class VegvesenRouteMap extends HTMLElement {
     }
     if (!this._config || this._config.legend_expanded !== next.legend_expanded)
       this._legendOpen = next.legend_expanded ?? false;
-    if (!this._config || this._config.show_cameras !== next.show_cameras)
-      this._camerasVisible = next.show_cameras ?? false;
     this._config = next;
     this.style.setProperty("--map-height", `${next.height ?? 400}px`);
     if (changed) {
@@ -275,14 +261,10 @@ export class VegvesenRouteMap extends HTMLElement {
       this._hass,
       this._snapshot?.geometry,
       this._config?.camera_distance_m ?? 250,
-      this._camerasVisible,
+      this._config?.show_cameras ?? false,
       l,
       this._map,
     );
-    this._cameraToggle.checked = !!this._camerasVisible;
-    this._cameraLabel.textContent = `${l.road_cameras} (${this._cameras.count})`;
-    this._cameraEmpty.textContent = l.cameras_empty;
-    this._cameraEmpty.hidden = !this._camerasVisible || !!this._cameras.count;
   }
 
   _styleUrl() {

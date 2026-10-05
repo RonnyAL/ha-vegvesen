@@ -25,6 +25,14 @@ beta HA cover camera markers, direction selection, failed image requests,
 recovery/removal and native editor saving at mobile and desktop sizes. Camera UI
 fixtures are synthetic; backend tests use mocked public source responses.
 
+For 0.9.1, the frontend suite has 24 tests, including stable grouping of coincident
+and nearby points, regrouping at closer zoom, bridging groups and distinct source
+types. Packaged-card checks on minimum and beta HA exercise collapsed counts,
+keyboard/touch selection, focus retention, eight-second idle collapse, rapid taps
+without map zoom, larger scrollable groups in dark mode and cleanup when hidden
+or removed. Source visibility remains available through the native card editor;
+there is no source toggle or count row in the map's forecast panel.
+
 The 0.7.4 regression verifies that weather refreshes update only devices owned
 by their config entry. Recovery tests also check that device-name updates emit
 no deprecated lookup warning while preserving user names and existing entity IDs.
