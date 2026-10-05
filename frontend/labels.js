@@ -2,8 +2,6 @@ export const labels = {
   en: {
     title: "Route map",
     route: "Route",
-    highest: "Highest forecast slipperiness",
-    highest_short: "Highest slipperiness",
     expand: "Expand map",
     collapse: "Close expanded map",
     close_segment: "Close segment details",
@@ -66,8 +64,6 @@ export const labels = {
   nb: {
     title: "Rutekart",
     route: "Rute",
-    highest: "Høyeste varslede glatthet",
-    highest_short: "Høyeste glatthet",
     expand: "Utvid kartet",
     collapse: "Lukk utvidet kart",
     close_segment: "Lukk strekningsdetaljer",

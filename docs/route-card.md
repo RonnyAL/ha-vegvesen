@@ -46,9 +46,10 @@ unsubscribed or disconnected. Frontend generation checks discard late callbacks
 and unsubscribe late acknowledgements after card removal. Reconnection restores
 the subscription. Full coordinates/properties stay outside recorder/state.
 
-The card displays highest source slipperiness, category counts and explicit
-missing/unrecognized counts. Category buttons select and fit matching source
-geometry. A mode switch colours by `ROAD_CONDITION` or `SLIP_RISK`; unknown codes
+The layers panel displays category counts and explicit missing/unrecognized
+counts. Route summary sensors expose highest source slipperiness separately.
+Category buttons select and fit matching source geometry. A mode switch colours
+by `ROAD_CONDITION` or `SLIP_RISK`; unknown codes
 are gray and retain their raw labels. No arbitrary severity ordering is assigned
 to road conditions. Counts describe corridor matches, not route length or exact
 carriageway coverage. Filters preserve the full route as subdued context.
@@ -124,7 +125,7 @@ without changing its condition colour, and shows its details. A new
 snapshot refreshes those details without changing the viewport. Missing records,
 missing geometry, failures and disconnects clear the selection; choosing a
 category or fitting the route also resets it. Data-quality counts sit in an
-expandable section, while its incomplete-data label stays visible.
+expandable section inside the layers panel.
 
 From 0.8.0b9, zoom, fit, expansion and layers controls occupy a compact column
 inside the map on the left. The legend starts collapsed; its popup and the
@@ -156,6 +157,12 @@ styling of the existing controls; the card does not import or patch HA's interna
 map components.
 
 ## Layer switching and panels
+
+From 0.8.3, the closed layers panel leaves no summary overlay on the map.
+The layers control opens forecast time, category counts and missing-data
+details on demand. Forecast updates do not reopen a closed panel, and
+`legend_expanded: true` still opens it initially. Unavailable/error messages
+remain visible; browsers without WebGL retain the textual fallback panel.
 
 From 0.8.2, switching between Road condition and Slipperiness preserves the
 map's position, zoom, bearing and pitch. A category filter belongs to its layer
@@ -344,4 +351,14 @@ overflow. Existing mobile, minimum-height, light/dark, source-value and lifecycl
 checks continue to pass. The minimum frontend retains its previously documented
 native view-transition notices. All 364 Python tests pass on the three locked
 targets, alongside 14 JavaScript tests, lint/formatting, reproducible bundle,
+Hassfest and local HACS packaging checks. No dependency versions changed.
+
+For 0.8.3, packaged browser checks pass on HA 2025.12.0 and 2026.10.0b0.
+They verify no default summary overlay, opening/closing the layers panel,
+forecast updates leaving it closed, available missing-data details and the
+retained expanded-legend preference. The minimum frontend's test now waits for
+the Material menu's opening animation before selecting an option; two earlier
+runs selected values before opening completed and left menus open. Native
+selectors remain unchanged. All 364 Python tests pass on the three locked
+targets, alongside 14 JavaScript tests, lint/formatting, the reproducible bundle,
 Hassfest and local HACS packaging checks. No dependency versions changed.

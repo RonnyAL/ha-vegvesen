@@ -88,21 +88,6 @@ button:focus-visible,
   line-height: 20px;
   color: var(--map-ui-secondary);
 }
-.headline,
-.data-hint {
-  display: block;
-  padding: 4px 0;
-  border: 0;
-  color: var(--map-ui-active);
-  background: transparent;
-  font-size: 14px;
-  text-align: left;
-  min-height: 40px;
-}
-.headline:disabled {
-  color: var(--map-ui-secondary);
-  cursor: default;
-}
 .legend-body {
   width: 288px;
   max-width: 100%;

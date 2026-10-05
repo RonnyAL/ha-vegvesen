@@ -73,11 +73,6 @@ export class VegvesenRouteMap extends HTMLElement {
     this._fit.append(icon("mdi:image-filter-center-focus"));
     this._fit.onclick = () => this._fitRoute();
     this._mode = "condition";
-    this._headline = node("button", "", "headline");
-    this._headline.onclick = () => {
-      const code = this._snapshot?.summary.highest_slip_risk;
-      if (code) this._select("slip", code);
-    };
     this._quality = node("div", "", "quality");
     this._qualityDetails = node("details", undefined, "data-quality");
     this._qualitySummary = node("summary");
@@ -92,12 +87,6 @@ export class VegvesenRouteMap extends HTMLElement {
       if (this._legendOpen) this._segmentId = undefined;
       this._renderText();
       this._draw();
-    };
-    this._dataHint = node("button", "", "data-hint");
-    this._dataHint.onclick = () => {
-      this._legendOpen = true;
-      this._qualityDetails.open = true;
-      this._renderText();
     };
     this._status = node("div", "", "status");
     this._status.setAttribute("role", "status");
@@ -125,7 +114,6 @@ export class VegvesenRouteMap extends HTMLElement {
       this._segmentSource,
     );
     this._legendBody = node("div", "", "legend-body");
-    this._legendBody.id = "route-legend";
     this._legendHeading = node("div", undefined, "panel-heading");
     this._legendTitle = node("h3");
     this._closeLegend = node("button", undefined, "panel-close");
@@ -145,13 +133,8 @@ export class VegvesenRouteMap extends HTMLElement {
       this._qualityDetails,
     );
     this._information = node("div", undefined, "information");
-    this._information.append(
-      this._legendHeading,
-      this._time,
-      this._headline,
-      this._dataHint,
-      this._legendBody,
-    );
+    this._information.id = "route-legend";
+    this._information.append(this._legendHeading, this._time, this._legendBody);
     this._frame = node("div", undefined, "map-frame");
     this._frame.append(
       this._container,
@@ -579,7 +562,8 @@ export class VegvesenRouteMap extends HTMLElement {
       this._selection,
     );
     this._inspector.hidden = !feature;
-    this._information.hidden = !this._snapshot || !!feature;
+    this._information.hidden =
+      !this._snapshot || !!feature || (!this._legendOpen && !this._webglFailed);
     if (!feature) {
       this._segmentValues.replaceChildren();
       this._segmentTitle.textContent = "";
@@ -621,7 +605,6 @@ export class VegvesenRouteMap extends HTMLElement {
     this._summary.textContent = l.legend;
     this._legendTitle.textContent = l.forecast_layer;
     this._modes.setAttribute("aria-label", l.forecast_layer);
-    this._legendHeading.hidden = !this._legendOpen && !this._webglFailed;
     this._closeLegend.hidden = !!this._webglFailed;
     this._closeLegend.title = l.close_layers;
     this._closeLegend.setAttribute("aria-label", l.close_layers);
@@ -631,12 +614,8 @@ export class VegvesenRouteMap extends HTMLElement {
       "aria-expanded",
       String(!!this._legendOpen),
     );
-    this._legendBody.hidden = !this._legendOpen && !this._webglFailed;
-    this._dataHint.textContent = l.data_gaps;
-    this._dataHint.hidden = true;
     this._qualitySummary.textContent = l.data_gaps;
     this._qualityDetails.hidden = true;
-    this._headline.hidden = !this._snapshot;
     this._quality.textContent = "";
     this._modes.replaceChildren();
     this._status.replaceChildren();
@@ -661,10 +640,6 @@ export class VegvesenRouteMap extends HTMLElement {
     this._renderInspector();
     if (!this._snapshot) return;
     const summary = this._snapshot.summary;
-    const grade = summary.highest_slip_risk;
-    this._headline.textContent = `${l.highest_short}: ${grade ? sourceLabel(l, grade, "slip") : l.missing}`;
-    this._headline.title = l.highest;
-    this._headline.disabled = !grade || this._webglFailed;
     const warnings = [];
     for (const [key, label] of [
       ["slip_risk", l.slip],
@@ -680,7 +655,6 @@ export class VegvesenRouteMap extends HTMLElement {
     }
     this._quality.replaceChildren(...warnings.map((text) => node("div", text)));
     this._qualityDetails.hidden = !warnings.length;
-    this._dataHint.hidden = !warnings.length || !!this._legendOpen;
     for (const mode of ["condition", "slip"]) {
       const button = node("button", l[mode]);
       button.dataset.focusKey = mode;

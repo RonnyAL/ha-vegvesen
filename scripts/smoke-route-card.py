@@ -36,18 +36,17 @@ def select_setting(dialog: Locator, label: str, option: str) -> None:
         mode.get_by_text(option, exact=True).click()
     else:
         mode.get_by_role("combobox").click()
-        # Older Material menus can overlap while focus/close animations settle.
-        # Exercise their native keyboard selection instead of forcing a click
-        # through another menu or changing selector state from JavaScript.
+        # Material makes options visible before its opening animation completes.
+        # Selecting too early lets its later `opened` event reopen the menu.
+        # Wait for the rendered state, without changing native selector state.
+        surface = mode.locator("mwc-menu-surface div.mdc-menu-surface")
+        expect(surface).to_have_class(re.compile(r"\bmdc-menu-surface--open\b"))
+        expect(surface).not_to_have_class(
+            re.compile("mdc-menu-surface--animating-open")
+        )
         choice = mode.get_by_role("option", name=option, exact=True)
         expect(choice).to_be_visible()
         choice.press("Enter")
-    if not mode.locator("ha-picker-field").count():
-        # Older HA menus can retain focus during their close animation. Blur
-        # through the dialog header before opening the next overlapping menu.
-        dialog.get_by_text(
-            "Statens vegvesen route map card configuration", exact=True
-        ).first.click()
         expect(mode.get_by_role("combobox")).to_have_attribute("aria-expanded", "false")
         expect(mode.get_by_role("listbox")).not_to_be_visible()
 
@@ -145,6 +144,7 @@ def compare_layers(page: Page, card: Locator, results: Path) -> None:
     page.screenshot(path=str(results / "forecast-layers.png"))
     card.get_by_role("button", name="Close map layers", exact=True).click()
     expect(card.locator(".legend")).not_to_be_visible()
+    expect(card.locator(".information")).not_to_be_visible()
     expect(card.get_by_role("button", name="Map layers and legend")).to_be_focused()
     assert card.evaluate(camera) == selected_camera
     card.get_by_role("button", name="Fit route", exact=True).click()
@@ -357,6 +357,7 @@ def inspector_updates(page: Page, card: Locator, results: Path) -> None:
         c._data.onData(data);
     }""")
     expect(inspector).not_to_be_visible()
+    expect(card.locator(".information")).not_to_be_visible()
     assert card.evaluate("c => c._segmentId === undefined")
     card.evaluate("(c, data) => c._data.onData(data)", original)
     # An unavailable subscription clears selected details and forecast geometry.
@@ -382,8 +383,11 @@ def inspector_updates(page: Page, card: Locator, results: Path) -> None:
         data.summary.slip_risk.unrecognized_segments = 1;
         c._data.onData(data);
     }""")
-    expect(card.locator(".data-hint")).to_have_text("Incomplete data")
-    card.locator(".data-hint").click()
+    # New forecasts and missing-data counts must not reopen the closed panel.
+    expect(card.locator(".information")).not_to_be_visible()
+    card.get_by_role("button", name="Map layers and legend").click()
+    expect(card.locator(".information")).to_be_visible()
+    card.locator(".data-quality summary").click()
     expect(card.locator(".quality")).to_contain_text("Unrecognized values: 1")
     card.get_by_role("button", name="Map layers and legend").click()
     card.evaluate("(c, data) => c._data.onData(data)", original)
@@ -728,7 +732,7 @@ def run(instance: SmokeInstance) -> None:
             card.get_by_role("button", name="Fit route", exact=True).click()
             page.wait_for_timeout(1000)
             assert abs(card.evaluate("c => c._map.getZoom()") - zoom) < 0.01
-            expect(card.locator(".headline")).to_contain_text("Highest slipperiness:")
+            expect(card.locator(".information")).not_to_be_visible()
             expect(card.locator("header")).not_to_be_visible()
             assert card.locator("ha-card").bounding_box()["height"] <= 402
             fit = card.get_by_role(
@@ -745,6 +749,8 @@ def run(instance: SmokeInstance) -> None:
             card.evaluate("c => c._card.style.removeProperty('--ha-card-background')")
             expect(card.locator(".legend")).not_to_be_visible()
             card.get_by_role("button", name="Map layers and legend").click()
+            expect(card.locator(".information")).to_be_visible()
+            expect(card.locator(".time")).to_be_visible()
             compare_layers(page, card, instance.results)
             card.locator(".modes").get_by_role(
                 "button", name="Slipperiness", exact=True
@@ -965,7 +971,8 @@ def run(instance: SmokeInstance) -> None:
                         "touch_pan": True,
                         "segment_touch_target": True,
                         "visual_editor": True,
-                        "summary_highlight": True,
+                        "category_highlight": True,
+                        "layers_panel_on_demand": True,
                         "expanded_map": True,
                         "fullscreen_css_fallback": True,
                         "persistent_segment_details": True,
