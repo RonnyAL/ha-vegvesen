@@ -77,6 +77,10 @@ const licenses = [
     "VersaTiles Style 6.1.1 (generated map styles)",
     "node_modules/@versatiles/style/LICENSE.md",
   ],
+  [
+    "Floating UI DOM 1.8.0 (forecast menu positioning)",
+    "node_modules/@floating-ui/dom/LICENSE",
+  ],
 ];
 const worker = await build({
   entryPoints: ["node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs"],
@@ -91,7 +95,7 @@ const worker = await build({
 let notice = "# Frontend third-party licenses\n\n";
 for (const [name, path] of licenses)
   notice += `## ${name}\n\n${await readFile(path, "utf8")}\n`;
-const visited = new Set(["maplibre-gl"]);
+const visited = new Set(["maplibre-gl", "@floating-ui/dom"]);
 async function dependencyLicenses(name) {
   const directory = `node_modules/${name}`;
   const manifest = JSON.parse(
@@ -112,6 +116,7 @@ async function dependencyLicenses(name) {
   }
 }
 await dependencyLicenses("maplibre-gl");
+await dependencyLicenses("@floating-ui/dom");
 const outputs = [
   ...Object.entries(styles).map(([name, style]) => [
     resolve(directory, "styles", `${name}.json`),

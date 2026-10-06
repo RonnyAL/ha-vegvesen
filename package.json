@@ -1,6 +1,6 @@
 {
   "name": "vegvesen-route-map",
-  "version": "0.12.3",
+  "version": "0.12.4",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,6 +14,7 @@
     "check": "npm run lint && npm run format:check && npm test && node frontend/build.js --check"
   },
   "dependencies": {
+    "@floating-ui/dom": "1.8.0",
     "maplibre-gl": "6.12.0"
   },
   "devDependencies": {

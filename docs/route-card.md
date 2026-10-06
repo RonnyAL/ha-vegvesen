@@ -68,7 +68,8 @@ The clock, compact time label and manual previous/next arrows form one bottom-le
 row, above the map attribution. Short maps (300 pixels high or less) arrange the
 other map actions in a top row so the two groups do not overlap.
 
-The clock opens a themed, card-contained menu above the controls. The default
+The clock opens a themed menu anchored to the controls. It can extend beyond
+the card and opens above or below depending on available screen space. The default
 choice stays visible above a scrollable list with date headings, a checkmark on
 the selected option and a marker on the configured default hour. All choices
 have at least 44-pixel touch targets. There is no operating-system picker.
@@ -80,8 +81,21 @@ HA's implementation changed from
 [`ha-button-menu` in the minimum frontend](https://github.com/home-assistant/frontend/blob/20251203.0/src/components/ha-button-menu.ts)
 to [`ha-dropdown` in the beta frontend](https://github.com/home-assistant/frontend/blob/20260930.0/src/components/ha-dropdown.ts).
 The card uses its own DOM within the supported custom-card lifecycle instead of
-loading or modifying those internal components. It stays inside the map bounds,
-including fullscreen, without global overlays or another frontend dependency.
+loading or modifying those internal components. The standard browser
+[Popover API](https://developer.mozilla.org/en-US/docs/Web/API/Popover_API/Using)
+lifts the menu into the top layer without moving it out of the card's themed
+shadow DOM. Native popover dismissal cooperates with other popovers and dialogs.
+Browsers without this API retain the contained, scrollable menu.
+
+Bundled, locked [Floating UI DOM](https://floating-ui.com/docs/computeposition)
+positions the menu relative to the clock using the visual viewport. Its offset,
+flip, shift and size middleware keep the menu clear of the trigger and screen
+edges, capped at 320 pixels high with scrolling inside. Card height does not
+limit the popup height. [Auto-update](https://floating-ui.com/docs/autoupdate)
+tracks scrolling, resizing and layout shifts only while open. Scrolling the
+clock out of its visible area dismisses the menu. Closing or detaching releases
+listeners and observers and invalidates pending positioning work. No runtime
+library download, HA-internal import or frontend monkey patch is used.
 
 Keyboard behavior follows the
 [WAI-ARIA menu pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menubar/):

@@ -823,6 +823,7 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
     camera = card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]")
     picker.click()
     expect(menu).to_be_visible()
+    assert menu.evaluate("e => e.matches(':popover-open')")
     expect(menu.get_by_role("menuitemradio")).to_have_count(26)
     expect(menu.locator("button[data-value='default']")).to_have_attribute(
         "aria-checked", "true"
@@ -1010,7 +1011,7 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
     assert (
         controls_box["x"] + controls_box["width"] <= frame_box["x"] + frame_box["width"]
     )
-    # Even at 240px, controls, attribution and menu stay separate and in frame.
+    # At 240px, the controls remain in the map while the menu uses screen space.
     for controls in (".maplibregl-ctrl-top-left", ".maplibregl-ctrl-attrib"):
         other = card.locator(controls).bounding_box()
         assert (
@@ -1019,12 +1020,19 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
         )
     picker.click()
     menu_box = menu_nb.bounding_box()
-    assert menu_box["y"] >= frame_box["y"]
-    assert menu_box["x"] + menu_box["width"] <= frame_box["x"] + frame_box["width"]
+    assert menu_box["height"] >= 300
+    assert menu_box["y"] >= controls_box["y"] + controls_box["height"]
+    assert menu_box["y"] + menu_box["height"] > frame_box["y"] + frame_box["height"]
+    assert menu_box["x"] + menu_box["width"] <= page.viewport_size["width"] - 8
     menu_nb.press("End")
     expect(menu_nb.locator(f"button[data-value='{hours[-1]}']")).to_be_in_viewport()
     page.screenshot(path=str(results / "forecast-hour-short.png"))
-    menu_nb.press("Escape")
+    # The part extending past the card must actually receive touch input.
+    row = menu_nb.locator(f"button[data-value='{hours[-1]}']").bounding_box()
+    assert row["y"] > frame_box["y"] + frame_box["height"]
+    page.touchscreen.tap(row["x"] + row["width"] / 2, row["y"] + row["height"] / 2)
+    expect(menu_nb).not_to_be_visible()
+    assert card.evaluate("c => c._data.time") == hours[-1]
     # Native fullscreen retains the themed menu and Escape closes only the menu.
     card.get_by_role("button", name="Utvid kartet", exact=True).click()
     picker.click()
@@ -1032,6 +1040,7 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
     menu_nb.press("Escape")
     assert card.evaluate("c => !!c.shadowRoot.fullscreenElement")
     card.get_by_role("button", name="Lukk utvidet kart", exact=True).click()
+    forecast_popover(page, card, results)
     # Restore the normal source subscription and following tests' presentation.
     card.evaluate("""c => {
         c.hass = c._forecastTestHass;
@@ -1057,7 +1066,8 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
         const parent = c.parentNode;
         const next = c.nextSibling;
         c.remove();
-        c._menuCleaned = c._hourMenu.element.hidden && !c._hourMenu.listeners;
+        c._menuCleaned = c._hourMenu.element.hidden && !c._hourMenu.listeners
+            && !c._hourMenu.cleanupPosition;
         parent.insertBefore(c, next);
     }""")
     assert card.evaluate("c => c._menuCleaned")
@@ -1065,6 +1075,135 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
     page.wait_for_function(
         "c => c._ready && c._map.loaded()", arg=card.element_handle()
     )
+
+
+def forecast_popover(page: Page, card: Locator, results: Path) -> None:
+    """Keep the menu on-screen across scrolling, layout changes and dismissal."""
+    picker = card.locator(".forecast-picker")
+    menu = card.locator(".forecast-menu")
+    viewport = page.viewport_size
+
+    def on_screen() -> None:
+        page.wait_for_function(
+            """c => {
+                const rect = c._hourMenu.element.getBoundingClientRect();
+                const viewport = window.visualViewport;
+                return rect.x >= viewport.offsetLeft + 7 &&
+                    rect.y >= viewport.offsetTop + 7 &&
+                    rect.right <= viewport.offsetLeft + viewport.width - 7 &&
+                    rect.bottom <= viewport.offsetTop + viewport.height - 7;
+            }""",
+            arg=card.element_handle(),
+        )
+
+    # An invoker toggles its own native popover without immediately reopening it.
+    picker.click()
+    expect(menu).to_be_visible()
+    picker.click()
+    expect(menu).not_to_be_visible()
+    expect(picker).to_have_attribute("aria-expanded", "false")
+    # Another HA/browser popover closes this one and releases its observers.
+    picker.click()
+    card.evaluate("""c => {
+        c._otherPopover = document.createElement('div');
+        c._otherPopover.popover = 'auto';
+        document.body.append(c._otherPopover);
+        c._otherPopover.showPopover();
+    }""")
+    expect(menu).not_to_be_visible()
+    expect(picker).to_have_attribute("aria-expanded", "false")
+    assert card.evaluate("c => !c._hourMenu.cleanupPosition && !c._hourMenu.listeners")
+    card.evaluate("c => { c._otherPopover.remove(); delete c._otherPopover; }")
+    # Move the trigger near the right edge without modifying forecast state.
+    card.locator(".forecast-controls").evaluate("""e => {
+        e.style.left = 'auto'; e.style.right = '3px';
+    }""")
+    picker.click()
+    on_screen()
+    assert menu.bounding_box()["x"] < picker.bounding_box()["x"]
+    page.screenshot(path=str(results / "forecast-popover-right-edge.png"))
+    # Resizing while open must reposition and resize, including short viewports.
+    page.set_viewport_size({"width": 320, "height": 320})
+    on_screen()
+    menu.press("End")
+    expect(menu.locator(".forecast-menu-hours button").last).to_be_in_viewport()
+    page.screenshot(path=str(results / "forecast-popover-short-viewport.png"))
+    menu.press("Escape")
+    page.set_viewport_size(viewport)
+    card.locator(".forecast-controls").evaluate("e => e.removeAttribute('style')")
+    # Scroll the real dashboard through its shadow-DOM ancestors.
+    card.evaluate("""c => {
+        c.style.marginTop = '400px'; c.style.marginBottom = '1000px';
+    }""")
+    picker.scroll_into_view_if_needed()
+    card.evaluate("""c => {
+        let parent = c.parentElement ?? c.getRootNode().host;
+        while (parent) {
+            if (parent.scrollHeight > parent.clientHeight &&
+                ['auto', 'scroll'].includes(getComputedStyle(parent).overflowY)) {
+                c._scrollTestParent = parent;
+                c._scrollTestStart = parent.scrollTop;
+                break;
+            }
+            parent = parent.parentElement ?? parent.getRootNode().host;
+        }
+        if (!c._scrollTestParent) {
+            const root = document.scrollingElement;
+            if (root.scrollHeight <= root.clientHeight)
+                throw Error('Scrollable dashboard ancestor missing');
+            c._scrollTestParent = root;
+            c._scrollTestStart = root.scrollTop;
+        }
+    }""")
+    picker.click()
+    on_screen()
+    old_y = picker.bounding_box()["y"]
+    card.evaluate("c => c._scrollTestParent.scrollTop += 60")
+    page.wait_for_function(
+        "([c, y]) => c._hourPicker.getBoundingClientRect().y < y - 30",
+        arg=[card.element_handle(), old_y],
+    )
+    on_screen()
+    page.wait_for_function(
+        """c => {
+            const menu = c._hourMenu.element.getBoundingClientRect();
+            const button = c._hourPicker.getBoundingClientRect();
+            return Math.abs(menu.bottom + 8 - button.top) < 2 ||
+                Math.abs(button.bottom + 8 - menu.top) < 2;
+        }""",
+        arg=card.element_handle(),
+    )
+    page.screenshot(path=str(results / "forecast-popover-scrolled.png"))
+    # A detached-looking popup must disappear once the clock scrolls out of view.
+    card.evaluate(
+        "c => c._scrollTestParent.scrollTop = c._scrollTestParent.scrollHeight"
+    )
+    expect(menu).not_to_be_visible()
+    assert card.evaluate("c => !c._hourMenu.cleanupPosition")
+    card.evaluate("""c => {
+        c.style.removeProperty('margin-top'); c.style.removeProperty('margin-bottom');
+        c._scrollTestParent.scrollTop = c._scrollTestStart;
+        delete c._scrollTestParent; delete c._scrollTestStart;
+    }""")
+    picker.scroll_into_view_if_needed()
+    # Exercise the contained fallback used by browsers without the Popover API.
+    card.evaluate("""c => {
+        c._hourMenu.topLayer = false;
+        c._hourMenu.element.removeAttribute('popover');
+        c._hourPicker.popoverTargetElement = null;
+    }""")
+    picker.click()
+    expect(menu).to_be_visible()
+    frame = card.locator(".map-frame").bounding_box()
+    box = menu.bounding_box()
+    assert box["y"] >= frame["y"]
+    assert box["y"] + box["height"] <= frame["y"] + frame["height"]
+    menu.press("Escape")
+    card.evaluate("""c => {
+        c._hourMenu.topLayer = true;
+        c._hourMenu.element.popover = 'auto';
+        c._hourPicker.popoverTargetElement = c._hourMenu.element;
+    }""")
 
 
 def cold_views(browser: Browser, base: str, tokens: dict, results: Path) -> None:
@@ -1704,6 +1843,7 @@ def run(instance: SmokeInstance) -> None:
                         "forecast_bottom_controls": True,
                         "forecast_themed_menu": True,
                         "forecast_menu_keyboard_and_cleanup": True,
+                        "forecast_popover_placement_and_cleanup": True,
                         "automatic_registration": True,
                         "card_picker": True,
                         "cold_views": ["masonry", "panel", "sections", "yaml"],

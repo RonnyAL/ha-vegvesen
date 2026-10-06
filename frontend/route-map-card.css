@@ -209,6 +209,20 @@ button:focus-visible,
   background: var(--map-ui-background);
   box-shadow: 0 4px 16px #0005;
 }
+.forecast-menu[popover] {
+  position: fixed;
+  inset: auto;
+  top: 0;
+  left: 0;
+  max-width: calc(100vw - 16px);
+  max-height: 320px;
+  margin: 0;
+  border: 0;
+  overflow: hidden;
+}
+.forecast-menu[popover]:not(:popover-open) {
+  display: none;
+}
 .forecast-menu-hours {
   min-height: 0;
   overflow: auto;

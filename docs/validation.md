@@ -10,6 +10,14 @@
 
 All three run the same 417 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
+For 0.12.4, packaged browser checks exercise a native top-layer forecast popover
+on short cards, including touch selection outside the card, automatic placement
+above/below, right-screen-edge shifting, resize while open and dashboard scrolling.
+They also cover hiding when the clock leaves view, dismissal by a second native
+popover, fullscreen, cleanup on removal and the contained compatibility fallback.
+The styling remains in the card's shadow DOM. Floating UI DOM is bundled and
+locked; its own license and dependency licenses are included in the package.
+
 For 0.12.3, the packaged browser scenario checks the bottom-left forecast controls
 and card-contained themed menu on minimum and beta HA. It verifies touch/outside
 dismissal, keyboard navigation and focus, grouped dates and default markers,

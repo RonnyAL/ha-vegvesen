@@ -1,5 +1,15 @@
-// A card-contained menu: no OS picker or dependency on HA's changing menu
-// components. Follow the WAI-ARIA menu-button/radio-item keyboard pattern.
+import {
+  autoUpdate,
+  computePosition,
+  offset,
+  flip,
+  shift,
+  size,
+  hide,
+} from "@floating-ui/dom";
+
+// Keep the menu in the card's themed DOM, lifting it into the browser's top
+// layer when supported. Keyboard behavior follows the WAI-ARIA menu pattern.
 export class ForecastMenu {
   constructor(trigger, prepare, select) {
     this.trigger = trigger;
@@ -10,11 +20,25 @@ export class ForecastMenu {
     this.element.id = "forecast-hours";
     this.element.hidden = true;
     this.element.setAttribute("role", "menu");
+    this.topLayer = typeof this.element.showPopover === "function";
+    if (this.topLayer) {
+      this.element.popover = "auto";
+      trigger.popoverTargetElement = this.element;
+      this.element.addEventListener("beforetoggle", (event) => {
+        if (event.newState === "closed") this.stopPositioning();
+      });
+      this.element.addEventListener("toggle", () => {
+        if (!this.isOpen) this.close();
+      });
+    }
     trigger.setAttribute("aria-controls", this.element.id);
     trigger.setAttribute("aria-haspopup", "menu");
     trigger.setAttribute("aria-expanded", "false");
-    trigger.onclick = () => {
-      if (this.element.hidden) this.open();
+    trigger.onclick = (event) => {
+      // We open after preparing the forecast choices, so prevent a second
+      // toggle from the button's native popover-target default action.
+      event.preventDefault();
+      if (!this.isOpen) this.open();
       else this.close(true);
     };
     trigger.onkeydown = (event) => {
@@ -23,6 +47,12 @@ export class ForecastMenu {
       this.open(event.key === "ArrowUp" ? -1 : 0);
     };
     this.element.onkeydown = (event) => this.keydown(event);
+  }
+
+  get isOpen() {
+    return this.topLayer
+      ? this.element.matches(":popover-open")
+      : !this.element.hidden;
   }
 
   update(choices, value, label) {
@@ -95,14 +125,20 @@ export class ForecastMenu {
             (item) => item.getAttribute("aria-checked") === "true",
           )
         : this.items.at(index);
-    this.focus(item ?? this.items[0]);
     this.listeners = new AbortController();
+    if (this.topLayer) {
+      this.element.style.visibility = "hidden";
+      this.element.showPopover();
+      this.position(item ?? this.items[0]);
+    } else this.focus(item ?? this.items[0]);
     const outside = (event) => {
       const path = event.composedPath();
       if (!path.includes(this.element) && !path.includes(this.trigger))
         this.close();
     };
-    for (const type of ["pointerdown", "focusin"])
+    // Native popovers provide light dismissal. The contained fallback needs
+    // its own outside-pointer handler; both close on keyboard focus leaving.
+    for (const type of this.topLayer ? ["focusin"] : ["pointerdown", "focusin"])
       document.addEventListener(type, outside, {
         capture: true,
         signal: this.listeners.signal,
@@ -110,12 +146,67 @@ export class ForecastMenu {
   }
 
   close(restoreFocus = false) {
-    this.listeners?.abort();
-    this.listeners = undefined;
+    this.stopPositioning();
+    if (this.topLayer && this.isOpen) this.element.hidePopover();
     this.element.hidden = true;
-    this.trigger.setAttribute("aria-expanded", "false");
+    this.element.removeAttribute("style");
     this.search = "";
     if (restoreFocus) this.trigger.focus({ preventScroll: true });
+  }
+
+  stopPositioning() {
+    this.listeners?.abort();
+    this.listeners = undefined;
+    this.cleanupPosition?.();
+    this.cleanupPosition = undefined;
+    this.trigger.setAttribute("aria-expanded", "false");
+  }
+
+  position(initialFocus) {
+    const { signal } = this.listeners;
+    const viewport = { boundary: [], rootBoundary: "viewport", padding: 8 };
+    const update = async () => {
+      const result = await computePosition(this.trigger, this.element, {
+        strategy: "fixed",
+        placement: "top-start",
+        middleware: [
+          offset(8),
+          flip(viewport),
+          shift(viewport),
+          size({
+            ...viewport,
+            apply: ({ availableWidth, availableHeight }) => {
+              if (signal.aborted) return;
+              Object.assign(this.element.style, {
+                maxWidth: `${Math.max(0, availableWidth)}px`,
+                maxHeight: `${Math.max(0, Math.min(320, availableHeight))}px`,
+              });
+            },
+          }),
+          hide(),
+        ],
+      });
+      // Closing, switching cards or detaching invalidates pending calculations.
+      if (signal.aborted) return;
+      if (result.middlewareData.hide?.referenceHidden) {
+        this.close();
+        return;
+      }
+      Object.assign(this.element.style, {
+        left: `${result.x}px`,
+        top: `${result.y}px`,
+        visibility: "visible",
+      });
+      if (initialFocus) {
+        this.focus(initialFocus);
+        initialFocus = undefined;
+      }
+    };
+    this.cleanupPosition = autoUpdate(this.trigger, this.element, () => {
+      update().catch(() => {
+        if (!signal.aborted) this.close(true);
+      });
+    });
   }
 
   focus(item) {
