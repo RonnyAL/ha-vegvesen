@@ -25,6 +25,21 @@ export const routeSchema = (labels) => [
   },
   { name: "title", selector: { text: {} } },
   {
+    name: "default_forecast",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "route", label: labels.follow_route },
+          ...Array.from({ length: 25 }, (_, hours) => ({
+            value: String(hours),
+            label: hours === 0 ? labels.now : `+${hours} ${labels.hour_unit}`,
+          })),
+        ],
+      },
+    },
+  },
+  {
     name: "",
     type: "expandable",
     title: labels.appearance,
@@ -113,6 +128,7 @@ export function editorConfig(config, hass) {
   const defaults = {
     height: 400,
     default_mode: "condition",
+    default_forecast: "route",
     legend_expanded: false,
     map_style: "default",
     theme_mode: "auto",
@@ -137,6 +153,7 @@ export function changedConfig(config, values) {
     "title",
     "height",
     "default_mode",
+    "default_forecast",
     "legend_expanded",
     "theme_mode",
     "map_style",

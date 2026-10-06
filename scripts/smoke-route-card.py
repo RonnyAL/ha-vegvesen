@@ -59,6 +59,7 @@ def presentation_settings(dialog: Locator) -> None:
     if not dialog.locator("ha-selector-number input").first.is_visible():
         dialog.get_by_text("Appearance", exact=True).click()
     dialog.locator("ha-selector-number input").first.fill("480")
+    select_setting(dialog, "Default forecast time", "Now")
     select_setting(dialog, "Initial layer", "Slipperiness")
     select_setting(dialog, "Map style", "Natural")
     select_setting(dialog, "Theme mode", "Dark")
@@ -798,38 +799,34 @@ def resize_card(card: Locator, height: int) -> None:
 
 
 def forecast_hours(page: Page, card: Locator, results: Path) -> None:
-    """Exercise mobile forecast controls, real queries and deterministic failures."""
-    badge = card.locator(".forecast-badge")
-    badge.click()
-    picker = card.get_by_role("slider", name="Forecast valid time", exact=True)
-    expect(picker).to_be_focused()
-    expect(picker).to_have_attribute("max", "24")
-    expect(card.get_by_role("button", name="Automatic", exact=True)).to_have_attribute(
-        "aria-pressed", "true"
-    )
+    """Exercise the direct native picker, steady loading and card defaults."""
+    picker = card.get_by_role("combobox", name="Forecast valid time", exact=True)
+    expect(picker).to_have_value("default")
+    expect(picker.locator("option")).to_have_count(26)
+    assert picker.locator("optgroup").count() >= 2
+    assert picker.bounding_box()["height"] >= 44
+    # The clock belongs to the same left-side controls as layers and fit.
+    fit_box = card.get_by_role("button", name="Fit route", exact=True).bounding_box()
+    assert abs(picker.bounding_box()["x"] - fit_box["x"]) < 2
+    assert card.locator(".forecast-time").inner_text() == "Now"
     expect(card.locator(".information")).not_to_be_visible()
+    page.screenshot(path=str(results / "forecast-default-mobile.png"))
     camera = card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]")
-    hour = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) + timedelta(
-        hours=2
+    hours = picker.locator("optgroup option").evaluate_all(
+        "options => options.map(o => o.value)"
     )
-    value = hour.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-    picker.press("Home")
-    picker.press("ArrowRight")
-    picker.press("ArrowRight")
+    value = hours[2]
+    picker.select_option(value)
     page.wait_for_function(
         "([c, time]) => c._snapshot?.segments.length > 0 && "
         "Date.parse(c._snapshot.forecast_time) === Date.parse(time)",
         arg=[card.element_handle(), value],
         timeout=45000,
     )
-    assert (
-        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
-    )
     card.get_by_role("button", name="Next forecast hour", exact=True).click()
     page.wait_for_function(
-        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === "
-        "Date.parse(time) + 3600000",
-        arg=[card.element_handle(), value],
+        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === Date.parse(time)",
+        arg=[card.element_handle(), hours[3]],
         timeout=45000,
     )
     card.get_by_role("button", name="Previous forecast hour", exact=True).click()
@@ -841,53 +838,29 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
     assert (
         card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
     )
-    card.get_by_role("button", name="Close forecast time", exact=True).click()
-    expect(badge).to_be_visible()
-    expect(badge).to_be_focused()
-    expect(picker).not_to_be_visible()
-    navigation = card.locator(".forecast-navigation")
-    navigation.get_by_role("button", name="Next forecast hour", exact=True).click()
-    page.wait_for_function(
-        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === "
-        "Date.parse(time) + 3600000",
-        arg=[card.element_handle(), value],
-    )
-    navigation.get_by_role("button", name="Previous forecast hour", exact=True).click()
-    page.wait_for_function(
-        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === Date.parse(time)",
-        arg=[card.element_handle(), value],
-    )
-    assert (
-        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
-    )
-    assert navigation.evaluate("e => e.scrollWidth <= e.clientWidth")
     page.screenshot(path=str(results / "forecast-hour-mobile.png"))
-    card.evaluate("""c => c._showSegment({point: {x: -10, y: -10},
-        features: [{id: c._snapshot.segments[0].id}]})""")
-    expect(card.locator(".inspector")).to_be_visible()
-    expect(badge).not_to_be_visible()
-    card.get_by_role("button", name="Close segment details").click()
-    expect(badge).to_be_visible()
-    badge.click()
+    # Native selection is directly touchable; dismissing its picker changes no data.
+    selected = picker.input_value()
+    box = picker.bounding_box()
+    page.touchscreen.tap(box["x"] + 24, box["y"] + 24)
+    picker.press("Escape")
+    expect(picker).to_have_value(selected)
     expect(picker).to_be_focused()
-    page.screenshot(path=str(results / "forecast-hour-picker.png"))
-    # Keep HTTP/WebSocket behavior real above. Test unpublished/failure states
-    # below without depending on a particular day's forecast availability.
+    # Keep source I/O real above. Control delayed, empty and failed replies below.
     card.evaluate("""c => {
         c._forecastTestHass = c._hass;
         c._forecastTestData = structuredClone(c._snapshot);
-        c._forecastTestMode = 'empty';
-        c._forecastTestRequests = [];
+        c._forecastTestMode = 'hold';
         c.hass = {...c._hass, callWS: async message => {
             if (!message.forecast_time) return c._forecastTestHass.callWS(message);
-            c._forecastTestRequests.push(message.forecast_time);
+            if (c._forecastTestMode === 'hold')
+                await new Promise(resolve => { c._forecastResolve = resolve; });
             if (c._forecastTestMode === 'failure')
                 throw {code: 'forecast_request_failed'};
             const data = structuredClone(c._forecastTestData);
             data.forecast_time = message.forecast_time;
             if (c._forecastTestMode === 'empty') {
                 data.segments = [];
-                data.summary.highest_slip_risk = null;
                 for (const key of ['slip_risk', 'road_condition']) data.summary[key] = {
                     source_categories: {}, missing_segments: 0,
                     unrecognized_segments: 0};
@@ -895,31 +868,24 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
             return data;
         }};
     }""")
-    # A drag previews the chosen time without making intermediate API calls or
-    # letting HA updates reset the thumb. Releasing commits just the final hour.
-    picker.evaluate("""e => {
-        for (const value of [3, 8, 4]) {
-            e.value = String(value);
-            e.dispatchEvent(new Event('input', {bubbles: true}));
-        }
-    }""")
-    card.evaluate("c => c._renderText()")
-    expect(picker).to_have_value("4")
-    page.wait_for_timeout(300)  # Longer than the forecast request debounce.
-    assert card.evaluate("c => c._forecastTestRequests.length") == 0
-    assert card.evaluate("c => Date.parse(c._data.time)") == int(
-        hour.timestamp() * 1000
-    )
-    picker.dispatch_event("change")
+    picker.select_option(hours[4])
+    page.wait_for_function("c => !!c._forecastResolve", arg=card.element_handle())
+    expect(card.locator(".forecast-picker")).to_have_attribute("aria-busy", "true")
+    expect(card.locator(".status")).to_be_empty()
+    loading_box = card.locator(".forecast-controls").bounding_box()
+    page.screenshot(path=str(results / "forecast-loading-mobile.png"))
+    card.evaluate("c => { c._forecastTestMode = 'success'; c._forecastResolve(); }")
+    page.wait_for_function("c => !!c._snapshot", arg=card.element_handle())
+    expect(card.locator(".forecast-picker")).to_have_attribute("aria-busy", "false")
+    assert card.locator(".forecast-controls").bounding_box() == loading_box
+    card.evaluate("c => c._forecastTestMode = 'empty'")
+    picker.select_option(hours[5])
     expect(card.locator(".status")).to_contain_text("No forecast segments")
     assert card.evaluate(
         "c => c._map.getStyle().sources.forecasts.data.features.length === 0"
     )
-    assert card.evaluate(
-        "c => c._map.getStyle().sources.route.data.features.length === 1"
-    )
     card.evaluate("c => c._forecastTestMode = 'failure'")
-    picker.press("ArrowRight")
+    picker.select_option(hours[6])
     expect(card.locator(".status")).to_contain_text("Selected forecast unavailable")
     card.evaluate("c => c._forecastTestMode = 'success'")
     card.locator(".status").get_by_role("button", name="Retry", exact=True).click()
@@ -929,100 +895,67 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
     assert (
         card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
     )
+    # A per-card offset is highlighted and used when returning from a manual hour.
+    card.evaluate("c => c.setConfig({...c._config, default_forecast: '2'})")
+    page.wait_for_function(
+        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === Date.parse(time)",
+        arg=[card.element_handle(), hours[2]],
+    )
+    expect(picker).to_have_value("default")
+    assert "Default" in picker.locator(f"option[value='{hours[2]}']").inner_text()
+    picker.select_option(hours[3])
+    picker.select_option("default")
+    page.wait_for_function(
+        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === Date.parse(time)",
+        arg=[card.element_handle(), hours[2]],
+    )
     viewport = page.viewport_size
     page.set_viewport_size({"width": 320, "height": 844})
     card.evaluate("""c => {
         c.hass = {...c._hass, locale: {...c._hass.locale, language: 'nb'}};
-        c.setConfig({...c._config, theme_mode: 'dark'});
+        c.setConfig({...c._config, theme_mode: 'dark', default_forecast: '0'});
     }""")
-    picker_nb = card.get_by_role("slider", name="Prognosen gjelder for", exact=True)
-    expect(picker_nb).to_be_visible()
+    picker_nb = card.get_by_role("combobox", name="Prognosen gjelder for", exact=True)
+    expect(picker_nb).to_have_value("default")
+    expect(card.locator(".forecast-time")).to_have_text("Nå")
     page.wait_for_function(
-        "c => c._ready && c._map.loaded()", arg=card.element_handle()
+        "c => c._ready && c._map.loaded() && !!c._snapshot", arg=card.element_handle()
     )
-    assert picker_nb.evaluate("e => e.getBoundingClientRect().height >= 44")
-    panel = card.locator(".forecast-panel")
-    assert panel.evaluate("e => e.scrollWidth <= e.clientWidth")
-    assert panel.bounding_box()["height"] <= 170
-    for button in panel.get_by_role("button").all():
-        assert button.bounding_box()["height"] >= 44
+    assert card.locator(".forecast-controls").evaluate(
+        "e => e.scrollWidth <= e.clientWidth"
+    )
     page.screenshot(path=str(results / "forecast-hour-nb-dark.png"))
-    # Drag with real touch input, including a hold beyond the request debounce.
-    # Neither API traffic nor map panning should occur before release.
-    camera_nb = card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]")
-    slider_box = picker_nb.bounding_box()
-    requests_before = card.evaluate("c => c._forecastTestRequests.length")
-    cdp = page.context.new_cdp_session(page)
-    for kind, fraction in [
-        ("touchStart", 0.25),
-        ("touchMove", 0.4),
-        ("touchMove", 0.55),
-    ]:
-        cdp.send(
-            "Input.dispatchTouchEvent",
-            {
-                "type": kind,
-                "touchPoints": [
-                    {
-                        "x": slider_box["x"] + slider_box["width"] * fraction,
-                        "y": slider_box["y"] + slider_box["height"] / 2,
-                    }
-                ],
-            },
-        )
-    page.wait_for_timeout(300)
-    assert card.evaluate("c => c._forecastTestRequests.length") == requests_before
-    cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
-    cdp.detach()
-    page.wait_for_function(
-        "c => c._snapshot?.segments.length > 0", arg=card.element_handle()
-    )
-    assert card.evaluate("c => c._forecastTestRequests.length") == requests_before + 1
-    assert (
-        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]")
-        == camera_nb
-    )
-    # Native keyboard limits, Escape/focus, and a short card keep controls usable.
-    picker_nb.press("End")
-    expect(panel.get_by_role("button", name="Neste prognosetime")).to_be_disabled()
-    picker_nb.press("Home")
-    expect(panel.get_by_role("button", name="Forrige prognosetime")).to_be_disabled()
-    picker_nb.press("Escape")
-    expect(picker_nb).not_to_be_visible()
-    expect(badge).to_be_focused()
-    expect(badge).to_have_attribute("aria-expanded", "false")
-    badge.click()
+    picker_nb.select_option(hours[24])
+    expect(card.get_by_role("button", name="Neste prognosetime")).to_be_disabled()
+    picker_nb.select_option(hours[0])
+    expect(card.get_by_role("button", name="Forrige prognosetime")).to_be_disabled()
     card.evaluate("c => c.setConfig({...c._config, height: 240})")
-    assert panel.evaluate("e => e.scrollWidth <= e.clientWidth")
     frame_box = card.locator(".map-frame").bounding_box()
-    assert panel.bounding_box()["y"] >= frame_box["y"]
-    page.screenshot(path=str(results / "forecast-hour-short.png"))
-    # Return to the configured forecast in one tap, without another request.
-    card.get_by_role("button", name="Automatisk", exact=True).click()
-    expect(card.get_by_role("button", name="Automatisk", exact=True)).to_have_attribute(
-        "aria-pressed", "true"
+    controls_box = card.locator(".forecast-controls").bounding_box()
+    assert (
+        controls_box["y"] + controls_box["height"]
+        <= frame_box["y"] + frame_box["height"]
     )
-    assert card.evaluate("c => c._snapshot === c._data.live")
+    assert (
+        controls_box["x"] + controls_box["width"] <= frame_box["x"] + frame_box["width"]
+    )
+    page.screenshot(path=str(results / "forecast-hour-short.png"))
+    # Restore the normal source subscription and following tests' presentation.
     card.evaluate("""c => {
         c.hass = c._forecastTestHass;
-        c.setConfig({...c._config, theme_mode: 'auto', height: 400});
-        delete c._forecastTestRequests;
+        c.setConfig({...c._config, default_forecast: 'route',
+            theme_mode: 'auto', height: 400});
         delete c._forecastTestHass;
         delete c._forecastTestData;
         delete c._forecastTestMode;
+        delete c._forecastResolve;
     }""")
     page.set_viewport_size(viewport)
-    card.get_by_role("button", name="Close forecast time", exact=True).click()
-    expect(badge).to_be_visible()
-    expect(card.locator(".forecast-navigation span")).not_to_be_visible()
-    # A failed configured-hour refresh must not cover the clock needed to try
-    # another hour. Its message and the clock share one compact row.
+    expect(picker).to_have_value("default")
+    assert card.evaluate("c => c._snapshot === c._data.live")
     card.evaluate("c => c._data.onError('unavailable')")
     expect(card.locator(".status")).to_contain_text("Route unavailable")
-    badge.click()
-    expect(picker).to_be_focused()
-    card.get_by_role("button", name="Automatic", exact=True).click()
-    card.get_by_role("button", name="Close forecast time", exact=True).click()
+    picker.select_option("default")
     page.wait_for_function(
         "c => c._ready && c._map.loaded()", arg=card.element_handle()
     )
@@ -1567,7 +1500,10 @@ def run(instance: SmokeInstance) -> None:
             expect(dialog.locator("ha-selector-number").first).to_have_js_property(
                 "label", "Karthøyde"
             )
-            expect(dialog.locator("ha-selector-select").nth(2)).to_have_js_property(
+            expect(dialog.locator("ha-selector-select").first).to_have_js_property(
+                "label", "Standard prognosetid"
+            )
+            expect(dialog.locator("ha-selector-select").nth(3)).to_have_js_property(
                 "label", "Kartlag ved åpning"
             )
             page.screenshot(path=str(instance.results / "card-editor.png"))
@@ -1591,6 +1527,7 @@ def run(instance: SmokeInstance) -> None:
             assert saved_card["height"] == 480
             assert saved_card["default_mode"] == "slip"
             assert saved_card["legend_expanded"] is True
+            assert saved_card["default_forecast"] == "0"
             assert saved_card["theme_mode"] == "dark"
             assert saved_card["map_style"] == "natural"
             assert saved_card["show_cameras"] is True

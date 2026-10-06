@@ -48,6 +48,7 @@ h2 {
   position: relative;
   height: var(--map-height, 400px);
   isolation: isolate;
+  container-type: size;
 }
 .map {
   position: absolute;
@@ -80,181 +81,135 @@ button:focus-visible,
   overflow: auto;
   max-width: calc(100% - 64px);
 }
-.forecast-panel {
+.visually-hidden {
   position: absolute;
-  z-index: 2;
-  bottom: 44px;
-  right: 8px;
-  max-width: calc(100% - 64px);
-  max-height: calc(100% - 56px);
-  box-sizing: border-box;
-  overflow: auto;
-  border-radius: 12px;
-  color: var(--map-ui-text);
-  background: var(--map-ui-background);
-  box-shadow: 0 1px 4px #0004;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
-.forecast-panel[data-expanded="true"] {
-  width: 320px;
-  padding: 4px 8px 8px;
-}
-.forecast-panel .panel-heading {
-  gap: 4px;
-}
-.forecast-panel .panel-heading h3 {
-  font-size: 14px;
-}
-.forecast-navigation {
+.forecast-controls {
   display: flex;
   align-items: center;
-  min-height: 44px;
+  max-width: 100%;
 }
-.forecast-navigation button {
-  display: grid;
-  place-items: center;
-  flex: 0 0 44px;
-  height: 44px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
+.forecast-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 48px;
+  height: 48px;
+  max-width: 180px;
+  color: var(--map-control-color);
+  border-radius: 24px;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+}
+.forecast-picker ha-icon {
+  flex: 0 0 24px;
+  margin: 12px;
+}
+.forecast-time {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 8px;
+  text-shadow:
+    0 0 3px var(--map-ui-background),
+    0 0 3px var(--map-ui-background);
+  font-variant-numeric: tabular-nums;
+}
+.forecast-picker select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font: inherit;
   color: var(--map-ui-text);
+  background: var(--map-ui-background);
+  color-scheme: light;
 }
-.forecast-navigation button:disabled {
+ha-card[data-theme="dark"] .forecast-picker select {
+  color-scheme: dark;
+}
+.forecast-picker:has(select:focus-visible) {
+  outline: 2px solid var(--map-ui-active);
+  outline-offset: -4px;
+}
+.forecast-picker[aria-busy="true"] ha-icon {
+  visibility: hidden;
+}
+.forecast-picker[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: forecast-loading 1s linear infinite;
+}
+@keyframes forecast-loading {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .forecast-picker[aria-busy="true"]::after {
+    animation: none;
+  }
+}
+.map-frame .maplibregl-ctrl-group.forecast-map-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: calc(100cqw - 12px);
+}
+.map-frame .maplibregl-ctrl-group .forecast-controls button {
+  width: 44px;
+  height: 48px;
+  flex-shrink: 0;
+  border: 0;
+}
+.forecast-controls button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-.forecast-navigation .forecast-badge {
-  flex: 1 1 auto;
-  min-width: 44px;
-  height: auto;
-  min-height: 44px;
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  padding: 4px 2px;
-  font-size: 14px;
-  line-height: 20px;
-  border-radius: 8px;
-  font-variant-numeric: tabular-nums;
-}
-.forecast-badge ha-icon {
-  --mdc-icon-size: 20px;
-  flex-shrink: 0;
-}
-.forecast-panel[data-expanded="true"] .forecast-badge ha-icon {
+.forecast-controls[data-obscured="true"] .forecast-time,
+.forecast-controls[data-obscured="true"] button,
+.map-frame:has(.camera-panel:not([hidden]), .source-bubble) .forecast-time,
+.map-frame:has(.camera-panel:not([hidden]), .source-bubble)
+  .forecast-controls
+  button {
   display: none;
 }
-.forecast-automatic {
-  min-height: 44px;
-  border: 0;
-  border-radius: 22px;
-  padding: 0 10px;
-  font-size: 12px;
-  color: var(--map-ui-active);
-  background: transparent;
-}
-.forecast-automatic[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--map-ui-active) 12%, transparent);
-}
-.forecast-panel[data-expanded="false"][data-automatic="true"] {
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-  background: transparent;
-  box-shadow: none;
-}
-.forecast-panel[data-expanded="false"][data-automatic="true"]:has(
-    .status:not(:empty)
-  ) {
-  background: var(--map-ui-background);
-  box-shadow: 0 1px 4px #0004;
-}
-.forecast-panel[data-expanded="false"][data-automatic="true"]
-  .forecast-navigation {
-  flex-shrink: 0;
-}
-.forecast-panel[data-expanded="false"][data-automatic="true"] .forecast-badge {
-  color: var(--map-control-color);
-}
-.forecast-panel[data-expanded="false"][data-automatic="true"] ha-icon {
-  --mdc-icon-size: 24px;
-}
-.forecast-timeline input {
-  display: block;
-  width: 100%;
-  height: 44px;
-  margin: 0;
-  cursor: pointer;
-  appearance: none;
-  background: transparent;
-}
-.forecast-timeline input::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(
-    to right,
-    var(--map-ui-active) var(--forecast-position),
-    var(--map-ui-divider) var(--forecast-position)
-  );
-}
-.forecast-timeline input::-moz-range-track {
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(
-    to right,
-    var(--map-ui-active) var(--forecast-position),
-    var(--map-ui-divider) var(--forecast-position)
-  );
-}
-.forecast-timeline input::-webkit-slider-thumb {
-  appearance: none;
-  width: 24px;
-  height: 24px;
-  margin-top: -10px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--map-ui-active);
-}
-.forecast-timeline input::-moz-range-thumb {
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--map-ui-active);
-}
-.forecast-timeline input:focus-visible {
-  outline: 2px solid var(--map-ui-active);
-  outline-offset: -2px;
-  border-radius: 8px;
-}
-.forecast-scale {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
-  line-height: 16px;
-  color: var(--map-ui-secondary);
-}
-.forecast-panel .status {
-  position: static;
-  min-width: 0;
-  max-width: none;
-  box-shadow: none;
-  border-radius: 0;
-  flex-wrap: wrap;
-  overflow-wrap: anywhere;
-}
-.forecast-panel .status button {
-  min-height: 44px;
-}
-.map-frame:has(.camera-panel:not([hidden]), .source-bubble) .forecast-panel {
-  display: none;
+/* Keep the clock in the left controls even at the supported 240px height. */
+@container (max-height: 300px) {
+  .map-frame .maplibregl-ctrl-group.forecast-map-control {
+    flex-direction: row;
+    align-items: center;
+  }
+  .forecast-map-control > button {
+    flex-shrink: 0;
+  }
+  .forecast-controls {
+    min-width: 0;
+  }
+  .forecast-picker {
+    min-width: 48px;
+  }
 }
 @media (hover: hover) {
-  .forecast-navigation button:not(:disabled):hover,
-  .forecast-automatic:hover {
-    background: color-mix(in srgb, var(--map-ui-text) 8%, transparent);
+  .forecast-picker:hover {
+    background: color-mix(in srgb, currentColor 10%, transparent);
   }
 }
 .information {

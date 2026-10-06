@@ -42,6 +42,7 @@ test("route defaults and legacy editor selections use stable devices, without ch
     height: 500,
     title: "My route",
     default_mode: "condition",
+    default_forecast: "route",
     legend_expanded: false,
     map_style: "default",
     theme_mode: "auto",
@@ -54,6 +55,7 @@ test("route defaults and legacy editor selections use stable devices, without ch
   assert.deepEqual(editorConfig(legacy, {}), {
     ...legacy,
     default_mode: "condition",
+    default_forecast: "route",
     legend_expanded: false,
     map_style: "default",
     theme_mode: "auto",
@@ -68,6 +70,7 @@ test("route defaults and legacy editor selections use stable devices, without ch
       device_id: "chosen",
       height: 400,
       default_mode: "condition",
+      default_forecast: "route",
       legend_expanded: false,
       map_style: "default",
       theme_mode: "auto",
@@ -465,4 +468,20 @@ test("condition and source slipperiness highlights retain codes and fit only sel
   assert.equal(color("high", "slip"), "#d55e00");
   assert.equal(color("NewCode", "slip"), "#777777");
   assert.deepEqual(segments, before);
+});
+
+test("card forecast defaults validate independently and clearing restores route following", () => {
+  for (const value of ["route", "0", "2", "24"])
+    assert.equal(
+      validateConfig({ default_forecast: value }).default_forecast,
+      value,
+    );
+  for (const value of [0, null, "", "25", "-1", "1.5", true])
+    assert.throws(() => validateConfig({ default_forecast: value }));
+  const cleared = changedConfig(
+    { default_forecast: "2", map_style: "muted" },
+    { default_forecast: null },
+  );
+  assert.equal(editorConfig(cleared).default_forecast, "route");
+  assert.equal(cleared.map_style, "muted");
 });

@@ -12,11 +12,13 @@ resolves it using registry identifiers and route subentries, never display names
 or model strings. A single route is preselected for a new card; several routes
 require a choice. No extra entity, route catalogue or source request is needed.
 
-The same native form exposes an optional `title` and an **Appearance** expander
+The same native form exposes an optional `title`, `default_forecast`, and an
+**Appearance** expander
 containing `map_style`, `theme_mode`, `height`, `default_mode` and
 `legend_expanded`, with English and Bokmål labels. Cleared optional fields return
 to defaults; advanced YAML such as `map_style_url` is retained. Presentation
-changes do not change route settings or request new source data.
+changes do not change route settings or request new source data. Choosing a
+card forecast offset can request that hour independently, as described below.
 
 The editor uses HA's documented `getConfigElement`, `setConfig`, `hass` and
 `config-changed` lifecycle with a native `ha-form` and device selector. Existing
@@ -62,33 +64,41 @@ carriageway coverage. Filters preserve the full route as subdued context.
 
 ## Forecast hour selection
 
-The clock control opens a compact bottom panel independently of map layers.
-A native HTML range input offers the current UTC hour through +24 hours, with
-previous/next buttons for exact hourly adjustment. Dragging previews the time;
-the native change event commits it on release. Intermediate drag positions make
-no requests. Incoming snapshots do not reset a drag's thumb or absolute hours.
-The one-tap Automatic button returns to the configured route offset and
-coordinator subscription. Labels use HA's time zone and the card's language;
-repeated local hours include UTC offsets. The choice is temporary card state,
-not saved dashboard configuration, and does not silently advance with time.
+The clock and a compact time label are part of the left MapLibre control group.
+The closed appearance is styled, but selection uses an ordinary native HTML
+`select`, with `optgroup` date headings, default labels and the browser's own
+keyboard, touch and screen-reader behavior. There is no additional popup or
+custom listbox. At map heights of 300 pixels or less, clock and layers share a
+row to stay inside the map. The click target remains at least 44 pixels high.
 
-The card keeps the normal subscription so returning to Automatic immediately
-uses its latest snapshot. Selected-hour queries refresh every five minutes
-while the page is visible; hiding the page or detaching the card stops its query timer.
-Fast arrow taps are coalesced and an in-flight query queues only the final
-choice. Late results cannot replace a newer selection, another route or a
-disconnected card. Selecting a new hour clears the prior forecast colors while
-loading, retaining route geometry and map position. Failure clears the overlay;
-complete empty results display a distinct no-segments message. Once the chosen
-hour has passed, the overlay clears and the selector asks for another hour.
+`default_forecast` is a string: `"route"` (the default) follows the configured
+route offset and coordinator subscription; `"0"` through `"24"` select a rolling
+UTC-hour offset just for this card. The graphical editor offers the same choices.
+For example, `default_forecast: "0"` keeps the card on the current forecast hour
+without changing its route's sensors. Clearing the optional field restores route
+following. The picker marks the default hour and provides a Default choice to
+return to it. Manual hour selections remain absolute, temporary card state.
 
-Closing the panel retains just the time and previous/next arrows during manual
-browsing; Automatic leaves only the clock icon. Opening the time button focuses
-the slider. Escape or Close collapses the panel and returns focus to the clock.
-The slider supports native keyboard controls and exposes its localized time
-through `aria-valuetext`. Controls use existing light/dark card colors and
-44-pixel targets. Error and loading text sits beside the selected time. Layer,
-segment and source panels hide the time controls to avoid overlapping controls.
+Time labels use HA's configured time zone and the card language. Now/Nå denotes
+the current UTC forecast hour, not a live observation; future hours show their
+local time, with the date when needed. Repeated local DST hours include offsets.
+
+The card retains its normal subscription so returning to route following uses
+the latest snapshot immediately. Requested hours refresh every five minutes
+while visible. A configured card offset additionally schedules the next UTC
+hour boundary, and an old response crossing that boundary is discarded. Hidden
+or detached cards stop their timers. Returning to a visible page recomputes a
+rolling default. Manual selections do not silently advance; expired selections
+clear the overlay and ask for another hour. Permission failures and removal
+still prevent old replies from being published.
+
+Quick changes coalesce; an in-flight query queues only the final choice. Map
+position and zoom stay unchanged. Selecting a new hour clears old forecast
+colors while retaining route geometry. Loading replaces the clock icon with a
+fixed-size spinner and an accessible status announcement, not a moving text
+panel. Reduced-motion preferences disable the spinner animation. Complete empty
+responses, errors and Retry remain distinct.
+
 Camera and weather discovery stays independent and shows latest observations;
 no historical observations or forecast camera images are implied. The minimum
 remains HA 2025.12.0, using its existing custom-card lifecycle and WebSocket API.

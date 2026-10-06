@@ -9,10 +9,18 @@ export const forecastHours = (now = Date.now()) => {
     new Date(start + i * HOUR).toISOString(),
   );
 };
-export const forecastLabel = (value, language, timeZone) => {
+export const forecastLabel = (value, language, timeZone, compact = false) => {
+  if (compact && Date.parse(value) === Date.parse(forecastHours()[0]))
+    return language === "nb" ? "Nå" : "Now";
+  const day = new Intl.DateTimeFormat(language, {
+    dateStyle: "short",
+    timeZone,
+  });
+  const today =
+    compact && day.format(new Date(value)) === day.format(Date.now());
   const options = {
-    month: "short",
-    day: "numeric",
+    month: today ? undefined : "short",
+    day: today ? undefined : "numeric",
     hour: "2-digit",
     minute: "2-digit",
     timeZone,
@@ -35,12 +43,19 @@ export class ForecastData {
   constructor(onData, onError, onReset) {
     Object.assign(this, { onData, onError, onReset });
     this.visible = true;
+    this.followingDefault = true;
     this.revision = 0;
     this.base = new RouteData(
       (data) => {
         this.live = data;
         this.liveError = undefined;
-        if (this.time) this.refresh();
+        if (
+          this.followingDefault &&
+          this.offset !== undefined &&
+          this.time !== this.defaultTime
+        )
+          this.select();
+        else if (this.time) this.refresh();
         else this.onData(data);
       },
       (error) => {
@@ -70,16 +85,43 @@ export class ForecastData {
     this.cancel();
     this.base.stop();
     this.live = undefined;
-    if (resetTime) this.time = undefined;
+    if (resetTime) {
+      this.time = undefined;
+      this.followingDefault = true;
+    }
+  }
+
+  get offset() {
+    const value = this.config?.default_forecast ?? "route";
+    return value === "route" ? undefined : Number(value);
+  }
+
+  get defaultTime() {
+    return this.offset === undefined
+      ? this.live?.forecast_time
+      : forecastHours()[this.offset];
   }
 
   update(hass, config) {
+    const changed =
+      (this.config?.default_forecast ?? "route") !==
+      (config.default_forecast ?? "route");
     Object.assign(this, { hass, config });
-    return this.base.update(hass, config);
+    const result = this.base.update(hass, config);
+    if (changed) {
+      if (hass.connected) this.select();
+      else {
+        this.followingDefault = true;
+        this.time = this.offset === undefined ? undefined : this.defaultTime;
+      }
+    }
+    return result;
   }
 
   select(time) {
-    this.time = time || undefined;
+    this.followingDefault = !time;
+    this.time =
+      time || (this.offset === undefined ? undefined : this.defaultTime);
     this.revision++;
     this.fetched = 0;
     clearTimeout(this.timer);
@@ -112,6 +154,14 @@ export class ForecastData {
   async refresh(force = false) {
     if (!this.time || !this.visible || !this.hass?.connected || this.pending)
       return;
+    if (
+      this.followingDefault &&
+      this.offset !== undefined &&
+      this.time !== this.defaultTime
+    ) {
+      this.select();
+      return;
+    }
     const time = this.time;
     if (!forecastHours().includes(time)) {
       this.onReset();
@@ -135,6 +185,10 @@ export class ForecastData {
         !this.visible
       )
         return;
+      if (this.followingDefault && time !== this.defaultTime) {
+        this.select();
+        return;
+      }
       this.fetched = Date.now();
       this.onData(data);
     } catch (error) {
@@ -144,6 +198,14 @@ export class ForecastData {
         !this.visible
       )
         return;
+      if (
+        error.code === "forecast_time_out_of_range" &&
+        this.followingDefault &&
+        time !== this.defaultTime
+      ) {
+        this.select();
+        return;
+      }
       retryable = ![
         "unauthorized",
         "invalid_route",
@@ -161,12 +223,18 @@ export class ForecastData {
       if (this.pending === request) {
         this.pending = undefined;
         if (this.time && this.visible && retryable) {
+          clearTimeout(this.timer);
           const delay =
             request.revision !== this.revision
               ? 0
               : Math.min(
                   REFRESH,
-                  Math.max(20, Date.parse(this.time) + HOUR - Date.now()),
+                  Math.max(
+                    20,
+                    (this.followingDefault
+                      ? Math.floor(Date.now() / HOUR) * HOUR + HOUR
+                      : Date.parse(this.time) + HOUR) - Date.now(),
+                  ),
                 );
           this.timer = setTimeout(() => this.refresh(true), delay);
         }

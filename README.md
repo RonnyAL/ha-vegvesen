@@ -188,17 +188,22 @@ to highlight and fit its segments.
 Missing and unrecognized data are shown explicitly. Forecast times use Home
 Assistant's configured time zone.
 
-Tap the **clock** on the map to browse forecast hours. The compact time panel
-has an hourly slider, previous/next arrows for precise adjustment, and an
-**Automatic** button to return to the route's configured forecast. Dragging the
-slider previews a time; releasing it loads that hour without moving the map.
-Close the panel to keep just the time and arrows visible while browsing.
-Your selection affects this card only and resets when the page reloads.
+The **clock and time label** sit with the left-side map controls. Tap them to
+open the native hour picker, grouped by date. **Now** means the current forecast
+hour. Previous/next arrows appear when browsing a specific hour; changing time
+keeps your map position and zoom. Loading uses a small spinner in place of the
+clock without moving the controls.
+
+In the card editor, **Default forecast time** can follow the route, show Now,
+or stay a chosen number of hours ahead (0–24). The default is marked in the
+picker; choose **Default** to return to it. An offset advances as the clock
+changes. This setting affects only the card, not the route's sensors.
+Manual selections reset to that default when the page reloads.
 
 A selected hour stays fixed and refreshes every five minutes while the page is
 visible. Requests share the automation action's cache. Unpublished hours show
 **No forecast segments**; failed requests clear the forecast overlay and offer
-**Retry**. Once the selected hour has passed, choose another hour or Automatic.
+**Retry**. Once the selected hour has passed, choose another hour or Default.
 The selector covers the current hour through 24 hours ahead; availability varies.
 Cameras and weather stations continue to show their latest images and measured
 observations, independently of the forecast hour.
@@ -246,7 +251,7 @@ coordinates prevent a source from appearing on the map. Automatically discovered
 sources do not create devices, entities or recorder history. Add a source
 manually if you also want its entities for dashboards or automations.
 
-In Automatic mode, cards share the route's forecast data without extra polling.
+When following the route, cards share its forecast data without extra polling.
 Browsing another hour requests only that hour; cards and actions share its cache.
 If the background map cannot load, route geometry remains
 usable. If the forecast becomes unavailable, its colored segments are cleared

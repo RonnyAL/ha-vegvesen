@@ -10,6 +10,16 @@
 
 All three run the same 417 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
+For 0.12.2, the 35 frontend tests include card-default validation, rolling UTC-hour
+offsets, Now labels, fixed manual selections, disconnect/visibility recovery,
+responses crossing hour boundaries and timer cleanup. The packaged browser
+scenario checks the native grouped hour picker on the left, marked defaults,
+unchanged control bounds while a response is delayed, English/Bokmål, dark mode,
+320-pixel width, 240-pixel map height, touch/keyboard access and saved editor
+defaults. It retains real requested-hour API checks plus deterministic empty,
+failed and recovered responses. Browser touch emulation does not replace
+physical companion-app testing.
+
 For 0.12.1, the packaged browser scenario exercises the separate forecast clock,
 native hourly slider and compact bottom controls on minimum and beta HA. It
 checks real touch dragging without intermediate requests or map panning,

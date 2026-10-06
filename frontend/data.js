@@ -113,6 +113,16 @@ export function validateConfig(config) {
   )
     throw Error("Initial layer must be road condition or slipperiness");
   if (
+    config.default_forecast !== undefined &&
+    config.default_forecast !== "route" &&
+    !Array.from({ length: 25 }, (_, hours) => String(hours)).includes(
+      config.default_forecast,
+    )
+  )
+    throw Error(
+      "Default forecast must be route or an hour offset from 0 to 24",
+    );
+  if (
     config.legend_expanded !== undefined &&
     typeof config.legend_expanded !== "boolean"
   )
