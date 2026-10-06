@@ -44,6 +44,18 @@ groups, observation details, failure recovery and native editor persistence.
 The compatibility floor stays HA 2025.12.0: the new transport uses its supported
 WebSocket extension API and existing config-entry/coordinator lifecycle hooks.
 
+For 0.10.1, the 23 frontend tests include mixed-group sections, direction labels,
+same-name source disambiguation and unchanged source records. Packaged browser
+checks pass on HA 2025.12.0 and 2026.10.0b0: both icons in collapsed mixed markers,
+weather-first lists, full-width touch targets, camera directions, focus restoration,
+unchanged map view and weather access after camera removal. The three-source
+list fits the normal card height without scrolling. The minimum frontend also
+checks scrolling at the minimum 240-pixel height; both exercise 320-pixel width,
+Bokmål and dark mode. Its existing native view-transition notices remain scoped
+to the older frontend; no runtime workarounds or broader error exclusions were
+introduced. The [grouping investigation](source-grouping.md) records actual
+co-location counts and official design references.
+
 The 0.7.4 regression verifies that weather refreshes update only devices owned
 by their config entry. Recovery tests also check that device-name updates emit
 no deprecated lookup warning while preserving user names and existing entity IDs.

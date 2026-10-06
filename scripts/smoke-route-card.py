@@ -469,6 +469,7 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
                     source_id: s.attributes.source_id, name: s.attributes.friendly_name,
                     longitude: s.attributes.longitude, latitude: s.attributes.latitude,
                     availability: s.attributes.source_availability,
+                    orientation: s.attributes.orientation,
                 }))}, weather: {status: 'ready', items: c._config.show_weather
                     ? (c._weatherTestItems ?? []) : []}}});
         };
@@ -618,7 +619,23 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
         c._cameraTestUpdate(c._cameraTestStates);
     }""")
     expect(marker.locator(".source-count")).to_have_text("3")
+    expect(marker).to_have_attribute(
+        "aria-label", "Weather stations (1), Road cameras (2)"
+    )
+    expect(marker.locator(".source-symbols ha-icon")).to_have_count(2)
+    expect(marker).to_have_attribute("aria-expanded", "false")
+    before = card.evaluate("c => c._cameraTestRequests.length")
     marker.tap()
+    expect(bubble.locator(".source-section h4")).to_have_text(
+        ["Weather stations (1)", "Road cameras (2)"]
+    )
+    expect(bubble.locator(".source-choice").first).to_have_text("Test weather station")
+    assert card.evaluate("c => c._cameraTestRequests.length") == before
+    for choice in bubble.locator(".source-choice").all():
+        assert choice.bounding_box()["height"] >= 48
+    # All three choices fit at normal card height, regardless of marker position.
+    assert bubble.evaluate("e => e.scrollHeight <= e.clientHeight")
+    page.screenshot(path=str(results / "mixed-source-group-mobile.png"))
     bubble.get_by_role("button", name="Test weather station").tap()
     expect(panel).to_contain_text("0 °C")
     expect(panel).to_contain_text("Missing data")
@@ -635,6 +652,83 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
         expect(panel.locator(".source-values")).to_contain_text(expected)
     assert card.evaluate("c => c._cameraTestRequests.length") == before
     page.screenshot(path=str(results / "weather-source-mobile.png"))
+    panel.get_by_role("button", name="Close source details").press("Escape")
+    expect(bubble.get_by_role("button", name="Test weather station")).to_be_focused()
+    # A mixed group keeps directions on their own line and remains readable at
+    # 320px, in Bokmål and dark mode. Opening a different kind never fits the map.
+    viewport = page.viewport_size
+    page.set_viewport_size({"width": 320, "height": 844})
+    card.evaluate("""c => {
+        c.hass = {...c._hass, locale: {...c._hass.locale, language: 'nb'}};
+        c.setConfig({...c._config, theme_mode: 'dark'});
+        const states = structuredClone(c._cameraTestStates);
+        for (const [id, state] of Object.entries(states)) {
+            state.attributes.friendly_name = 'Et langt kameranavn ved veikrysset';
+            state.attributes.orientation =
+                id.endsWith('north') ? 'Mot nord' : 'Mot sør';
+        }
+        c._cameraTestUpdate(states);
+    }""")
+    page.wait_for_function(
+        "c => c._ready && c._map.loaded()",
+        arg=card.element_handle(),
+        timeout=30000,
+    )
+    # Resizing reprojects the marker; reopen if the map closed its popup.
+    if not bubble.is_visible():
+        marker.tap()
+    expect(bubble.locator(".source-section h4")).to_have_text(
+        ["Værstasjoner (1)", "Veikameraer (2)"]
+    )
+    expect(bubble.locator(".source-choice-detail")).to_have_text(
+        ["", "Mot nord", "Mot sør"]
+    )
+    bubble.locator(".source-choice").last.focus()
+    expect(bubble.locator(".source-choice").last).to_be_in_viewport()
+    content = card.locator(".source-picker")
+    assert content.evaluate("e => e.scrollWidth <= e.clientWidth")
+    for choice in bubble.locator(".source-choice").all():
+        assert choice.evaluate("e => e.scrollWidth <= e.clientWidth")
+    camera = card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]")
+    page.screenshot(path=str(results / "mixed-source-group-nb-dark.png"))
+    bubble.locator(".source-choice").last.press("Enter")
+    expect(panel.locator("h3")).to_have_text(
+        "Et langt kameranavn ved veikrysset — Mot sør"
+    )
+    expect(panel.locator(".camera-image")).to_be_visible()
+    assert (
+        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
+    )
+    panel.get_by_role("button", name="Lukk kildedetaljer").press("Escape")
+    expect(bubble.locator(".source-choice").last).to_be_focused()
+    card.evaluate("c => c.setConfig({...c._config, height: 240})")
+    if not bubble.is_visible():
+        marker.tap()
+    bubble.locator(".source-choice").last.focus()
+    expect(bubble.locator(".source-choice").last).to_be_in_viewport()
+    frame = card.locator(".map-frame").bounding_box()
+    box = content.bounding_box()
+    assert frame["y"] <= box["y"]
+    assert box["y"] + box["height"] <= frame["y"] + frame["height"] - 40
+    page.screenshot(path=str(results / "mixed-source-group-compact.png"))
+    card.evaluate(
+        "(c, height) => c.setConfig({...c._config, height})",
+        original_config.get("height", 400),
+    )
+    # Losing camera discovery leaves weather selectable with a single icon.
+    card.evaluate("c => c._cameraTestUpdate({})")
+    expect(bubble).not_to_be_visible()
+    expect(marker.locator(".source-symbols ha-icon")).to_have_count(1)
+    expect(marker).not_to_have_attribute("aria-expanded", "true")
+    marker.tap()
+    expect(panel.locator("h3")).to_have_text("Test weather station")
+    card.evaluate(
+        """c => {
+        c._cameras.close();
+        c.hass = {...c._hass, locale: c._cameraTestHass.locale};
+    }"""
+    )
+    page.set_viewport_size(viewport)
     card.evaluate("""c => {
         c._weatherTestItems = [];
         c.setConfig({...c._config, show_weather: false});
@@ -656,7 +750,7 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
     }""")
     expect(marker.locator(".source-count")).to_have_text("12")
     marker.tap()
-    content = card.locator(".source-popup .maplibregl-popup-content")
+    content = card.locator(".source-picker")
     expect(bubble.locator(".source-choice")).to_have_count(12)
     bubble.locator(".source-choice").last.focus()
     expect(bubble.locator(".source-choice").last).to_be_in_viewport()
@@ -1281,6 +1375,7 @@ def run(instance: SmokeInstance) -> None:
                         "weather_layer": True,
                         "collapsed_source_groups": True,
                         "source_group_timeout_and_keyboard": True,
+                        "mixed_source_hierarchy": True,
                         "camera_failure_recovery": True,
                         "category_highlight": True,
                         "layers_panel_on_demand": True,

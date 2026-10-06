@@ -188,10 +188,13 @@ corridor and map zoom. Nearby side roads can fall within that distance too.
 
 Tap a camera for its still image and source status, or a weather station for its
 measured air temperature and observation time. Overlapping sources share a
-counted marker: tap it to reveal the individual sources, then choose one. Neither
-action changes the map's position or zoom. After closing the details, the choices
-return for eight seconds; hovering or keeping keyboard focus inside keeps them
-open. Nearby sources separate as you zoom in; coincident sources stay grouped.
+counted marker. Groups containing both cameras and weather stations show both
+icons. Tap a group to open a list with separate weather and camera sections,
+then choose a source. Camera directions appear below the name where available.
+Neither action changes the map's position or zoom. After closing the details,
+the choices return for eight seconds; hovering or keeping keyboard focus inside
+keeps them open. Nearby sources separate as you zoom in; coincident sources stay
+grouped.
 
 Cards share discovery caches. While a layer is shown, weather observations
 refresh every ten minutes and the camera catalogue every fifteen minutes.

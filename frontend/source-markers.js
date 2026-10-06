@@ -1,5 +1,6 @@
 import * as maplibregl from "maplibre-gl";
 import { sourceGroups } from "./source-groups.js";
+import { sourceSections } from "./sources.js";
 
 export const element = (tag, className, text) => {
   const item = document.createElement(tag);
@@ -36,10 +37,11 @@ const isolateControl = (control) => {
 };
 
 // A small presentation layer shared by physical source types. It owns neither
-// HA entities nor discovery. Use public MapLibre Marker/Popup and map events.
+// HA entities nor discovery. Use public MapLibre markers/events and a bounded
+// in-map list, like the card's other detail panels, with native button semantics.
 export class SourceMarkers {
-  constructor(onSelect, onExpand) {
-    Object.assign(this, { onSelect, onExpand });
+  constructor(frame, onSelect, onExpand) {
+    Object.assign(this, { frame, onSelect, onExpand });
     this.markers = new Map();
     this.regroup = () => this.draw();
     this.dismiss = () => this.collapse();
@@ -84,8 +86,9 @@ export class SourceMarkers {
       marker.setLngLat(map.unproject(group.center));
       const button = marker.getElement();
       const multiple = group.items.length > 1;
+      const sections = sourceSections(group.items, this.labels);
       const name = multiple
-        ? this.labels.expand_sources.replace("{count}", group.items.length)
+        ? sections.map((section) => section.label).join(", ")
         : group.items[0].name;
       button.title = name;
       button.setAttribute("aria-label", name);
@@ -96,11 +99,11 @@ export class SourceMarkers {
           String(this.expanded === group.id),
         );
       else button.removeAttribute("aria-expanded");
-      const symbols = new Set(group.items.map((item) => item.icon));
-      const symbol =
-        symbols.size === 1 ? group.items[0].icon : "mdi:map-marker-multiple";
       // Keep the focusable button itself in place while source metadata updates.
-      button.replaceChildren(icon(symbol));
+      const symbols = element("span", "source-symbols");
+      symbols.classList.toggle("source-mixed", sections.length > 1);
+      symbols.append(...sections.map((section) => icon(section.icon)));
+      button.replaceChildren(symbols);
       if (multiple)
         button.append(
           element("span", "source-count", String(group.items.length)),
@@ -139,8 +142,10 @@ export class SourceMarkers {
   renderBubble() {
     const group = this.groups?.find((g) => g.id === this.expanded);
     if (!group || this.held) return;
-    if (!this.popup) {
-      this.bubble = isolateControl(element("section", "source-bubble"));
+    if (!this.bubble) {
+      this.bubble = isolateControl(
+        element("section", "source-bubble source-picker"),
+      );
       this.bubble.onclick = (event) => event.stopPropagation();
       this.bubble.onkeydown = (event) => {
         if (event.key === "Escape") {
@@ -153,32 +158,13 @@ export class SourceMarkers {
       this.bubble.onpointerleave = this.bubble.onfocusout = () => {
         if (this.returned) this.scheduleCollapse();
       };
-      this.popup = new maplibregl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        focusAfterOpen: false,
-        offset: 22,
-        className: "source-popup",
-      })
-        .setLngLat(this.map.unproject(group.center))
-        .setDOMContent(this.bubble)
-        .addTo(this.map);
+      this.frame.append(this.bubble);
     }
-    this.popup.setMaxWidth(
-      `${Math.min(280, this.map.getContainer().clientWidth - 80)}px`,
-    );
-    const height = this.map.getContainer().clientHeight;
-    const space = Math.max(group.center.y, height - group.center.y);
-    this.popup
-      .getElement()
-      .style.setProperty(
-        "--source-popup-max-height",
-        `${Math.max(44, Math.min(height - 48, space - 40))}px`,
-      );
-    const title = this.labels.source_group.replace(
-      "{count}",
-      group.items.length,
-    );
+    const sections = sourceSections(group.items, this.labels);
+    const title =
+      sections.length === 1
+        ? sections[0].label
+        : this.labels.source_group.replace("{count}", group.items.length);
     this.bubble.setAttribute("aria-label", title);
     let heading = this.bubble.querySelector(".panel-heading");
     let choices = this.bubble.querySelector(".source-choices");
@@ -196,37 +182,68 @@ export class SourceMarkers {
       .querySelector("button")
       .setAttribute("aria-label", this.labels.collapse_sources);
     const buttons = new Map(
-      [...choices.children].map((button) => [button.dataset.sourceId, button]),
+      [...choices.querySelectorAll(".source-choice")].map((button) => [
+        button.dataset.sourceId,
+        button,
+      ]),
     );
     const ids = new Set(group.items.map((item) => item.id));
     for (const [id, button] of buttons) if (!ids.has(id)) button.remove();
-    group.items.forEach((item, index) => {
-      let button = buttons.get(item.id);
-      if (!button) {
-        button = element("button", "source-choice");
-        button.dataset.sourceId = item.id;
-        button.append(icon(item.icon), element("span"));
+    for (const section of [...choices.children])
+      if (!sections.some((item) => item.kind === section.dataset.kind))
+        section.remove();
+    sections.forEach((data, sectionIndex) => {
+      let section = [...choices.children].find(
+        (item) => item.dataset.kind === data.kind,
+      );
+      if (!section) {
+        section = element("section", "source-section");
+        section.dataset.kind = data.kind;
+        section.append(element("h4"), element("ul", "source-list"));
       }
-      button.querySelector("ha-icon").setAttribute("icon", item.icon);
-      button.querySelector("span").textContent = item.name;
-      button.onclick = (event) => {
-        this.selected = item.id;
-        this.hold();
-        this.onSelect(item, event.detail === 0);
-      };
-      // Preserve buttons through unrelated HA updates, including an in-progress
-      // tap or keyboard interaction. Do not detach/reinsert an unchanged node.
-      if (choices.children[index] !== button)
-        choices.insertBefore(button, choices.children[index] ?? null);
+      section.setAttribute("aria-label", data.label);
+      section.querySelector("h4").textContent = data.label;
+      section.querySelector("h4").hidden = sections.length === 1;
+      const list = section.querySelector("ul");
+      for (const row of [...list.children])
+        if (!row.firstElementChild) row.remove();
+      data.items.forEach((item, index) => {
+        let button = buttons.get(item.id);
+        if (!button) {
+          button = element("button", "source-choice");
+          button.dataset.sourceId = item.id;
+          const copy = element("span", "source-choice-copy");
+          copy.append(
+            element("span", "source-choice-name"),
+            element("span", "source-choice-detail"),
+          );
+          button.append(icon(item.icon), copy);
+          element("li").append(button);
+        }
+        button.querySelector("ha-icon").setAttribute("icon", item.icon);
+        button.querySelector(".source-choice-name").textContent = item.heading;
+        button.querySelector(".source-choice-detail").textContent = item.detail;
+        button.onclick = (event) => {
+          this.selected = item.id;
+          this.hold();
+          this.onSelect(item, event.detail === 0);
+        };
+        // Preserve buttons through unrelated HA updates, including an in-progress
+        // tap or keyboard interaction. Do not detach/reinsert an unchanged node.
+        const row = button.parentElement;
+        if (list.children[index] !== row)
+          list.insertBefore(row, list.children[index] ?? null);
+      });
+      if (choices.children[sectionIndex] !== section)
+        choices.insertBefore(section, choices.children[sectionIndex] ?? null);
     });
-    this.popup.setLngLat(this.map.unproject(group.center));
   }
 
   hold() {
     this.cancelCollapse();
     this.held = true;
-    this.popup?.remove();
-    this.popup = this.bubble = undefined;
+    this.bubble?.remove();
+    this.bubble = undefined;
   }
 
   release(focus = false) {
@@ -268,8 +285,8 @@ export class SourceMarkers {
 
   collapse(focus = false) {
     this.cancelCollapse();
-    this.popup?.remove();
-    this.popup = this.bubble = undefined;
+    this.bubble?.remove();
+    this.bubble = undefined;
     this.markers
       .get(this.expanded)
       ?.getElement()

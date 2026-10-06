@@ -8,6 +8,7 @@ export class SourceOverlay {
     Object.assign(this, { onOpen, onChange });
     this.items = [];
     this.sources = new SourceMarkers(
+      frame,
       (item, keyboard) => {
         this.onOpen();
         this.select(item);

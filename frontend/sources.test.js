@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sourceItems, sourceRequest, stationValues } from "./sources.js";
+import {
+  sourceItems,
+  sourceRequest,
+  sourceSections,
+  stationValues,
+} from "./sources.js";
 import { labels } from "./labels.js";
 import { RouteData, validateConfig } from "./data.js";
 import { changedConfig, editorConfig } from "./config.js";
@@ -48,6 +53,64 @@ test("weather details preserve zero, missing and unusual values and expose obser
   assert.equal(values[0][1], "32 °F");
   assert.match(values[1][1], /10:00/);
   assert.equal(source.air_temperature, 0);
+});
+
+test("mixed groups expose both kinds and distinguish camera directions and same-name sources", () => {
+  const source = { name: "Roadside", latitude: 63, longitude: 10 };
+  const items = sourceItems({
+    cameras: {
+      status: "ready",
+      items: [
+        { ...source, source_id: "north", orientation: "North" },
+        { ...source, source_id: "south", orientation: "South" },
+        { ...source, source_id: "other-south", orientation: "South" },
+      ],
+    },
+    weather: {
+      status: "ready",
+      items: [
+        { ...source, source_id: "north", air_temperature: -999 },
+        { ...source, source_id: "station-2", air_temperature: 0 },
+      ],
+    },
+  });
+  const copy = structuredClone(items);
+  const sections = sourceSections(items, labels.en);
+  assert.deepEqual(
+    sections.map((section) => section.label),
+    ["Weather stations (2)", "Road cameras (3)"],
+  );
+  assert.deepEqual(
+    sections.map((section) => section.icon),
+    ["mdi:weather-partly-cloudy", "mdi:camera"],
+  );
+  assert.deepEqual(
+    sections[0].items.map((item) => item.detail),
+    ["north", "station-2"],
+  );
+  assert.deepEqual(
+    sections[1].items.map((item) => [item.heading, item.detail]),
+    [
+      ["Roadside", "North"],
+      ["Roadside", "South · south"],
+      ["Roadside", "South · other-south"],
+    ],
+  );
+  assert.deepEqual(items, copy);
+  assert.equal(
+    new Set(sections.flatMap((section) => section.items.map((item) => item.id)))
+      .size,
+    5,
+  );
+  const weatherOnly = sourceSections(
+    items.filter((item) => item.kind === "weather"),
+    labels.nb,
+  );
+  assert.deepEqual(
+    weatherOnly.map((section) => section.label),
+    ["Værstasjoner (2)"],
+  );
+  assert.deepEqual(sourceSections([], labels.en), []);
 });
 
 test("discovery remains opt-in in the editor with independent, validated ranges", () => {

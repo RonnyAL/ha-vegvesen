@@ -113,10 +113,17 @@ compact list without changing the camera; mixed camera/weather groups use the
 same mechanism. A second tap chooses a source. Groups return after details close,
 then collapse after eight idle seconds unless hovered or focused. Escape, map
 movement and closing dismiss them. Zoom separates nearby positions, while exact
-coincidences remain grouped. Controls use public MapLibre markers/popups/events,
-not HA internal components. The design follows HA 2026.10.0b0's
+coincidences remain grouped. Controls use public MapLibre markers/events and
+native DOM, not HA internal components. The design follows HA 2026.10.0b0's
 [`ha-map`](https://github.com/home-assistant/frontend/blob/20260930.0/src/components/map/ha-map.ts)
 and [MapLibre engine](https://github.com/home-assistant/frontend/blob/20260930.0/src/common/map/engines/maplibre-map-engine.ts).
+
+From 0.10.1, mixed markers show both source-kind icons. Expanded groups use
+full-width list rows in a bounded in-map panel, with separate weather/camera
+sections, camera directions as supporting text and source IDs where names
+would otherwise be ambiguous.
+The [co-location investigation and design references](source-grouping.md) explain
+the evidence and presentation choices. Grouping does not infer shared devices.
 
 Discovery creates no subentries, devices, entities or recorder states. Manual
 sources keep their existing ownership and identity. Overlapping routes reference

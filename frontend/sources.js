@@ -25,6 +25,39 @@ export const sourceItems = (snapshot) =>
       : [],
   );
 
+// Visual groups are not physical sites: retain each source's identity, including
+// same-name cameras pointing in different directions. Weather comes first so a
+// station is not hidden below a long list of camera directions on a small map.
+export function sourceSections(items, labels) {
+  return [
+    ["weather", labels.weather_stations],
+    ["cameras", labels.road_cameras],
+  ].flatMap(([kind, label]) => {
+    const members = items.filter((item) => item.kind === kind);
+    if (!members.length) return [];
+    const names = new Map();
+    for (const item of members)
+      names.set(item.name, (names.get(item.name) ?? 0) + 1);
+    return [
+      {
+        kind,
+        label: `${label} (${members.length})`,
+        icon: members[0].icon,
+        items: members.map((item) => ({
+          ...item,
+          heading: item.source.name,
+          detail: [
+            item.source.orientation,
+            names.get(item.name) > 1 ? item.source.source_id : undefined,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        })),
+      },
+    ];
+  });
+}
+
 export function stationValues(source, hass, labels) {
   const fahrenheit = hass.config?.unit_system?.temperature === "°F";
   const value = source.air_temperature;
