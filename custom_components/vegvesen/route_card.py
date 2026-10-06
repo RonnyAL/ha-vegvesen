@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from functools import partial
 from pathlib import Path
@@ -14,13 +15,16 @@ from homeassistant.components import frontend, websocket_api
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import callback
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 
+from .api import VegvesenApiError, VegvesenRateLimitError
 from .const import CAMERA_UPDATE_INTERVAL, DOMAIN
 from .route_sensor import ROUTE_SENSORS
+from .route_services import forecast_hour
 from .route_sources import CameraFrame, SourceWatch, matching_sources, source_record
 from .route_summary import category_summary, highest_slip_risk
 
@@ -28,7 +32,7 @@ if TYPE_CHECKING:
     from homeassistant.core import Event, HomeAssistant
 
     from .data import VegvesenConfigEntry
-    from .route_coordinator import RouteCoordinator
+    from .route_coordinator import RouteCoordinator, RouteSnapshot
 
 
 async def async_setup_route_card(hass: HomeAssistant) -> None:
@@ -211,45 +215,89 @@ def _payload(coordinator: RouteCoordinator | None) -> dict[str, Any]:
     ):
         return {"error": "unavailable"}
     snapshot = coordinator.data
+    return {"data": _snapshot_payload(coordinator, snapshot)}
+
+
+@callback
+def _snapshot_payload(
+    coordinator: RouteCoordinator, snapshot: RouteSnapshot
+) -> dict[str, Any]:
+    """Use the same map representation for configured and requested forecast hours."""
     return {
-        "data": {
-            "name": coordinator.subentry.title,
-            "geometry": coordinator.subentry.data["geometry"],
-            "forecast_time": snapshot.forecast_time.isoformat(),
-            "summary": {
-                "highest_slip_risk": highest_slip_risk(snapshot),
-                "slip_risk": category_summary(snapshot, "SLIP_RISK"),
-                "road_condition": category_summary(snapshot, "ROAD_CONDITION"),
-            },
-            "segments": [
-                {
-                    "type": "Feature",
-                    "id": record.source_id,
-                    "geometry": record.geometry,
-                    "properties": record.properties,
-                }
-                for record in snapshot.segments
-            ],
-        }
+        "name": coordinator.subentry.title,
+        "geometry": coordinator.subentry.data["geometry"],
+        "forecast_time": snapshot.forecast_time.isoformat(),
+        "summary": {
+            "highest_slip_risk": highest_slip_risk(snapshot),
+            "slip_risk": category_summary(snapshot, "SLIP_RISK"),
+            "road_condition": category_summary(snapshot, "ROAD_CONDITION"),
+        },
+        "segments": [
+            {
+                "type": "Feature",
+                "id": record.source_id,
+                "geometry": record.geometry,
+                "properties": record.properties,
+            }
+            for record in snapshot.segments
+        ],
     }
 
 
 @websocket_api.websocket_command(
     vol.All(
-        vol.Schema({**_TARGET_SCHEMA, vol.Required("type"): "vegvesen/route_map"}),
+        vol.Schema(
+            {
+                **_TARGET_SCHEMA,
+                vol.Required("type"): "vegvesen/route_map",
+                vol.Optional("forecast_time"): cv.datetime,
+            }
+        ),
         cv.has_at_least_one_key("device_id", "entity_id"),
     )
 )
-@callback
-def websocket_route_map(
+@websocket_api.async_response
+async def websocket_route_map(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    """Read the current snapshot without source I/O."""
+    """Read cached state, or query an hour using the action's shared forecast cache."""
     if (selection := _selection(hass, connection, msg)) is None:
         return
     coordinator, error, _entity_ids = _current_coordinator(
         hass, connection, msg, *selection
     )
+    if "forecast_time" in msg and coordinator is not None and not error:
+        try:
+            _, target = forecast_hour(msg["forecast_time"])
+            snapshot = await coordinator.async_forecast(target)
+        except asyncio.CancelledError:
+            if not coordinator.forecasts_closed:
+                raise
+            connection.send_error(msg["id"], "unavailable", "Route unavailable")
+            return
+        except (ServiceValidationError, VegvesenApiError) as err:
+            code = (
+                "forecast_time_out_of_range"
+                if isinstance(err, ServiceValidationError)
+                else "forecast_rate_limited"
+                if isinstance(err, VegvesenRateLimitError)
+                else "forecast_request_failed"
+            )
+            connection.send_error(msg["id"], code, "Forecast unavailable")
+            return
+        current, error, _ = _current_coordinator(hass, connection, msg, *selection)
+        if (
+            error
+            or current is not coordinator
+            or selection[0].subentries.get(coordinator.subentry.subentry_id)
+            is not coordinator.subentry
+        ):
+            connection.send_error(
+                msg["id"], error or "unavailable", "Route unavailable"
+            )
+            return
+        connection.send_result(msg["id"], _snapshot_payload(coordinator, snapshot))
+        return
     payload = {"error": error} if error else _payload(coordinator)
     if error := payload.get("error"):
         connection.send_error(msg["id"], error, "Route unavailable")

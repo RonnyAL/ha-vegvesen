@@ -797,6 +797,148 @@ def resize_card(card: Locator, height: int) -> None:
     )
 
 
+def forecast_hours(page: Page, card: Locator, results: Path) -> None:
+    """Use the native hour selector, real forecasts and deterministic failure views."""
+    card.get_by_role("button", name="Map layers and legend").click()
+    picker = card.get_by_label("Forecast valid time", exact=True)
+    expect(picker).to_have_value("")
+    expect(picker.locator("option")).to_have_count(26)
+    camera = card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]")
+    hour = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) + timedelta(
+        hours=2
+    )
+    value = hour.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    picker.select_option(value)
+    page.wait_for_function(
+        "([c, time]) => c._snapshot?.segments.length > 0 && "
+        "Date.parse(c._snapshot.forecast_time) === Date.parse(time)",
+        arg=[card.element_handle(), value],
+        timeout=45000,
+    )
+    assert (
+        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
+    )
+    card.get_by_role("button", name="Next forecast hour", exact=True).click()
+    page.wait_for_function(
+        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === "
+        "Date.parse(time) + 3600000",
+        arg=[card.element_handle(), value],
+        timeout=45000,
+    )
+    card.get_by_role("button", name="Previous forecast hour", exact=True).click()
+    page.wait_for_function(
+        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === Date.parse(time)",
+        arg=[card.element_handle(), value],
+        timeout=45000,
+    )
+    assert (
+        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
+    )
+    card.get_by_role("button", name="Close map layers").click()
+    badge = card.locator(".forecast-badge")
+    expect(badge).to_be_visible()
+    navigation = card.locator(".forecast-navigation")
+    navigation.get_by_role("button", name="Next forecast hour", exact=True).click()
+    page.wait_for_function(
+        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === "
+        "Date.parse(time) + 3600000",
+        arg=[card.element_handle(), value],
+    )
+    navigation.get_by_role("button", name="Previous forecast hour", exact=True).click()
+    page.wait_for_function(
+        "([c, time]) => Date.parse(c._snapshot?.forecast_time) === Date.parse(time)",
+        arg=[card.element_handle(), value],
+    )
+    assert (
+        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
+    )
+    assert navigation.evaluate("e => e.scrollWidth <= e.clientWidth")
+    page.screenshot(path=str(results / "forecast-hour-mobile.png"))
+    card.evaluate("""c => c._showSegment({point: {x: -10, y: -10},
+        features: [{id: c._snapshot.segments[0].id}]})""")
+    expect(card.locator(".inspector")).to_be_visible()
+    expect(badge).not_to_be_visible()
+    card.get_by_role("button", name="Close segment details").click()
+    expect(badge).to_be_visible()
+    badge.click()
+    expect(picker).to_be_focused()
+    page.screenshot(path=str(results / "forecast-hour-picker.png"))
+    # Keep HTTP/WebSocket behavior real above. Test unpublished/failure states
+    # below without depending on a particular day's forecast availability.
+    card.evaluate("""c => {
+        c._forecastTestHass = c._hass;
+        c._forecastTestData = structuredClone(c._snapshot);
+        c._forecastTestMode = 'empty';
+        c.hass = {...c._hass, callWS: async message => {
+            if (!message.forecast_time) return c._forecastTestHass.callWS(message);
+            if (c._forecastTestMode === 'failure')
+                throw {code: 'forecast_request_failed'};
+            const data = structuredClone(c._forecastTestData);
+            data.forecast_time = message.forecast_time;
+            if (c._forecastTestMode === 'empty') {
+                data.segments = [];
+                data.summary.highest_slip_risk = null;
+                for (const key of ['slip_risk', 'road_condition']) data.summary[key] = {
+                    source_categories: {}, missing_segments: 0,
+                    unrecognized_segments: 0};
+            }
+            return data;
+        }};
+    }""")
+    options = picker.locator("option").evaluate_all(
+        "options => options.map(o => o.value)"
+    )
+    picker.select_option(options[5])
+    expect(card.locator(".status")).to_contain_text("No forecast segments")
+    assert card.evaluate(
+        "c => c._map.getStyle().sources.forecasts.data.features.length === 0"
+    )
+    assert card.evaluate(
+        "c => c._map.getStyle().sources.route.data.features.length === 1"
+    )
+    card.evaluate("c => c._forecastTestMode = 'failure'")
+    picker.select_option(options[6])
+    expect(card.locator(".status")).to_contain_text("Selected forecast unavailable")
+    card.evaluate("c => c._forecastTestMode = 'success'")
+    card.locator(".status").get_by_role("button", name="Retry", exact=True).click()
+    page.wait_for_function(
+        "c => c._snapshot?.segments.length > 0", arg=card.element_handle()
+    )
+    assert (
+        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
+    )
+    viewport = page.viewport_size
+    page.set_viewport_size({"width": 320, "height": 844})
+    card.evaluate("""c => {
+        c.hass = {...c._hass, locale: {...c._hass.locale, language: 'nb'}};
+        c.setConfig({...c._config, theme_mode: 'dark'});
+    }""")
+    picker_nb = card.get_by_label("Prognosen gjelder for", exact=True)
+    expect(picker_nb).to_be_visible()
+    page.wait_for_function(
+        "c => c._ready && c._map.loaded()", arg=card.element_handle()
+    )
+    assert picker_nb.evaluate("e => e.getBoundingClientRect().height >= 44")
+    assert card.locator(".information").evaluate("e => e.scrollWidth <= e.clientWidth")
+    page.screenshot(path=str(results / "forecast-hour-nb-dark.png"))
+    # Restore the following mode through the user's selector, without source I/O.
+    card.get_by_label("Prognosen gjelder for", exact=True).select_option("")
+    expect(badge).not_to_be_visible()
+    assert card.evaluate("c => c._snapshot === c._data.live")
+    card.evaluate("""c => {
+        c.hass = c._forecastTestHass;
+        c.setConfig({...c._config, theme_mode: 'auto'});
+        delete c._forecastTestHass;
+        delete c._forecastTestData;
+        delete c._forecastTestMode;
+    }""")
+    page.set_viewport_size(viewport)
+    card.get_by_role("button", name="Close map layers").click()
+    page.wait_for_function(
+        "c => c._ready && c._map.loaded()", arg=card.element_handle()
+    )
+
+
 def cold_views(browser: Browser, base: str, tokens: dict, results: Path) -> None:
     """Cold storage dashboards must find the automatically registered card."""
     for view, path in (
@@ -1202,6 +1344,7 @@ def run(instance: SmokeInstance) -> None:
                 "Mobile vector map rendered; zoom, touch pan and fit passed", flush=True
             )
             print("Basemap status:", card.locator(".basemap").inner_text(), flush=True)
+            forecast_hours(page, card, instance.results)
             assert not card.locator(".basemap").inner_text()
             expanded_map(page, card, instance.results)
             # Tap a rendered source segment. Geometry stays in the map, with

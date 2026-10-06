@@ -80,6 +80,94 @@ button:focus-visible,
   overflow: auto;
   max-width: calc(100% - 64px);
 }
+.forecast-label {
+  display: block;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--map-ui-secondary);
+}
+.forecast-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 4px 0;
+  width: 288px;
+  max-width: 100%;
+}
+.forecast-controls button,
+.forecast-navigation button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--map-ui-text);
+}
+.forecast-controls button:disabled,
+.forecast-navigation button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.forecast-controls select {
+  min-width: 0;
+  flex: 1;
+  min-height: 44px;
+  font: inherit;
+  font-size: 14px;
+  border: 1px solid var(--map-ui-divider);
+  border-radius: 8px;
+  padding: 4px;
+  color: var(--map-ui-text);
+  background: var(--map-ui-background);
+  color-scheme: light;
+}
+ha-card[data-theme="dark"] .forecast-controls select {
+  color-scheme: dark;
+}
+.forecast-controls select:focus-visible {
+  outline: 2px solid var(--map-ui-active);
+}
+.forecast-navigation {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
+  max-width: calc(100% - 72px);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 18px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--map-ui-text);
+  background: var(--map-ui-background);
+  box-shadow: 0 1px 4px #0004;
+}
+.forecast-navigation .forecast-badge {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: 4px;
+}
+.forecast-badge ha-icon {
+  --mdc-icon-size: 18px;
+  flex-shrink: 0;
+}
+.map-frame:has(.camera-panel:not([hidden]), .source-bubble)
+  .forecast-navigation {
+  display: none;
+}
 .information {
   top: 8px;
   max-height: calc(100% - 52px);

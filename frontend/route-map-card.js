@@ -10,7 +10,6 @@ import {
   color,
   lines,
   ROUTE_COLOR,
-  RouteData,
   displayGeometry,
   sourceLabel,
   validateConfig,
@@ -18,6 +17,7 @@ import {
 import { labels, language } from "./labels.js";
 import { darkMode, stubConfig } from "./config.js";
 import { SourceOverlay } from "./source-overlay.js";
+import { ForecastData, forecastHours, forecastLabel } from "./forecast.js";
 import "./editor.js";
 
 maplibregl.setWorkerUrl(
@@ -69,6 +69,42 @@ export class VegvesenRouteMap extends HTMLElement {
     this._header = node("header");
     this._title = node("h2");
     this._time = node("div", "", "time");
+    this._hourLabel = node("label", undefined, "forecast-label");
+    this._hourLabel.htmlFor = "forecast-hour";
+    this._hour = node("select");
+    this._hour.id = "forecast-hour";
+    this._hour.onchange = () => this._data.select(this._hour.value);
+    this._hour.onfocus = () => this._renderHours();
+    this._previousHour = node("button");
+    this._previousHour.append(icon("mdi:chevron-left"));
+    this._previousHour.onclick = () => this._stepHour(-1);
+    this._nextHour = node("button");
+    this._nextHour.append(icon("mdi:chevron-right"));
+    this._nextHour.onclick = () => this._stepHour(1);
+    this._hourControls = node("div", undefined, "forecast-controls");
+    this._hourControls.append(this._previousHour, this._hour, this._nextHour);
+    this._hourBadge = node("button", undefined, "forecast-badge");
+    this._hourBadgeText = node("span");
+    this._hourBadge.append(icon("mdi:clock-outline"), this._hourBadgeText);
+    this._previousQuick = node("button");
+    this._previousQuick.append(icon("mdi:chevron-left"));
+    this._previousQuick.onclick = () => this._stepHour(-1);
+    this._nextQuick = node("button");
+    this._nextQuick.append(icon("mdi:chevron-right"));
+    this._nextQuick.onclick = () => this._stepHour(1);
+    this._hourBar = node("div", undefined, "forecast-navigation");
+    this._hourBar.setAttribute("role", "group");
+    this._hourBar.hidden = true;
+    this._hourBar.append(this._previousQuick, this._hourBadge, this._nextQuick);
+    this._hourBadge.onclick = () => {
+      this._legendOpen = true;
+      this._segmentId = undefined;
+      this._cameras.close();
+      this._renderText();
+      this._draw();
+      this._hour.focus({ preventScroll: true });
+    };
+    this._visibilityChanged = () => this._data.setVisible(!document.hidden);
     this._header.append(this._title);
     this._fit = node("button");
     this._fit.append(icon("mdi:image-filter-center-focus"));
@@ -106,7 +142,7 @@ export class VegvesenRouteMap extends HTMLElement {
     this._closeSegment.onclick = () => {
       this._segmentId = undefined;
       this._draw();
-      this._renderInspector();
+      this._renderText();
       this._map?.getCanvas().focus({ preventScroll: true });
     };
     inspectorHeading.append(this._segmentTitle, this._closeSegment);
@@ -138,7 +174,13 @@ export class VegvesenRouteMap extends HTMLElement {
     );
     this._information = node("div", undefined, "information");
     this._information.id = "route-legend";
-    this._information.append(this._legendHeading, this._time, this._legendBody);
+    this._information.append(
+      this._legendHeading,
+      this._hourLabel,
+      this._hourControls,
+      this._time,
+      this._legendBody,
+    );
     this._frame = node("div", undefined, "map-frame");
     this._frame.append(
       this._container,
@@ -146,6 +188,7 @@ export class VegvesenRouteMap extends HTMLElement {
       this._information,
       this._status,
       this._basemap,
+      this._hourBar,
     );
     this._cameras = new SourceOverlay(
       this._frame,
@@ -164,7 +207,7 @@ export class VegvesenRouteMap extends HTMLElement {
     );
     card.append(this._header, this._frame);
     this.shadowRoot.append(css, card);
-    this._data = new RouteData(
+    this._data = new ForecastData(
       (data) => {
         if (
           this._selection &&
@@ -209,7 +252,7 @@ export class VegvesenRouteMap extends HTMLElement {
     this.style.setProperty("--map-height", `${next.height ?? 400}px`);
     if (changed) {
       this._cameras.stop();
-      this._data.stop();
+      this._data.stop(true);
       this._snapshot = undefined;
       this._selection = undefined;
       this._segmentId = undefined;
@@ -226,9 +269,12 @@ export class VegvesenRouteMap extends HTMLElement {
   }
 
   connectedCallback() {
+    document.addEventListener("visibilitychange", this._visibilityChanged);
+    this._visibilityChanged();
     this._update();
   }
   disconnectedCallback() {
+    document.removeEventListener("visibilitychange", this._visibilityChanged);
     this._data.stop();
     this._cameras.stop();
     this._destroyMap();
@@ -270,7 +316,11 @@ export class VegvesenRouteMap extends HTMLElement {
   }
 
   get _routeGeometry() {
-    return this._snapshot?.geometry ?? this._cameras.snapshot?.geometry;
+    return (
+      this._snapshot?.geometry ??
+      this._data.live?.geometry ??
+      this._cameras.snapshot?.geometry
+    );
   }
 
   _styleUrl() {
@@ -565,6 +615,66 @@ export class VegvesenRouteMap extends HTMLElement {
     this._draw();
   }
 
+  _stepHour(direction) {
+    const hours = forecastHours();
+    const value = this._data.time ?? this._data.live?.forecast_time;
+    const index = value ? hours.indexOf(new Date(value).toISOString()) : -1;
+    const next = hours[index + direction];
+    if (next) this._data.select(next);
+  }
+
+  _renderHours() {
+    const l = this._labels ?? labels.en;
+    const selected = this._data?.time;
+    const hours = forecastHours();
+    const options = [node("option", l.follow_route)];
+    options[0].value = "";
+    if (selected && !hours.includes(selected)) hours.unshift(selected);
+    for (const hour of hours) {
+      const option = node(
+        "option",
+        forecastLabel(hour, this._lang, this._hass?.config?.time_zone),
+      );
+      option.value = hour;
+      options.push(option);
+    }
+    // Avoid replacing a native select's options on unrelated HA updates.
+    const key = JSON.stringify(options.map((o) => [o.value, o.textContent]));
+    if (this._hoursKey !== key) {
+      this._hour.replaceChildren(...options);
+      this._hoursKey = key;
+    }
+    this._hour.value = selected ?? "";
+    this._hourLabel.textContent = l.forecast;
+    for (const [button, label] of [
+      [this._previousHour, l.previous_hour],
+      [this._nextHour, l.next_hour],
+      [this._previousQuick, l.previous_hour],
+      [this._nextQuick, l.next_hour],
+    ]) {
+      button.title = label;
+      button.setAttribute("aria-label", label);
+    }
+    const value = selected ?? this._data?.live?.forecast_time;
+    const index = value
+      ? forecastHours().indexOf(new Date(value).toISOString())
+      : -1;
+    this._previousHour.disabled = index <= 0;
+    this._nextHour.disabled = index >= 24;
+    this._previousQuick.disabled = this._previousHour.disabled;
+    this._nextQuick.disabled = this._nextHour.disabled;
+    this._hourBar.setAttribute("aria-label", l.choose_hour);
+    this._hourBadgeText.textContent = selected
+      ? forecastLabel(selected, this._lang, this._hass?.config?.time_zone)
+      : "";
+    this._hourBadge.title = l.choose_hour;
+    this._hourBadge.setAttribute(
+      "aria-label",
+      `${l.choose_hour}: ${this._hourBadge.textContent}`,
+    );
+    this._hourBar.hidden = !selected || this._legendOpen || !!this._segmentId;
+  }
+
   _formatTime(value) {
     const date = new Date(value);
     return Number.isNaN(date.valueOf())
@@ -600,7 +710,7 @@ export class VegvesenRouteMap extends HTMLElement {
     );
     this._inspector.hidden = !feature;
     this._information.hidden =
-      !this._snapshot || !!feature || (!this._legendOpen && !this._webglFailed);
+      !!feature || (!this._legendOpen && !this._webglFailed);
     if (!feature) {
       this._segmentValues.replaceChildren();
       this._segmentTitle.textContent = "";
@@ -634,6 +744,7 @@ export class VegvesenRouteMap extends HTMLElement {
   _renderText() {
     const focusedKey = this.shadowRoot.activeElement?.dataset?.focusKey;
     const l = this._labels ?? labels.en;
+    this._renderHours();
     this._title.textContent = this._config?.title ?? "";
     this._header.hidden = !this._title.textContent.trim();
     this._fit.title = l.fit;
@@ -658,22 +769,30 @@ export class VegvesenRouteMap extends HTMLElement {
     this._status.replaceChildren();
     if (this._webglFailed) this._status.textContent = l.webgl;
     else if (this._error) {
-      this._status.append(node("span", l[this._error]));
-      if (this._error !== "invalid_route") {
+      this._status.append(node("span", l[this._error] ?? l.unavailable));
+      if (
+        ![
+          "invalid_route",
+          "forecast_loading",
+          "loading",
+          "forecast_time_out_of_range",
+        ].includes(this._error)
+      ) {
         const retry = node("button", l.retry);
         retry.onclick = () => {
-          this._data.stop();
-          this._cameras.stop();
-          this._update();
+          this._data.retry();
         };
         this._status.append(retry);
       }
     } else if (!this._snapshot) this._status.textContent = l.loading;
+    else if (!this._snapshot.segments.length)
+      this._status.textContent = l.empty;
     for (const notice of this._cameras.notices)
       this._status.append(node("span", notice));
     this._time.textContent = this._snapshot
       ? this._formatTime(this._snapshot.forecast_time)
       : "";
+    this._time.hidden = !!this._data.time;
     this._time.title = `${l.forecast}: ${this._time.textContent}`;
     this._time.setAttribute("aria-label", this._time.title);
     this._legend.replaceChildren();
@@ -735,7 +854,6 @@ export class VegvesenRouteMap extends HTMLElement {
       item.onclick = () => this._select(this._mode, code);
       this._legend.append(item);
     }
-    if (!categories.length) this._legend.append(node("span", l.empty));
     if (focusedKey) {
       const button = [
         ...this.shadowRoot.querySelectorAll("button[data-focus-key]"),

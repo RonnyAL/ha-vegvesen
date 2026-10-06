@@ -90,8 +90,10 @@ source-wide rate-limit cooldown still applies across routes.
 The minimum remains HA 2025.12.0. Date/time and boolean selectors, response
 actions, config-entry-owned background tasks and the existing coordinator APIs
 are available there. No new frontend hooks, weather entities, custom scheduler
-or forecast history store is introduced. A map time selector and multi-hour
-timeline are future milestones.
+or forecast history store is introduced. The card's hour selector shares this
+cache through its authenticated map transport; querying an hour does not change
+other cards or the configured sensor snapshot. A multi-hour timeline remains
+a future milestone.
 
 ## API feasibility check — 2026-10-06
 

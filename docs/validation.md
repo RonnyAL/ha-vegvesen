@@ -8,7 +8,24 @@
 | Beta compatibility | 2026.10.0b0 | 3.14.8 | 0.13.368 | `environments/beta/uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-All three run the same 406 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+All three run the same 417 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+
+For 0.12.0, eleven map-transport tests cover shared action caching, device/legacy
+selection, complete/empty/failed forecasts, independent sensor availability,
+range validation and permission/entry/subentry changes during I/O. The 29
+frontend tests include selected-hour state, rapid arrow changes, queued requests,
+late responses, default subscription updates, visibility, expiry, recovery and
+repeated local DST hours. Compatibility and dependency pins remain unchanged.
+
+Packaged 0.12.0 browser checks pass on minimum and beta HA. They request live
+forecast hours through the selector and both sets of arrow buttons, verify
+unchanged map position/zoom, return to Automatic and exercise empty, failed and
+recovered responses. Screenshots and checks cover English/Bokmål, light/dark,
+320-pixel width, keyboard focus and the temporary time controls. Existing source
+groups, segment details, resource registration and unload/reload checks also
+pass. One minimum run encountered the previously documented native HA theme
+initialization error during reload; a clean rerun passed without relaxing the
+error checks or changing HA behavior.
 
 For 0.11.0, requested-hour action tests cover hour/time-zone conversion, DST
 offsets, bounds, cached and concurrent queries, cancelled callers, pagination

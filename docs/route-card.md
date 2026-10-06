@@ -28,11 +28,17 @@ entities are retired through HA's entity registry on successful entry setup.
 Saved route/subentry identities and the existing six sensor identities remain
 unchanged. Existing cards selecting images require a one-time route selection.
 
-`vegvesen/route_map` reads the current cached snapshot.
+`vegvesen/route_map` reads the current cached snapshot. An optional
+`forecast_time` queries one hour using the action's shared bounded cache and time
+validation. The asynchronous command checks route identity and entity read
+permissions before and after I/O; it never publishes the result to the sensor
+coordinator. The native [WebSocket extension API](https://developers.home-assistant.io/docs/frontend/extending/websocket-api/)
+supports this request/response path alongside the existing subscription.
 `vegvesen/subscribe_route_map` sends an initial snapshot followed by coordinator
 updates, including failure/recovery and changes that leave sensor summaries
-unchanged. Both accept either `device_id` or legacy `entity_id`, and perform no
-source I/O. HA permissions are entity based: device selection requires read
+unchanged. Both accept either `device_id` or legacy `entity_id`; the default
+cached reads and subscription perform no source I/O. HA permissions are entity
+based: device selection requires read
 access to at least one registered sensor belonging to that exact route. Disabled
 sensors retain their permission identity, so disabling individual sensors does
 not break device-based cards. Legacy selection still requires access to its
@@ -53,6 +59,33 @@ by `ROAD_CONDITION` or `SLIP_RISK`; unknown codes
 are gray and retain their raw labels. No arbitrary severity ordering is assigned
 to road conditions. Counts describe corridor matches, not route length or exact
 carriageway coverage. Filters preserve the full route as subdued context.
+
+## Forecast hour selection
+
+From 0.12.0, a native HTML select in the layers panel offers Automatic and the
+current UTC hour through +24 hours. Previous/next buttons change one hour at a
+time. Labels use HA's time zone and the card's language; repeated local hours
+include UTC offsets. The control is temporary card state, not saved dashboard
+configuration. Automatic follows the configured route offset and coordinator
+subscription. A chosen hour is absolute and does not silently advance with time.
+
+The card keeps the normal subscription so returning to Automatic immediately
+uses its latest snapshot. Selected-hour queries refresh every five minutes
+while the page is visible; hiding the page or detaching the card stops its query timer.
+Fast arrow taps are coalesced and an in-flight query queues only the final
+choice. Late results cannot replace a newer selection, another route or a
+disconnected card. Selecting a new hour clears the prior forecast colors while
+loading, retaining route geometry and map position. Failure clears the overlay;
+complete empty results display a distinct no-segments message. Once the chosen
+hour has passed, the overlay clears and the selector asks for another hour.
+
+A compact time button and previous/next arrows appear only during manual hour
+browsing with the panel closed. Opening the time button returns focus to the
+selector. Controls use existing light/
+dark card colors and 44-pixel targets, without adding a persistent toolbar.
+Camera and weather discovery stays independent and shows latest observations;
+no historical observations or forecast camera images are implied. The minimum
+remains HA 2025.12.0, using its existing custom-card lifecycle and WebSocket API.
 
 ## Rendering and provider
 

@@ -188,6 +188,21 @@ to highlight and fit its segments.
 Missing and unrecognized data are shown explicitly. Forecast times use Home
 Assistant's configured time zone.
 
+In the layers panel, **Forecast valid time** defaults to **Automatic**, following
+the route's configured forecast. Choose an hour or use the previous/next arrows
+to compare forecasts while keeping your position and zoom. A small time button
+and previous/next arrows stay visible when the panel is closed, so you can step
+through hours directly on the map. Tap the time to reopen the selector or return
+to Automatic. Your selection affects this card only and resets when the page reloads.
+
+A selected hour stays fixed and refreshes every five minutes while the page is
+visible. Requests share the automation action's cache. Unpublished hours show
+**No forecast segments**; failed requests clear the forecast overlay and offer
+**Retry**. Once the selected hour has passed, choose another hour or Automatic.
+The selector covers the current hour through 24 hours ahead; availability varies.
+Cameras and weather stations continue to show their latest images and measured
+observations, independently of the forecast hour.
+
 The card has no title by default. Its visual editor offers an optional title and
 these **Appearance** settings:
 
@@ -231,8 +246,9 @@ coordinates prevent a source from appearing on the map. Automatically discovered
 sources do not create devices, entities or recorder history. Add a source
 manually if you also want its entities for dashboards or automations.
 
-The card shares the route's forecast data; adding cards does not increase
-forecast polling. If the background map cannot load, route geometry remains
+In Automatic mode, cards share the route's forecast data without extra polling.
+Browsing another hour requests only that hour; cards and actions share its cache.
+If the background map cannot load, route geometry remains
 usable. If the forecast becomes unavailable, its colored segments are cleared
 until recovery. Text sensors remain usable without WebGL 2.
 
