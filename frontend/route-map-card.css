@@ -80,21 +80,35 @@ button:focus-visible,
   overflow: auto;
   max-width: calc(100% - 64px);
 }
-.forecast-label {
-  display: block;
-  font-size: 12px;
-  line-height: 20px;
-  color: var(--map-ui-secondary);
+.forecast-panel {
+  position: absolute;
+  z-index: 2;
+  bottom: 44px;
+  right: 8px;
+  max-width: calc(100% - 64px);
+  max-height: calc(100% - 56px);
+  box-sizing: border-box;
+  overflow: auto;
+  border-radius: 12px;
+  color: var(--map-ui-text);
+  background: var(--map-ui-background);
+  box-shadow: 0 1px 4px #0004;
 }
-.forecast-controls {
+.forecast-panel[data-expanded="true"] {
+  width: 320px;
+  padding: 4px 8px 8px;
+}
+.forecast-panel .panel-heading {
+  gap: 4px;
+}
+.forecast-panel .panel-heading h3 {
+  font-size: 14px;
+}
+.forecast-navigation {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin: 4px 0;
-  width: 288px;
-  max-width: 100%;
+  min-height: 44px;
 }
-.forecast-controls button,
 .forecast-navigation button {
   display: grid;
   place-items: center;
@@ -106,67 +120,142 @@ button:focus-visible,
   background: transparent;
   color: var(--map-ui-text);
 }
-.forecast-controls button:disabled,
 .forecast-navigation button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-.forecast-controls select {
-  min-width: 0;
-  flex: 1;
-  min-height: 44px;
-  font: inherit;
-  font-size: 14px;
-  border: 1px solid var(--map-ui-divider);
-  border-radius: 8px;
-  padding: 4px;
-  color: var(--map-ui-text);
-  background: var(--map-ui-background);
-  color-scheme: light;
-}
-ha-card[data-theme="dark"] .forecast-controls select {
-  color-scheme: dark;
-}
-.forecast-controls select:focus-visible {
-  outline: 2px solid var(--map-ui-active);
-}
-.forecast-navigation {
-  position: absolute;
-  z-index: 2;
-  top: 8px;
-  right: 8px;
-  max-width: calc(100% - 72px);
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  font-size: 12px;
-  line-height: 18px;
-  border: 0;
-  border-radius: 8px;
-  color: var(--map-ui-text);
-  background: var(--map-ui-background);
-  box-shadow: 0 1px 4px #0004;
-}
 .forecast-navigation .forecast-badge {
   flex: 1 1 auto;
-  min-width: 0;
+  min-width: 44px;
   height: auto;
   min-height: 44px;
   display: flex;
-  align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 4px 2px;
-  font-size: 12px;
-  line-height: 18px;
-  border-radius: 4px;
+  font-size: 14px;
+  line-height: 20px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
 }
 .forecast-badge ha-icon {
-  --mdc-icon-size: 18px;
+  --mdc-icon-size: 20px;
   flex-shrink: 0;
 }
-.map-frame:has(.camera-panel:not([hidden]), .source-bubble)
-  .forecast-navigation {
+.forecast-panel[data-expanded="true"] .forecast-badge ha-icon {
   display: none;
+}
+.forecast-automatic {
+  min-height: 44px;
+  border: 0;
+  border-radius: 22px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--map-ui-active);
+  background: transparent;
+}
+.forecast-automatic[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--map-ui-active) 12%, transparent);
+}
+.forecast-panel[data-expanded="false"][data-automatic="true"] {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  background: transparent;
+  box-shadow: none;
+}
+.forecast-panel[data-expanded="false"][data-automatic="true"]:has(
+    .status:not(:empty)
+  ) {
+  background: var(--map-ui-background);
+  box-shadow: 0 1px 4px #0004;
+}
+.forecast-panel[data-expanded="false"][data-automatic="true"]
+  .forecast-navigation {
+  flex-shrink: 0;
+}
+.forecast-panel[data-expanded="false"][data-automatic="true"] .forecast-badge {
+  color: var(--map-control-color);
+}
+.forecast-panel[data-expanded="false"][data-automatic="true"] ha-icon {
+  --mdc-icon-size: 24px;
+}
+.forecast-timeline input {
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  cursor: pointer;
+  appearance: none;
+  background: transparent;
+}
+.forecast-timeline input::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--map-ui-active) var(--forecast-position),
+    var(--map-ui-divider) var(--forecast-position)
+  );
+}
+.forecast-timeline input::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--map-ui-active) var(--forecast-position),
+    var(--map-ui-divider) var(--forecast-position)
+  );
+}
+.forecast-timeline input::-webkit-slider-thumb {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  margin-top: -10px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--map-ui-active);
+}
+.forecast-timeline input::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--map-ui-active);
+}
+.forecast-timeline input:focus-visible {
+  outline: 2px solid var(--map-ui-active);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+.forecast-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--map-ui-secondary);
+}
+.forecast-panel .status {
+  position: static;
+  min-width: 0;
+  max-width: none;
+  box-shadow: none;
+  border-radius: 0;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.forecast-panel .status button {
+  min-height: 44px;
+}
+.map-frame:has(.camera-panel:not([hidden]), .source-bubble) .forecast-panel {
+  display: none;
+}
+@media (hover: hover) {
+  .forecast-navigation button:not(:disabled):hover,
+  .forecast-automatic:hover {
+    background: color-mix(in srgb, var(--map-ui-text) 8%, transparent);
+  }
 }
 .information {
   top: 8px;

@@ -62,12 +62,15 @@ carriageway coverage. Filters preserve the full route as subdued context.
 
 ## Forecast hour selection
 
-From 0.12.0, a native HTML select in the layers panel offers Automatic and the
-current UTC hour through +24 hours. Previous/next buttons change one hour at a
-time. Labels use HA's time zone and the card's language; repeated local hours
-include UTC offsets. The control is temporary card state, not saved dashboard
-configuration. Automatic follows the configured route offset and coordinator
-subscription. A chosen hour is absolute and does not silently advance with time.
+The clock control opens a compact bottom panel independently of map layers.
+A native HTML range input offers the current UTC hour through +24 hours, with
+previous/next buttons for exact hourly adjustment. Dragging previews the time;
+the native change event commits it on release. Intermediate drag positions make
+no requests. Incoming snapshots do not reset a drag's thumb or absolute hours.
+The one-tap Automatic button returns to the configured route offset and
+coordinator subscription. Labels use HA's time zone and the card's language;
+repeated local hours include UTC offsets. The choice is temporary card state,
+not saved dashboard configuration, and does not silently advance with time.
 
 The card keeps the normal subscription so returning to Automatic immediately
 uses its latest snapshot. Selected-hour queries refresh every five minutes
@@ -79,10 +82,13 @@ loading, retaining route geometry and map position. Failure clears the overlay;
 complete empty results display a distinct no-segments message. Once the chosen
 hour has passed, the overlay clears and the selector asks for another hour.
 
-A compact time button and previous/next arrows appear only during manual hour
-browsing with the panel closed. Opening the time button returns focus to the
-selector. Controls use existing light/
-dark card colors and 44-pixel targets, without adding a persistent toolbar.
+Closing the panel retains just the time and previous/next arrows during manual
+browsing; Automatic leaves only the clock icon. Opening the time button focuses
+the slider. Escape or Close collapses the panel and returns focus to the clock.
+The slider supports native keyboard controls and exposes its localized time
+through `aria-valuetext`. Controls use existing light/dark card colors and
+44-pixel targets. Error and loading text sits beside the selected time. Layer,
+segment and source panels hide the time controls to avoid overlapping controls.
 Camera and weather discovery stays independent and shows latest observations;
 no historical observations or forecast camera images are implied. The minimum
 remains HA 2025.12.0, using its existing custom-card lifecycle and WebSocket API.
@@ -275,7 +281,7 @@ map components.
 ## Layer switching and panels
 
 From 0.8.3, the closed layers panel leaves no summary overlay on the map.
-The layers control opens forecast time, category counts and missing-data
+The layers control opens category counts and missing-data
 details on demand. Forecast updates do not reopen a closed panel, and
 `legend_expanded: true` still opens it initially. Unavailable/error messages
 remain visible; browsers without WebGL retain the textual fallback panel.

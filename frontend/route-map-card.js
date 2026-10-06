@@ -69,40 +69,63 @@ export class VegvesenRouteMap extends HTMLElement {
     this._header = node("header");
     this._title = node("h2");
     this._time = node("div", "", "time");
-    this._hourLabel = node("label", undefined, "forecast-label");
-    this._hourLabel.htmlFor = "forecast-hour";
-    this._hour = node("select");
-    this._hour.id = "forecast-hour";
-    this._hour.onchange = () => this._data.select(this._hour.value);
-    this._hour.onfocus = () => this._renderHours();
+    this._hour = node("input");
+    this._hour.type = "range";
+    this._hour.min = "0";
+    this._hour.max = "24";
+    this._hour.step = "1";
+    this._hour.oninput = () => {
+      this._previewHour = this._sliderHours[Number(this._hour.value)];
+      this._renderHours();
+    };
+    this._hour.onchange = () => {
+      const hour = this._sliderHours[Number(this._hour.value)];
+      this._previewHour = undefined;
+      this._data.select(hour);
+    };
+    this._hour.onpointercancel = this._hour.onblur = () => {
+      this._previewHour = undefined;
+      this._renderHours();
+    };
     this._previousHour = node("button");
     this._previousHour.append(icon("mdi:chevron-left"));
     this._previousHour.onclick = () => this._stepHour(-1);
     this._nextHour = node("button");
     this._nextHour.append(icon("mdi:chevron-right"));
     this._nextHour.onclick = () => this._stepHour(1);
-    this._hourControls = node("div", undefined, "forecast-controls");
-    this._hourControls.append(this._previousHour, this._hour, this._nextHour);
     this._hourBadge = node("button", undefined, "forecast-badge");
     this._hourBadgeText = node("span");
     this._hourBadge.append(icon("mdi:clock-outline"), this._hourBadgeText);
-    this._previousQuick = node("button");
-    this._previousQuick.append(icon("mdi:chevron-left"));
-    this._previousQuick.onclick = () => this._stepHour(-1);
-    this._nextQuick = node("button");
-    this._nextQuick.append(icon("mdi:chevron-right"));
-    this._nextQuick.onclick = () => this._stepHour(1);
+    this._hourBadge.setAttribute("aria-controls", "forecast-timeline");
+    this._hourBadge.onclick = () => {
+      this._setHourOpen(!this._hourOpen);
+      if (this._hourOpen) this._hour.focus({ preventScroll: true });
+    };
     this._hourBar = node("div", undefined, "forecast-navigation");
     this._hourBar.setAttribute("role", "group");
-    this._hourBar.hidden = true;
-    this._hourBar.append(this._previousQuick, this._hourBadge, this._nextQuick);
-    this._hourBadge.onclick = () => {
-      this._legendOpen = true;
-      this._segmentId = undefined;
-      this._cameras.close();
-      this._renderText();
-      this._draw();
-      this._hour.focus({ preventScroll: true });
+    this._hourBar.append(this._previousHour, this._hourBadge, this._nextHour);
+    this._hourTitle = node("h3");
+    this._automatic = node("button", undefined, "forecast-automatic");
+    this._automatic.onclick = () => this._data.select("");
+    this._closeHour = node("button", undefined, "panel-close");
+    this._closeHour.append(icon("mdi:close"));
+    this._closeHour.onclick = () => this._setHourOpen(false, true);
+    this._hourHeading = node("div", undefined, "panel-heading");
+    this._hourHeading.append(this._hourTitle, this._automatic, this._closeHour);
+    this._hourStart = node("span");
+    this._hourEnd = node("span");
+    const scale = node("div", undefined, "forecast-scale");
+    scale.setAttribute("aria-hidden", "true");
+    scale.append(this._hourStart, this._hourEnd);
+    this._timeline = node("div", undefined, "forecast-timeline");
+    this._timeline.id = "forecast-timeline";
+    this._timeline.append(this._hour, scale);
+    this._hourPanel = node("section", undefined, "forecast-panel");
+    this._hourPanel.append(this._hourHeading, this._hourBar, this._timeline);
+    this._hourPanel.onkeydown = (event) => {
+      if (event.key !== "Escape" || !this._hourOpen) return;
+      event.stopPropagation();
+      this._setHourOpen(false, true);
     };
     this._visibilityChanged = () => this._data.setVisible(!document.hidden);
     this._header.append(this._title);
@@ -122,6 +145,8 @@ export class VegvesenRouteMap extends HTMLElement {
     this._legendToggle.onclick = () => {
       this._legendOpen = !this._legendOpen;
       if (this._legendOpen) {
+        this._hourOpen = false;
+        this._previewHour = undefined;
         this._segmentId = undefined;
         this._cameras.close();
       }
@@ -174,13 +199,7 @@ export class VegvesenRouteMap extends HTMLElement {
     );
     this._information = node("div", undefined, "information");
     this._information.id = "route-legend";
-    this._information.append(
-      this._legendHeading,
-      this._hourLabel,
-      this._hourControls,
-      this._time,
-      this._legendBody,
-    );
+    this._information.append(this._legendHeading, this._time, this._legendBody);
     this._frame = node("div", undefined, "map-frame");
     this._frame.append(
       this._container,
@@ -188,13 +207,15 @@ export class VegvesenRouteMap extends HTMLElement {
       this._information,
       this._status,
       this._basemap,
-      this._hourBar,
+      this._hourPanel,
     );
     this._cameras = new SourceOverlay(
       this._frame,
       () => {
         this._segmentId = undefined;
         this._legendOpen = false;
+        this._hourOpen = false;
+        this._previewHour = undefined;
         this._renderText();
         this._draw();
       },
@@ -251,6 +272,8 @@ export class VegvesenRouteMap extends HTMLElement {
     this._config = next;
     this.style.setProperty("--map-height", `${next.height ?? 400}px`);
     if (changed) {
+      this._hourOpen = false;
+      this._previewHour = undefined;
       this._cameras.stop();
       this._data.stop(true);
       this._snapshot = undefined;
@@ -623,56 +646,75 @@ export class VegvesenRouteMap extends HTMLElement {
     if (next) this._data.select(next);
   }
 
+  _setHourOpen(open, focus = false) {
+    this._hourOpen = open;
+    this._previewHour = undefined;
+    if (open) {
+      this._legendOpen = false;
+      this._segmentId = undefined;
+      this._cameras.close();
+    }
+    this._renderText();
+    this._draw();
+    if (focus) this._hourBadge.focus({ preventScroll: true });
+  }
+
   _renderHours() {
     const l = this._labels ?? labels.en;
     const selected = this._data?.time;
     const hours = forecastHours();
-    const options = [node("option", l.follow_route)];
-    options[0].value = "";
-    if (selected && !hours.includes(selected)) hours.unshift(selected);
-    for (const hour of hours) {
-      const option = node(
-        "option",
-        forecastLabel(hour, this._lang, this._hass?.config?.time_zone),
-      );
-      option.value = hour;
-      options.push(option);
+    const value =
+      this._previewHour ?? selected ?? this._data?.live?.forecast_time;
+    const index = value ? hours.indexOf(new Date(value).toISOString()) : -1;
+    // Keep the gesture's absolute hours stable through incoming HA updates.
+    if (!this._previewHour) {
+      this._sliderHours = hours;
+      this._hour.value = String(Math.max(0, index));
     }
-    // Avoid replacing a native select's options on unrelated HA updates.
-    const key = JSON.stringify(options.map((o) => [o.value, o.textContent]));
-    if (this._hoursKey !== key) {
-      this._hour.replaceChildren(...options);
-      this._hoursKey = key;
-    }
-    this._hour.value = selected ?? "";
-    this._hourLabel.textContent = l.forecast;
+    const text = value
+      ? forecastLabel(value, this._lang, this._hass?.config?.time_zone)
+      : l.choose_hour;
+    this._hour.setAttribute("aria-label", l.forecast);
+    this._hour.setAttribute("aria-valuetext", text);
+    this._hour.style.setProperty(
+      "--forecast-position",
+      `${(Number(this._hour.value) / 24) * 100}%`,
+    );
+    this._hourTitle.textContent = l.forecast_title;
+    this._automatic.textContent = l.follow_route;
+    this._automatic.setAttribute("aria-pressed", String(!selected));
+    this._hourStart.textContent = l.current_hour;
+    this._hourEnd.textContent = l.last_hour;
     for (const [button, label] of [
       [this._previousHour, l.previous_hour],
       [this._nextHour, l.next_hour],
-      [this._previousQuick, l.previous_hour],
-      [this._nextQuick, l.next_hour],
+      [this._closeHour, l.close_forecast],
     ]) {
       button.title = label;
       button.setAttribute("aria-label", label);
     }
-    const value = selected ?? this._data?.live?.forecast_time;
-    const index = value
-      ? forecastHours().indexOf(new Date(value).toISOString())
-      : -1;
     this._previousHour.disabled = index <= 0;
     this._nextHour.disabled = index >= 24;
-    this._previousQuick.disabled = this._previousHour.disabled;
-    this._nextQuick.disabled = this._nextHour.disabled;
     this._hourBar.setAttribute("aria-label", l.choose_hour);
-    this._hourBadgeText.textContent = selected
-      ? forecastLabel(selected, this._lang, this._hass?.config?.time_zone)
-      : "";
-    this._hourBadge.title = l.choose_hour;
-    this._hourBadge.setAttribute(
-      "aria-label",
-      `${l.choose_hour}: ${this._hourBadge.textContent}`,
-    );
-    this._hourBar.hidden = !selected || this._legendOpen || !!this._segmentId;
+    this._hourBadgeText.textContent = text;
+    const action = this._hourOpen ? l.close_forecast : l.choose_hour;
+    this._hourBadge.title = action;
+    this._hourBadge.setAttribute("aria-label", `${action}: ${text}`);
+    this._hourBadge.setAttribute("aria-expanded", String(!!this._hourOpen));
+    this._hourPanel.setAttribute("aria-label", l.forecast);
+    this._hourPanel.dataset.expanded = String(!!this._hourOpen);
+    this._hourPanel.dataset.automatic = String(!selected);
+    this._hourPanel.hidden =
+      !!this._legendOpen || !!this._segmentId || !!this._webglFailed;
+    this._hourHeading.hidden = this._timeline.hidden = !this._hourOpen;
+    this._previousHour.hidden = this._nextHour.hidden =
+      !selected && !this._hourOpen;
+    this._hourBadgeText.hidden = !selected && !this._hourOpen;
+    // Keep notices beside the time controls, without covering the slider or
+    // the clock button needed to choose another hour after a failed refresh.
+    const statusParent = this._hourPanel.hidden ? this._frame : this._hourPanel;
+    if (this._status.parentNode !== statusParent)
+      statusParent.append(this._status);
   }
 
   _formatTime(value) {
@@ -698,6 +740,8 @@ export class VegvesenRouteMap extends HTMLElement {
     this._cameras.close();
     this._segmentId = feature.id;
     this._legendOpen = false;
+    this._hourOpen = false;
+    this._previewHour = undefined;
     this._draw();
     this._renderText();
   }
@@ -792,7 +836,7 @@ export class VegvesenRouteMap extends HTMLElement {
     this._time.textContent = this._snapshot
       ? this._formatTime(this._snapshot.forecast_time)
       : "";
-    this._time.hidden = !!this._data.time;
+    this._time.hidden = false;
     this._time.title = `${l.forecast}: ${this._time.textContent}`;
     this._time.setAttribute("aria-label", this._time.title);
     this._legend.replaceChildren();

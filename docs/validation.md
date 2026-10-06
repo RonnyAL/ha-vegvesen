@@ -10,6 +10,15 @@
 
 All three run the same 417 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
+For 0.12.1, the packaged browser scenario exercises the separate forecast clock,
+native hourly slider and compact bottom controls on minimum and beta HA. It
+checks real touch dragging without intermediate requests or map panning,
+release-to-load behavior, precise arrows, one-tap Automatic, Escape/focus,
+320-pixel width, 240-pixel map height, English/Bokmål and light/dark styles.
+Failure messages leave the clock accessible. Live requested-hour responses,
+empty/error/recovery states and the existing source and lifecycle checks remain
+covered. Physical companion-app testing is separate from Chromium touch emulation.
+
 For 0.12.0, eleven map-transport tests cover shared action caching, device/legacy
 selection, complete/empty/failed forecasts, independent sensor availability,
 range validation and permission/entry/subentry changes during I/O. The 29

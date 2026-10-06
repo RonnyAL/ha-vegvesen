@@ -188,12 +188,12 @@ to highlight and fit its segments.
 Missing and unrecognized data are shown explicitly. Forecast times use Home
 Assistant's configured time zone.
 
-In the layers panel, **Forecast valid time** defaults to **Automatic**, following
-the route's configured forecast. Choose an hour or use the previous/next arrows
-to compare forecasts while keeping your position and zoom. A small time button
-and previous/next arrows stay visible when the panel is closed, so you can step
-through hours directly on the map. Tap the time to reopen the selector or return
-to Automatic. Your selection affects this card only and resets when the page reloads.
+Tap the **clock** on the map to browse forecast hours. The compact time panel
+has an hourly slider, previous/next arrows for precise adjustment, and an
+**Automatic** button to return to the route's configured forecast. Dragging the
+slider previews a time; releasing it loads that hour without moving the map.
+Close the panel to keep just the time and arrows visible while browsing.
+Your selection affects this card only and resets when the page reloads.
 
 A selected hour stays fixed and refreshes every five minutes while the page is
 visible. Requests share the automation action's cache. Unpublished hours show
