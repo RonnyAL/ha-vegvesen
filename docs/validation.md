@@ -8,7 +8,25 @@
 | Beta compatibility | 2026.10.0b0 | 3.14.8 | 0.13.368 | `environments/beta/uv.lock` |
 | Minimum supported | 2025.12.0 | 3.13.11 | 0.13.298 | `environments/minimum/uv.lock` |
 
-All three run the same 388 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+All three run the same 406 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
+
+For 0.11.0, requested-hour action tests cover hour/time-zone conversion, DST
+offsets, bounds, cached and concurrent queries, cancelled callers, pagination
+failure, wrong hours, null/zero/unusual values, unknown source categories,
+unpublished hours, cache expiry/eviction, timeout, shared rate-limit cooldown,
+recovery, unloading/reloading and removal during I/O. Tests verify that explicit
+queries leave sensor state, settings and polling timers unchanged. The documented
+briefing runs through HA's native automation validation and script engine with
+mixed, empty and failed mocked responses. The existing polling/lifecycle suite
+also runs unchanged. See the [forecast action reference](forecast-action.md) for
+the API investigation, cache boundaries and source availability limitations.
+
+Packaged live checks pass on minimum and beta HA: a +2-hour action response for
+the public Trondheim–Orkanger route, an identical cached repeat, compact output
+and unchanged map data, followed by the existing mobile/card lifecycle scenario.
+The browser runner waits for the map's actual resize event before checking popup
+focus after changing card height; this removes a race in the test without changing
+runtime behavior.
 
 The [public release review and 0.7.4 follow-up](release-readiness.md) record the code,
 documentation and package assessment. Six additional action-error tests exercise

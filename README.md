@@ -137,9 +137,31 @@ Routes support two endpoints and remain independent of selected stations,
 cameras and other routes. Moving a zone does not change a saved route: use
 **Recalculate route** to update its geometry.
 
-For individual segment data, use **Statens vegvesen: Get route forecasts** in
-**Developer tools → Actions** and select the route device. It returns the latest
-cached geometry and source properties without an extra source request.
+### Forecasts in automations
+
+Use **Statens vegvesen: Get route forecasts** in **Developer tools → Actions**
+or an automation, and select your route device. Set **Forecast time** to request
+conditions for a particular hour, such as a planned departure. Leave it empty
+to use the route's latest cached forecast without an extra source request.
+
+The response includes condition counts, the highest known slipperiness grade,
+minimum/maximum road temperatures and missing-data counts. Turn off **Include
+segment data** for a compact response, or leave it on for individual segment
+geometry and source properties. Use Home Assistant's response variable to build
+notifications or further automation conditions.
+
+Times select the containing UTC hour: in Norway, 07:45 requests 07:00. Times without
+an explicit offset use Home Assistant's time zone. Requests can cover the current
+hour through 24 hours ahead, but the source may not have published that hour.
+An empty result means no matching forecast was returned. Request failures raise
+an action error; partial responses are never returned as complete forecasts.
+
+Requests for the same route and hour share a five-minute cache. Querying another
+hour does not change the route's settings, sensors or map. See the
+[morning briefing example](examples/route_forecast_briefing.yaml) and
+[response reference](docs/forecast-action.md) to get started. In the example,
+replace `YOUR_ROUTE_DEVICE_ID` with your route's device ID from the action editor,
+and adjust the briefing and departure times.
 
 ## Route maps
 

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import asyncio
+from collections import OrderedDict
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from time import monotonic
 from typing import TYPE_CHECKING
 
 from homeassistant.core import callback
@@ -12,6 +15,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import VegvesenApiError, VegvesenRateLimitError
 from .const import LOGGER
 from .route_geometry import RouteCorridor, make_corridor
+
+FORECAST_CACHE_TTL = 5 * 60
+FORECAST_CACHE_SIZE = 4
+FORECAST_QUERY_TIMEOUT = 40
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigSubentry
@@ -27,6 +34,7 @@ class RouteSnapshot:
 
     forecast_time: datetime
     segments: tuple[RoadForecast, ...]
+    retrieved_at: datetime | None = field(default=None, compare=False)
 
 
 def select_segments(
@@ -61,6 +69,84 @@ class RouteCoordinator(DataUpdateCoordinator[RouteSnapshot | None]):
         self.client = client
         self.corridor: RouteCorridor | None = None
         self.data = None
+        self._entry = entry
+        self._forecast_cache: OrderedDict[datetime, tuple[float, RouteSnapshot]] = (
+            OrderedDict()
+        )
+        self._forecast_tasks: dict[datetime, asyncio.Task[RouteSnapshot]] = {}
+        self._forecast_lock = asyncio.Lock()
+        self.forecasts_closed = False
+        entry.async_on_unload(self._close_forecasts)
+
+    @callback
+    def _close_forecasts(self) -> None:
+        """Clear this geometry's cache; HA also owns/cancels the background tasks."""
+        self.forecasts_closed = True
+        self._forecast_cache.clear()
+        for task in self._forecast_tasks.values():
+            task.cancel()
+
+    async def async_forecast(
+        self, target: datetime, *, refresh: bool = False
+    ) -> RouteSnapshot:
+        """
+        Share complete snapshots and in-flight results across actions and polling.
+
+        Explicit queries never publish entity state or change the saved offset.
+        Polling/manual entity refresh bypasses the cache, retaining its schedule.
+        """
+        if self.forecasts_closed:
+            raise VegvesenApiError("Route has unloaded")
+        if (task := self._forecast_tasks.get(target)) is not None and not task.done():
+            return await asyncio.shield(task)
+        self._forecast_tasks.pop(target, None)
+        cached = self._forecast_cache.get(target)
+        if not refresh and cached and monotonic() < cached[0]:
+            self._forecast_cache.move_to_end(target)
+            return cached[1]
+        # A failed refresh must not leave an older snapshot available as fresh.
+        self._forecast_cache.pop(target, None)
+        task = self._entry.async_create_background_task(
+            self.hass,
+            self._fetch_forecast(target),
+            "Vegvesen forecast hour",
+            eager_start=True,
+        )
+        self._forecast_tasks[target] = task
+
+        @callback
+        def finished(done: asyncio.Task[RouteSnapshot]) -> None:
+            if self._forecast_tasks.get(target) is done:
+                self._forecast_tasks.pop(target, None)
+            # A caller may have cancelled while others (or the cache) still need
+            # the request. Retrieve exceptions even when no callers remain.
+            if not done.cancelled():
+                done.exception()
+
+        task.add_done_callback(finished)
+        return await asyncio.shield(task)
+
+    async def _fetch_forecast(self, target: datetime) -> RouteSnapshot:
+        """Bound queueing and transport, and cache only a fully matched response."""
+        try:
+            async with asyncio.timeout(FORECAST_QUERY_TIMEOUT), self._forecast_lock:
+                if self.corridor is None:
+                    await self._async_setup()
+                records = await self.client.async_forecasts(self.corridor.bbox, target)
+                segments = await self.hass.async_add_executor_job(
+                    select_segments, self.corridor, records
+                )
+                snapshot = RouteSnapshot(target, segments, datetime.now(UTC))
+                self._forecast_cache[target] = (
+                    monotonic() + FORECAST_CACHE_TTL,
+                    snapshot,
+                )
+                self._forecast_cache.move_to_end(target)
+                while len(self._forecast_cache) > FORECAST_CACHE_SIZE:
+                    self._forecast_cache.popitem(last=False)
+                return snapshot
+        except TimeoutError as err:
+            raise VegvesenApiError("Forecast request timed out") from err
 
     def _forecast_target(self, now: datetime) -> datetime:
         """Select the configured offset from the current UTC hour."""
@@ -99,14 +185,8 @@ class RouteCoordinator(DataUpdateCoordinator[RouteSnapshot | None]):
         """Publish nothing until fetching and geographic matching both succeed."""
         target = self._forecast_target(datetime.now(UTC))
         try:
-            if self.corridor is None:
-                await self._async_setup()
-            records = await self.client.async_forecasts(self.corridor.bbox, target)
-            segments = await self.hass.async_add_executor_job(
-                select_segments, self.corridor, records
-            )
+            return await self.async_forecast(target, refresh=True)
         except VegvesenRateLimitError as err:
             raise UpdateFailed(str(err), retry_after=err.retry_after) from err
         except VegvesenApiError as err:
             raise UpdateFailed(str(err)) from err
-        return RouteSnapshot(target, segments)

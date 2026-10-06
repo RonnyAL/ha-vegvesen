@@ -376,11 +376,19 @@
   "services": {
     "get_route_forecasts": {
       "name": "Get route forecasts",
-      "description": "Return source values and geometry for road segments in the last complete refresh.",
+      "description": "Return a route summary and optional segment data. Choose a time to request another forecast hour, or leave it empty for the latest route refresh.",
       "fields": {
         "device_id": {
           "name": "Route",
           "description": "Select a Statens vegvesen route device."
+        },
+        "forecast_time": {
+          "name": "Forecast time",
+          "description": "Uses the start of the selected hour. Times without an offset use Home Assistant’s time zone. Current hour through 24 hours ahead; data may be absent."
+        },
+        "include_segments": {
+          "name": "Include segment data",
+          "description": "Include source values and geometry for each segment. Turn off for a summary only."
         }
       }
     }
@@ -391,6 +399,15 @@
     },
     "route_unavailable": {
       "message": "Route forecasts are unavailable. Try again when the route has loaded and refreshed."
+    },
+    "forecast_time_out_of_range": {
+      "message": "Choose a time from the current hour through 24 hours ahead."
+    },
+    "forecast_request_failed": {
+      "message": "Could not retrieve a complete forecast for the selected hour. Try again later."
+    },
+    "forecast_rate_limited": {
+      "message": "Statens vegvesen requested a pause. Try again in {seconds} seconds."
     }
   }
 }

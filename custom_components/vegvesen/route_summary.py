@@ -48,3 +48,26 @@ def category_summary(snapshot: RouteSnapshot | None, field: str) -> dict[str, An
             if key is not None and key not in (*known, "ErrorOrNoData")
         ),
     }
+
+
+def forecast_summary(snapshot: RouteSnapshot) -> dict[str, Any]:
+    """Small action response using the same source categories as route sensors."""
+    temperatures = [
+        value
+        for record in snapshot.segments
+        if (value := record.properties.get("ROAD_TEMPERATURE")) is not None
+    ]
+    return {
+        "matched_segments": len(snapshot.segments),
+        "road_condition": category_summary(snapshot, "ROAD_CONDITION"),
+        "slipperiness": {
+            **category_summary(snapshot, "SLIP_RISK"),
+            "highest_known": highest_slip_risk(snapshot),
+        },
+        "road_temperature": {
+            "minimum": min(temperatures, default=None),
+            "maximum": max(temperatures, default=None),
+            "unit": "°C",
+            "missing_segments": len(snapshot.segments) - len(temperatures),
+        },
+    }

@@ -6,6 +6,7 @@ import json
 import re
 import sys
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
@@ -701,7 +702,7 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
     )
     panel.get_by_role("button", name="Lukk kildedetaljer").press("Escape")
     expect(bubble.locator(".source-choice").last).to_be_focused()
-    card.evaluate("c => c.setConfig({...c._config, height: 240})")
+    resize_card(card, 240)
     if not bubble.is_visible():
         marker.tap()
     bubble.locator(".source-choice").last.focus()
@@ -711,10 +712,7 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
     assert frame["y"] <= box["y"]
     assert box["y"] + box["height"] <= frame["y"] + frame["height"] - 40
     page.screenshot(path=str(results / "mixed-source-group-compact.png"))
-    card.evaluate(
-        "(c, height) => c.setConfig({...c._config, height})",
-        original_config.get("height", 400),
-    )
+    resize_card(card, original_config.get("height", 400))
     # Losing camera discovery leaves weather selectable with a single icon.
     card.evaluate("c => c._cameraTestUpdate({})")
     expect(bubble).not_to_be_visible()
@@ -785,6 +783,17 @@ def camera_layer(page: Page, card: Locator, results: Path) -> None:
         "c => c._ready && c._map.loaded()",
         arg=card.element_handle(),
         timeout=30000,
+    )
+
+
+def resize_card(card: Locator, height: int) -> None:
+    """Wait for the real map resize before testing popup focus and visibility."""
+    card.evaluate(
+        """(c, height) => new Promise(resolve => {
+            c._map.once('resize', () => resolve());
+            c.setConfig({...c._config, height});
+        })""",
+        height,
     )
 
 
@@ -939,7 +948,30 @@ def run(instance: SmokeInstance) -> None:
         if entity["entity_id"] == entity_id
     )
     entry_id = instance.ws("config_entries/get", domain="vegvesen")[0]["entry_id"]
-    assert instance.ws("vegvesen/route_map", device_id=device_id)["geometry"]
+    original_map = instance.ws("vegvesen/route_map", device_id=device_id)
+    assert original_map["geometry"]
+    # Exercise the packaged response action against the actual forecast API.
+    requested = datetime.now(UTC).replace(
+        minute=0, second=0, microsecond=0
+    ) + timedelta(hours=2)
+    responses = [
+        post(
+            "/api/services/vegvesen/get_route_forecasts?return_response",
+            {
+                "device_id": device_id,
+                "forecast_time": requested.isoformat(),
+                "include_segments": False,
+            },
+        )["service_response"]
+        for _ in range(2)
+    ]
+    assert responses[0] == responses[1]
+    assert responses[0]["forecast_time"] == requested.isoformat()
+    assert responses[0]["summary"]["matched_segments"] > 0
+    assert "segments" not in responses[0]
+    assert instance.ws("vegvesen/route_map", device_id=device_id) == original_map
+    (instance.results / "forecast-action.json").write_text(json.dumps(responses[0]))
+    print("Requested-hour action, compact summary, cache and unchanged map passed")
     assert instance.ws("lovelace/resources") == []
     instance.ws(
         "lovelace/dashboards/create",

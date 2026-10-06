@@ -29,5 +29,10 @@
         "default": "mdi:car-traction-control"
       }
     }
+  },
+  "services": {
+    "get_route_forecasts": {
+      "service": "mdi:road-variant"
+    }
   }
 }

@@ -376,11 +376,19 @@
   "services": {
     "get_route_forecasts": {
       "name": "Hent ruteprognoser",
-      "description": "Hent kildeverdier og geometri for veistrekningene i siste komplette oppdatering.",
+      "description": "Hent et sammendrag og eventuelt segmentdata for en rute. Velg et tidspunkt for en annen prognosetime, eller la feltet stå tomt for siste ruteoppdatering.",
       "fields": {
         "device_id": {
           "name": "Rute",
           "description": "Velg en ruteenhet fra Statens vegvesen."
+        },
+        "forecast_time": {
+          "name": "Prognosetidspunkt",
+          "description": "Timens start brukes. Tid uten tidssone tolkes i Home Assistants tidssone. Fra inneværende time til 24 timer frem; data kan mangle."
+        },
+        "include_segments": {
+          "name": "Ta med segmentdata",
+          "description": "Ta med kildeverdier og geometri for hvert segment. Slå av for bare sammendrag."
         }
       }
     }
@@ -391,6 +399,15 @@
     },
     "route_unavailable": {
       "message": "Ruteprognosen er utilgjengelig. Prøv igjen når ruten er lastet inn og oppdatert."
+    },
+    "forecast_time_out_of_range": {
+      "message": "Velg et tidspunkt fra inneværende time til 24 timer frem."
+    },
+    "forecast_request_failed": {
+      "message": "Kunne ikke hente en fullstendig prognose for valgt time. Prøv igjen senere."
+    },
+    "forecast_rate_limited": {
+      "message": "Statens vegvesen har bedt om en pause. Prøv igjen om {seconds} sekunder."
     }
   }
 }

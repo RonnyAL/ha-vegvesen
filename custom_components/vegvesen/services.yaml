@@ -5,3 +5,10 @@ get_route_forecasts:
       selector:
         device:
           integration: vegvesen
+    forecast_time:
+      selector:
+        datetime:
+    include_segments:
+      default: true
+      selector:
+        boolean:

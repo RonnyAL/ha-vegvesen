@@ -1,0 +1,59 @@
+# Paste into a new automation's YAML editor. Select your route device in the
+# forecast action and adjust the two times. Times use Home Assistant's time zone.
+alias: Route forecast briefing
+description: Road-condition forecast for a planned departure.
+triggers:
+  - trigger: time
+    at: "06:30:00"
+conditions: []
+actions:
+  - action: vegvesen.get_route_forecasts
+    data:
+      device_id: YOUR_ROUTE_DEVICE_ID
+      forecast_time: "{{ today_at('07:00').isoformat() }}"
+      include_segments: false
+    response_variable: forecast
+    continue_on_error: true
+  - action: persistent_notification.create
+    data:
+      notification_id: route_forecast_briefing
+      title: Route forecast
+      message: >-
+        {% if forecast is not defined %}
+          The forecast request failed. Road conditions are unknown.
+        {% elif forecast.summary.matched_segments == 0 %}
+          No matching forecast is available for {{ forecast.route }} at
+          {{ as_local(as_datetime(forecast.forecast_time)).strftime('%H:%M') }}.
+        {% else %}
+          {% set s = forecast.summary %}
+          {{ forecast.route }} at
+          {{ as_local(as_datetime(forecast.forecast_time)).strftime('%H:%M') }}:
+          {{ s.matched_segments }} matching forecast segments.
+          Highest known slipperiness: {{ s.slipperiness.highest_known or 'unknown' }}.
+          {% set labels = {
+            'NoNewPrecipitation': 'No new precipitation',
+            'WetRoadSurface': 'Wet road surface',
+            'IceOrFrost': 'Ice or frost',
+            'SnowCover': 'Snow cover',
+            'DriftingSnow': 'Drifting snow',
+            'ErrorOrNoData': 'Missing condition data'
+          } %}
+          {% for code, count in s.road_condition.source_categories.items() %}
+            {{ labels.get(code, 'Unrecognized condition (' ~ code ~ ')') }}:
+            {{ count }} segments.
+          {% endfor %}
+          {% if s.road_temperature.minimum is not none %}
+            Road temperature: {{ s.road_temperature.minimum }} to
+            {{ s.road_temperature.maximum }} °C.
+          {% else %}
+            Road temperature: unknown.
+          {% endif %}
+          Missing values — condition: {{ s.road_condition.missing_segments }},
+          slipperiness: {{ s.slipperiness.missing_segments }},
+          temperature: {{ s.road_temperature.missing_segments }} segments.
+          Unrecognized categories — condition:
+          {{ s.road_condition.unrecognized_segments }}, slipperiness:
+          {{ s.slipperiness.unrecognized_segments }} segments.
+          Counts do not establish complete route coverage or safe conditions.
+        {% endif %}
+mode: single
