@@ -18,6 +18,7 @@ import { labels, language } from "./labels.js";
 import { darkMode, stubConfig } from "./config.js";
 import { SourceOverlay } from "./source-overlay.js";
 import { ForecastData, forecastHours, forecastLabel } from "./forecast.js";
+import { ForecastMenu } from "./forecast-menu.js";
 import "./editor.js";
 
 maplibregl.setWorkerUrl(
@@ -69,21 +70,13 @@ export class VegvesenRouteMap extends HTMLElement {
     this._header = node("header");
     this._title = node("h2");
     this._time = node("div", "", "time");
-    this._hour = node("select");
-    this._hour.onchange = () => {
-      const time = this._hour.value;
-      this._prepareForecastSelection();
-      this._data.select(time === "default" ? undefined : time);
-    };
-    this._hour.onpointerdown = () => this._prepareForecastSelection();
-    this._hour.onfocus = () => this._renderHours();
     this._hourText = node("span", undefined, "forecast-time");
-    this._hourText.setAttribute("aria-hidden", "true");
-    this._hourPicker = node("label", undefined, "forecast-picker");
-    this._hourPicker.append(
-      icon("mdi:clock-outline"),
-      this._hourText,
-      this._hour,
+    this._hourPicker = node("button", undefined, "forecast-picker");
+    this._hourPicker.append(icon("mdi:clock-outline"), this._hourText);
+    this._hourMenu = new ForecastMenu(
+      this._hourPicker,
+      () => this._prepareForecastSelection(),
+      (time) => this._data.select(time === "default" ? undefined : time),
     );
     this._previousHour = node("button");
     this._previousHour.append(icon("mdi:chevron-left"));
@@ -92,6 +85,7 @@ export class VegvesenRouteMap extends HTMLElement {
     this._nextHour.append(icon("mdi:chevron-right"));
     this._nextHour.onclick = () => this._stepHour(1);
     this._hourControls = node("div", undefined, "forecast-controls");
+    this._hourControls.hidden = true;
     this._hourControls.append(
       this._hourPicker,
       this._previousHour,
@@ -178,6 +172,8 @@ export class VegvesenRouteMap extends HTMLElement {
       this._status,
       this._basemap,
       this._hourLoading,
+      this._hourControls,
+      this._hourMenu.element,
     );
     this._cameras = new SourceOverlay(
       this._frame,
@@ -384,8 +380,7 @@ export class VegvesenRouteMap extends HTMLElement {
               undefined,
               "maplibregl-ctrl maplibregl-ctrl-group",
             );
-            group.classList.add("forecast-map-control");
-            group.append(this._legendToggle, this._hourControls);
+            group.append(this._legendToggle);
             return group;
           },
           onRemove: () => this._legendToggle.parentNode?.remove(),
@@ -422,6 +417,7 @@ export class VegvesenRouteMap extends HTMLElement {
       });
       this._observer = new ResizeObserver(() => map.resize());
       this._observer.observe(this._container);
+      this._hourControls.hidden = false;
     } catch {
       this._webglFailed = true;
       this._destroyMap();
@@ -430,6 +426,8 @@ export class VegvesenRouteMap extends HTMLElement {
   }
 
   _destroyMap() {
+    this._hourMenu.close();
+    this._hourControls.hidden = true;
     this._observer?.disconnect();
     this._cameras.removeMarkers();
     this._markers?.forEach((marker) => marker.remove());
@@ -634,11 +632,11 @@ export class VegvesenRouteMap extends HTMLElement {
     const defaultText = defaultTime
       ? forecastLabel(defaultTime, this._lang, timeZone, true)
       : l.follow_route;
-    const choices = [node("option", `${l.default_value}: ${defaultText}`)];
-    choices[0].value = "default";
+    const choices = [
+      { value: "default", label: `${l.default_value}: ${defaultText}` },
+    ];
     // Preserve an expired manual selection until the user chooses a new time.
     if (selected && !hours.includes(selected)) hours.unshift(selected);
-    const groups = new Map();
     for (const hour of hours) {
       const day = new Intl.DateTimeFormat(this._lang, {
         weekday: "short",
@@ -646,30 +644,22 @@ export class VegvesenRouteMap extends HTMLElement {
         day: "numeric",
         timeZone,
       }).format(new Date(hour));
-      if (!groups.has(day)) {
-        const group = node("optgroup");
-        group.label = day;
-        groups.set(day, group);
-        choices.push(group);
-      }
       const isDefault = Date.parse(hour) === Date.parse(defaultTime);
       const label = forecastLabel(hour, this._lang, timeZone, true);
-      const option = node(
-        "option",
-        isDefault ? `${label} (${l.default_value})` : label,
-      );
-      option.value = hour;
-      groups.get(day).append(option);
+      choices.push({
+        value: hour,
+        label,
+        day,
+        hint: isDefault ? l.default_value : undefined,
+        accessibleLabel: `${day}, ${label}${isDefault ? ` (${l.default_value})` : ""}`,
+      });
     }
-    const key = choices.map((element) => element.outerHTML).join("");
-    if (key !== this._hoursKey) {
-      this._hour.replaceChildren(...choices);
-      this._hoursKey = key;
-    }
-    this._hour.value = this._data?.followingDefault
-      ? "default"
-      : (selected ?? "default");
-    this._hour.setAttribute("aria-label", l.forecast);
+    this._hourMenu.update(
+      choices,
+      this._data?.followingDefault ? "default" : (selected ?? "default"),
+      l.forecast,
+    );
+    this._hourPicker.setAttribute("aria-label", `${l.forecast}: ${text}`);
     this._hourPicker.title = `${l.forecast}: ${text}`;
     this._hourText.textContent = text;
     const loading = this._error === "forecast_loading";
@@ -765,6 +755,7 @@ export class VegvesenRouteMap extends HTMLElement {
   _renderText() {
     const focusedKey = this.shadowRoot.activeElement?.dataset?.focusKey;
     const l = this._labels ?? labels.en;
+    if (this._legendOpen || this._segmentId) this._hourMenu.close();
     this._renderHours();
     this._title.textContent = this._config?.title ?? "";
     this._header.hidden = !this._title.textContent.trim();

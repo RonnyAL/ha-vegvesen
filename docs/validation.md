@@ -10,6 +10,14 @@
 
 All three run the same 417 mocked tests with 97% integration statement coverage. The minimum is justified by the runtime APIs used, particularly [`UpdateFailed(retry_after=...)`](https://developers.home-assistant.io/blog/2025/11/17/retry-after-update-failed/), config subentries, source unique IDs, subentry entity/device registration, entry runtime data and coordinator lifecycle hooks. Earlier versions have not been claimed or tested. Patch Python versions here are development pins, not integration requirements imposed on an HA-managed installation.
 
+For 0.12.3, the packaged browser scenario checks the bottom-left forecast controls
+and card-contained themed menu on minimum and beta HA. It verifies touch/outside
+dismissal, keyboard navigation and focus, grouped dates and default markers,
+unchanged pan/zoom and loading bounds, English/Bokmål, dark mode, 320-pixel width,
+240-pixel map height, attribution clearance and fullscreen. The forecast transport
+and cache remain unchanged; all 35 frontend tests still apply. Companion-app
+hardware testing remains separate from Chromium touch emulation.
+
 For 0.12.2, the 35 frontend tests include card-default validation, rolling UTC-hour
 offsets, Now labels, fixed manual selections, disconnect/visibility recovery,
 responses crossing hour boundaries and timer cleanup. The packaged browser

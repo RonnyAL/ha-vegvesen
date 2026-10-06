@@ -91,9 +91,13 @@ button:focus-visible,
   white-space: nowrap;
 }
 .forecast-controls {
+  position: absolute;
+  z-index: 2;
+  left: 3px;
+  bottom: 40px;
   display: flex;
   align-items: center;
-  max-width: 100%;
+  max-width: calc(100% - 6px);
 }
 .forecast-picker {
   position: relative;
@@ -106,7 +110,9 @@ button:focus-visible,
   border-radius: 24px;
   font-size: 12px;
   line-height: 16px;
-  cursor: pointer;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 .forecast-picker ha-icon {
   flex: 0 0 24px;
@@ -121,25 +127,6 @@ button:focus-visible,
     0 0 3px var(--map-ui-background),
     0 0 3px var(--map-ui-background);
   font-variant-numeric: tabular-nums;
-}
-.forecast-picker select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  font: inherit;
-  color: var(--map-ui-text);
-  background: var(--map-ui-background);
-  color-scheme: light;
-}
-ha-card[data-theme="dark"] .forecast-picker select {
-  color-scheme: dark;
-}
-.forecast-picker:has(select:focus-visible) {
-  outline: 2px solid var(--map-ui-active);
-  outline-offset: -4px;
 }
 .forecast-picker[aria-busy="true"] ha-icon {
   visibility: hidden;
@@ -167,48 +154,114 @@ ha-card[data-theme="dark"] .forecast-picker select {
     animation: none;
   }
 }
-.map-frame .maplibregl-ctrl-group.forecast-map-control {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  max-width: calc(100cqw - 12px);
-}
-.map-frame .maplibregl-ctrl-group .forecast-controls button {
+.forecast-controls > button:not(.forecast-picker) {
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 48px;
   flex-shrink: 0;
+  padding: 0;
   border: 0;
+  border-radius: 50%;
+  color: var(--map-control-color);
+  background: transparent;
+}
+.forecast-controls ha-icon {
+  --mdc-icon-size: 24px;
 }
 .forecast-controls button:disabled {
   opacity: 0.4;
   cursor: default;
 }
 .forecast-controls[data-obscured="true"] .forecast-time,
-.forecast-controls[data-obscured="true"] button,
+.forecast-controls[data-obscured="true"] > button:not(.forecast-picker),
 .map-frame:has(.camera-panel:not([hidden]), .source-bubble) .forecast-time,
 .map-frame:has(.camera-panel:not([hidden]), .source-bubble)
   .forecast-controls
-  button {
+  > button:not(.forecast-picker) {
   display: none;
 }
-/* Keep the clock in the left controls even at the supported 240px height. */
+/* On short maps, one top row leaves room for the bottom forecast controls. */
 @container (max-height: 300px) {
-  .map-frame .maplibregl-ctrl-group.forecast-map-control {
-    flex-direction: row;
-    align-items: center;
+  .maplibregl-ctrl-top-left {
+    display: flex;
+    align-items: flex-start;
   }
-  .forecast-map-control > button {
-    flex-shrink: 0;
-  }
-  .forecast-controls {
-    min-width: 0;
-  }
-  .forecast-picker {
-    min-width: 48px;
+  .maplibregl-ctrl-top-left
+    .maplibregl-ctrl-group:not(:has(.maplibregl-ctrl-zoom-in)) {
+    margin: 8px 0 0 0;
   }
 }
+.forecast-menu {
+  position: absolute;
+  z-index: 4;
+  left: 8px;
+  bottom: 96px;
+  width: 264px;
+  max-width: calc(100% - 16px);
+  max-height: min(320px, calc(100% - 104px));
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  color: var(--map-ui-text);
+  background: var(--map-ui-background);
+  box-shadow: 0 4px 16px #0005;
+}
+.forecast-menu-hours {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.forecast-menu button {
+  width: 100%;
+  min-height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+}
+.forecast-menu > button {
+  border-bottom: 1px solid var(--map-ui-divider);
+  border-radius: 8px 8px 0 0;
+}
+.forecast-menu button ha-icon {
+  --mdc-icon-size: 20px;
+  flex: 0 0 20px;
+  visibility: hidden;
+}
+.forecast-menu button[aria-checked="true"] ha-icon {
+  visibility: visible;
+}
+.forecast-menu button[aria-checked="true"] {
+  color: var(--map-ui-active);
+  background: color-mix(in srgb, var(--map-ui-active) 10%, transparent);
+}
+.forecast-menu button small {
+  margin-inline-start: auto;
+  color: var(--map-ui-secondary);
+  font-size: 11px;
+}
+.forecast-menu-day {
+  padding: 8px 12px 4px 40px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--map-ui-secondary);
+}
 @media (hover: hover) {
-  .forecast-picker:hover {
+  .forecast-controls button:hover,
+  .forecast-menu button:hover {
     background: color-mix(in srgb, currentColor 10%, transparent);
   }
 }
@@ -551,7 +604,7 @@ ha-card[data-theme="dark"] .forecast-picker select {
 }
 .status,
 .basemap {
-  bottom: 44px;
+  bottom: 96px;
   padding: 8px;
   font-size: 12px;
   display: flex;

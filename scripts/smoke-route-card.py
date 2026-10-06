@@ -799,24 +799,76 @@ def resize_card(card: Locator, height: int) -> None:
 
 
 def forecast_hours(page: Page, card: Locator, results: Path) -> None:
-    """Exercise the direct native picker, steady loading and card defaults."""
-    picker = card.get_by_role("combobox", name="Forecast valid time", exact=True)
-    expect(picker).to_have_value("default")
-    expect(picker.locator("option")).to_have_count(26)
-    assert picker.locator("optgroup").count() >= 2
+    """Exercise the themed menu, bottom controls, steady loading and defaults."""
+    picker = card.locator(".forecast-picker")
+    menu = card.get_by_role("menu", name="Forecast valid time", exact=True)
+
+    def choose(value: str) -> None:
+        picker.click()
+        card.locator(f".forecast-menu button[data-value='{value}']").click()
+        expect(card.locator(".forecast-menu")).not_to_be_visible()
+        expect(picker).to_be_focused()
+
+    expect(picker).to_have_attribute("aria-expanded", "false")
+    assert card.locator(".forecast-controls select").count() == 0
     assert picker.bounding_box()["height"] >= 44
-    # The clock belongs to the same left-side controls as layers and fit.
     fit_box = card.get_by_role("button", name="Fit route", exact=True).bounding_box()
     assert abs(picker.bounding_box()["x"] - fit_box["x"]) < 2
+    frame_box = card.locator(".map-frame").bounding_box()
+    box = picker.bounding_box()
+    assert abs(frame_box["y"] + frame_box["height"] - box["y"] - box["height"] - 40) < 2
     assert card.locator(".forecast-time").inner_text() == "Now"
     expect(card.locator(".information")).not_to_be_visible()
     page.screenshot(path=str(results / "forecast-default-mobile.png"))
     camera = card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]")
-    hours = picker.locator("optgroup option").evaluate_all(
-        "options => options.map(o => o.value)"
+    picker.click()
+    expect(menu).to_be_visible()
+    expect(menu.get_by_role("menuitemradio")).to_have_count(26)
+    expect(menu.locator("button[data-value='default']")).to_have_attribute(
+        "aria-checked", "true"
     )
+    assert menu.locator(".forecast-menu-day").count() >= 2
+    assert menu.bounding_box()["y"] + menu.bounding_box()["height"] < box["y"]
+    assert menu.locator("button").evaluate_all(
+        "items => items.every(i => i.getBoundingClientRect().height >= 44)"
+    )
+    page.screenshot(path=str(results / "forecast-menu-mobile.png"))
+    hours = menu.locator(".forecast-menu-hours button").evaluate_all(
+        "options => options.map(o => o.dataset.value)"
+    )
+    # Navigation does not issue a request. Escape restores focus and selection.
+    menu.press("End")
+    expect(menu.locator(f"button[data-value='{hours[-1]}']")).to_be_focused()
+    menu.press("Home")
+    expect(menu.locator("button[data-value='default']")).to_be_focused()
+    menu.press("ArrowDown")
+    expect(menu.locator(f"button[data-value='{hours[0]}']")).to_be_focused()
+    menu.press("Escape")
+    expect(menu).not_to_be_visible()
+    expect(picker).to_be_focused()
+    assert card.evaluate("c => c._data.followingDefault")
+    picker.press("ArrowUp")
+    expect(menu.locator(f"button[data-value='{hours[-1]}']")).to_be_focused()
+    menu.press("n")
+    expect(menu.locator(f"button[data-value='{hours[0]}']")).to_be_focused()
+    menu.press("Space")
+    assert card.evaluate("c => c._data.time") == hours[0]
+    choose("default")
+    # Enter commits a keyboard selection; Tab leaves without changing it.
+    picker.press("ArrowDown")
+    menu.press("End")
+    menu.press("ArrowUp")
+    menu.press("Enter")
+    assert card.evaluate("c => c._data.time") == hours[-2]
+    picker.click()
+    menu.press("Tab")
+    expect(menu).not_to_be_visible()
+    expect(
+        card.get_by_role("button", name="Previous forecast hour", exact=True)
+    ).to_be_focused()
+    choose("default")
     value = hours[2]
-    picker.select_option(value)
+    choose(value)
     page.wait_for_function(
         "([c, time]) => c._snapshot?.segments.length > 0 && "
         "Date.parse(c._snapshot.forecast_time) === Date.parse(time)",
@@ -839,13 +891,20 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
         card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
     )
     page.screenshot(path=str(results / "forecast-hour-mobile.png"))
-    # Native selection is directly touchable; dismissing its picker changes no data.
-    selected = picker.input_value()
+    # Real touch opens our menu; outside dismissal does not select or pan/zoom.
+    selected = card.evaluate("c => c._data.time")
     box = picker.bounding_box()
     page.touchscreen.tap(box["x"] + 24, box["y"] + 24)
-    picker.press("Escape")
-    expect(picker).to_have_value(selected)
-    expect(picker).to_be_focused()
+    expect(menu).to_be_visible()
+    expect(menu.locator(f"button[data-value='{selected}']")).to_be_focused()
+    page.screenshot(path=str(results / "forecast-menu-selected.png"))
+    canvas = card.locator("canvas").bounding_box()
+    page.touchscreen.tap(canvas["x"] + canvas["width"] - 8, canvas["y"] + 8)
+    expect(menu).not_to_be_visible()
+    assert card.evaluate("c => c._data.time") == selected
+    assert (
+        card.evaluate("c => [c._map.getCenter().toArray(), c._map.getZoom()]") == camera
+    )
     # Keep source I/O real above. Control delayed, empty and failed replies below.
     card.evaluate("""c => {
         c._forecastTestHass = c._hass;
@@ -868,7 +927,7 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
             return data;
         }};
     }""")
-    picker.select_option(hours[4])
+    choose(hours[4])
     page.wait_for_function("c => !!c._forecastResolve", arg=card.element_handle())
     expect(card.locator(".forecast-picker")).to_have_attribute("aria-busy", "true")
     expect(card.locator(".status")).to_be_empty()
@@ -879,13 +938,13 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
     expect(card.locator(".forecast-picker")).to_have_attribute("aria-busy", "false")
     assert card.locator(".forecast-controls").bounding_box() == loading_box
     card.evaluate("c => c._forecastTestMode = 'empty'")
-    picker.select_option(hours[5])
+    choose(hours[5])
     expect(card.locator(".status")).to_contain_text("No forecast segments")
     assert card.evaluate(
         "c => c._map.getStyle().sources.forecasts.data.features.length === 0"
     )
     card.evaluate("c => c._forecastTestMode = 'failure'")
-    picker.select_option(hours[6])
+    choose(hours[6])
     expect(card.locator(".status")).to_contain_text("Selected forecast unavailable")
     card.evaluate("c => c._forecastTestMode = 'success'")
     card.locator(".status").get_by_role("button", name="Retry", exact=True).click()
@@ -901,10 +960,18 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
         "([c, time]) => Date.parse(c._snapshot?.forecast_time) === Date.parse(time)",
         arg=[card.element_handle(), hours[2]],
     )
-    expect(picker).to_have_value("default")
-    assert "Default" in picker.locator(f"option[value='{hours[2]}']").inner_text()
-    picker.select_option(hours[3])
-    picker.select_option("default")
+    assert card.evaluate("c => c._data.followingDefault")
+    picker.click()
+    assert "Default" in menu.locator(f"button[data-value='{hours[2]}']").inner_text()
+    # Background renders preserve menu focus and scroll position.
+    menu.press("End")
+    scroll = menu.locator(".forecast-menu-hours").evaluate("e => e.scrollTop")
+    card.evaluate("c => c._renderText()")
+    expect(menu.locator(f"button[data-value='{hours[-1]}']")).to_be_focused()
+    assert menu.locator(".forecast-menu-hours").evaluate("e => e.scrollTop") == scroll
+    menu.press("Escape")
+    choose(hours[3])
+    choose("default")
     page.wait_for_function(
         "([c, time]) => Date.parse(c._snapshot?.forecast_time) === Date.parse(time)",
         arg=[card.element_handle(), hours[2]],
@@ -915,8 +982,8 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
         c.hass = {...c._hass, locale: {...c._hass.locale, language: 'nb'}};
         c.setConfig({...c._config, theme_mode: 'dark', default_forecast: '0'});
     }""")
-    picker_nb = card.get_by_role("combobox", name="Prognosen gjelder for", exact=True)
-    expect(picker_nb).to_have_value("default")
+    expect(picker).to_have_attribute("aria-label", "Prognosen gjelder for: Nå")
+    assert card.evaluate("c => c._data.followingDefault")
     expect(card.locator(".forecast-time")).to_have_text("Nå")
     page.wait_for_function(
         "c => c._ready && c._map.loaded() && !!c._snapshot", arg=card.element_handle()
@@ -924,10 +991,14 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
     assert card.locator(".forecast-controls").evaluate(
         "e => e.scrollWidth <= e.clientWidth"
     )
+    picker.click()
+    menu_nb = card.get_by_role("menu", name="Prognosen gjelder for", exact=True)
+    expect(menu_nb.locator("button[data-value='default']")).to_have_text("Standard: Nå")
     page.screenshot(path=str(results / "forecast-hour-nb-dark.png"))
-    picker_nb.select_option(hours[24])
+    menu_nb.press("Escape")
+    choose(hours[24])
     expect(card.get_by_role("button", name="Neste prognosetime")).to_be_disabled()
-    picker_nb.select_option(hours[0])
+    choose(hours[0])
     expect(card.get_by_role("button", name="Forrige prognosetime")).to_be_disabled()
     card.evaluate("c => c.setConfig({...c._config, height: 240})")
     frame_box = card.locator(".map-frame").bounding_box()
@@ -939,7 +1010,28 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
     assert (
         controls_box["x"] + controls_box["width"] <= frame_box["x"] + frame_box["width"]
     )
+    # Even at 240px, controls, attribution and menu stay separate and in frame.
+    for controls in (".maplibregl-ctrl-top-left", ".maplibregl-ctrl-attrib"):
+        other = card.locator(controls).bounding_box()
+        assert (
+            other["y"] + other["height"] <= controls_box["y"]
+            or other["y"] >= controls_box["y"] + controls_box["height"]
+        )
+    picker.click()
+    menu_box = menu_nb.bounding_box()
+    assert menu_box["y"] >= frame_box["y"]
+    assert menu_box["x"] + menu_box["width"] <= frame_box["x"] + frame_box["width"]
+    menu_nb.press("End")
+    expect(menu_nb.locator(f"button[data-value='{hours[-1]}']")).to_be_in_viewport()
     page.screenshot(path=str(results / "forecast-hour-short.png"))
+    menu_nb.press("Escape")
+    # Native fullscreen retains the themed menu and Escape closes only the menu.
+    card.get_by_role("button", name="Utvid kartet", exact=True).click()
+    picker.click()
+    expect(menu_nb).to_be_visible()
+    menu_nb.press("Escape")
+    assert card.evaluate("c => !!c.shadowRoot.fullscreenElement")
+    card.get_by_role("button", name="Lukk utvidet kart", exact=True).click()
     # Restore the normal source subscription and following tests' presentation.
     card.evaluate("""c => {
         c.hass = c._forecastTestHass;
@@ -951,11 +1043,25 @@ def forecast_hours(page: Page, card: Locator, results: Path) -> None:
         delete c._forecastResolve;
     }""")
     page.set_viewport_size(viewport)
-    expect(picker).to_have_value("default")
+    assert card.evaluate("c => c._data.followingDefault")
     assert card.evaluate("c => c._snapshot === c._data.live")
     card.evaluate("c => c._data.onError('unavailable')")
     expect(card.locator(".status")).to_contain_text("Route unavailable")
-    picker.select_option("default")
+    choose("default")
+    page.wait_for_function(
+        "c => c._ready && c._map.loaded()", arg=card.element_handle()
+    )
+    # Detaching a card with an open menu releases document listeners immediately.
+    picker.click()
+    card.evaluate("""c => {
+        const parent = c.parentNode;
+        const next = c.nextSibling;
+        c.remove();
+        c._menuCleaned = c._hourMenu.element.hidden && !c._hourMenu.listeners;
+        parent.insertBefore(c, next);
+    }""")
+    assert card.evaluate("c => c._menuCleaned")
+    expect(menu).not_to_be_visible()
     page.wait_for_function(
         "c => c._ready && c._map.loaded()", arg=card.element_handle()
     )
@@ -1595,6 +1701,9 @@ def run(instance: SmokeInstance) -> None:
                         "theme_modes": ["auto", "light", "dark"],
                         "compact_map_controls": True,
                         "forecast_hours": 0,
+                        "forecast_bottom_controls": True,
+                        "forecast_themed_menu": True,
+                        "forecast_menu_keyboard_and_cleanup": True,
                         "automatic_registration": True,
                         "card_picker": True,
                         "cold_views": ["masonry", "panel", "sections", "yaml"],

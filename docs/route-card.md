@@ -64,12 +64,31 @@ carriageway coverage. Filters preserve the full route as subdued context.
 
 ## Forecast hour selection
 
-The clock and a compact time label are part of the left MapLibre control group.
-The closed appearance is styled, but selection uses an ordinary native HTML
-`select`, with `optgroup` date headings, default labels and the browser's own
-keyboard, touch and screen-reader behavior. There is no additional popup or
-custom listbox. At map heights of 300 pixels or less, clock and layers share a
-row to stay inside the map. The click target remains at least 44 pixels high.
+The clock, compact time label and manual previous/next arrows form one bottom-left
+row, above the map attribution. Short maps (300 pixels high or less) arrange the
+other map actions in a top row so the two groups do not overlap.
+
+The clock opens a themed, card-contained menu above the controls. The default
+choice stays visible above a scrollable list with date headings, a checkmark on
+the selected option and a marker on the configured default hour. All choices
+have at least 44-pixel touch targets. There is no operating-system picker.
+
+The design uses the compact themed-menu pattern found in
+[Mushroom's select control](https://github.com/piitaya/lovelace-mushroom/blob/ceefff0b4751d2073880fd5e9b505129126737db/src/cards/select-card/controls/select-option-control.ts)
+and [Bubble Card's dropdown](https://github.com/Clooos/Bubble-Card/blob/061ed8376134307ba1086446869d0ab736265fcf/src/components/dropdown/create.js).
+HA's implementation changed from
+[`ha-button-menu` in the minimum frontend](https://github.com/home-assistant/frontend/blob/20251203.0/src/components/ha-button-menu.ts)
+to [`ha-dropdown` in the beta frontend](https://github.com/home-assistant/frontend/blob/20260930.0/src/components/ha-dropdown.ts).
+The card uses its own DOM within the supported custom-card lifecycle instead of
+loading or modifying those internal components. It stays inside the map bounds,
+including fullscreen, without global overlays or another frontend dependency.
+
+Keyboard behavior follows the
+[WAI-ARIA menu pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menubar/):
+arrow keys, Home/End and typeahead move focus; Enter/Space choose an hour;
+Escape returns focus to the clock; Tab leaves the menu. Navigation or outside
+dismissal does not request a forecast. Background renders retain focus and
+scrolling, and the outside-dismiss listeners are removed on closing or detach.
 
 `default_forecast` is a string: `"route"` (the default) follows the configured
 route offset and coordinator subscription; `"0"` through `"24"` select a rolling

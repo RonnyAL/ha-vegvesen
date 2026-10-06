@@ -188,11 +188,12 @@ to highlight and fit its segments.
 Missing and unrecognized data are shown explicitly. Forecast times use Home
 Assistant's configured time zone.
 
-The **clock and time label** sit with the left-side map controls. Tap them to
-open the native hour picker, grouped by date. **Now** means the current forecast
-hour. Previous/next arrows appear when browsing a specific hour; changing time
-keeps your map position and zoom. Loading uses a small spinner in place of the
-clock without moving the controls.
+The **clock and time label** sit at the bottom-left of the map. Tap them to
+open a themed menu above the controls, with hours grouped by date. **Now** means
+the current forecast hour. Previous/next arrows appear when browsing a specific
+hour; changing time keeps your map position and zoom. Loading uses a small
+spinner in place of the clock without moving the controls. Tap outside the menu or press Escape to
+close it without changing the selected time.
 
 In the card editor, **Default forecast time** can follow the route, show Now,
 or stay a chosen number of hours ahead (0–24). The default is marked in the
